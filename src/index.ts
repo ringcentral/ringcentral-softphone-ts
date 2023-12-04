@@ -1,6 +1,7 @@
 import fs from 'fs';
 
 import Softphone from './softphone';
+// import waitFor from 'wait-for-async';
 
 const softphone = new Softphone({
   username: process.env.SIP_INFO_USERNAME,
@@ -14,6 +15,8 @@ const main = async () => {
 
   // inbound call
   softphone.on('invite', async (inviteMessage) => {
+    // await waitFor({ interval: 1000 });
+    // await softphone.decline(inviteMessage);
     const callSession = await softphone.answer(inviteMessage);
     const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
     callSession.on('rtpPacket', (rtpPacket) => {

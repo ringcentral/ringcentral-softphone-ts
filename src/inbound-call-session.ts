@@ -45,7 +45,6 @@ a=ssrc:${RTP_PORT} cname:${uuid()}
       this.inviteMessage,
       200,
       {
-        Contact: `<sip:${this.softphone.fakeEmail};transport=ws>`,
         'Content-Type': 'application/sdp',
       },
       answerSDP,

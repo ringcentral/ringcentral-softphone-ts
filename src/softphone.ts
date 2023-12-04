@@ -4,7 +4,7 @@ import net from 'net';
 import waitFor from 'wait-for-async';
 
 import type { OutboundMessage } from './sip-message';
-import { InboundMessage, RequestMessage } from './sip-message';
+import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
 import { generateAuthorization, uuid } from './utils';
 import InboundCallSession from './inbound-call-session';
 
@@ -119,6 +119,11 @@ class Softphone extends EventEmitter {
     const inboundCallSession = new InboundCallSession(this, inviteMessage);
     await inboundCallSession.answer();
     return inboundCallSession;
+  }
+
+  public async decline(inviteMessage: InboundMessage) {
+    const newMessage = new ResponseMessage(inviteMessage, 603);
+    this.send(newMessage);
   }
 }
 
