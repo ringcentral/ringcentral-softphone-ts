@@ -1,15 +1,12 @@
 import type SipInfoResponse from '@rc-ex/core/lib/definitions/SipInfoResponse';
 import EventEmitter from 'events';
 import net from 'net';
-import dgram from 'dgram';
-import fs from 'fs';
-import { RtpPacket } from 'werift-rtp';
 import waitFor from 'wait-for-async';
-import getPort from 'get-port';
 
 import type { OutboundMessage } from './sip-message';
-import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
+import { InboundMessage, RequestMessage } from './sip-message';
 import { generateAuthorization, uuid } from './utils';
+import InboundCallSession from './inbound-call-session';
 
 class Softphone extends EventEmitter {
   public sipInfo: SipInfoResponse;
@@ -118,44 +115,10 @@ class Softphone extends EventEmitter {
     });
   }
 
-  public async answer(inboundMessage: InboundMessage) {
-    const RTP_PORT = await getPort();
-    const socket = dgram.createSocket('udp4');
-    socket.on('message', (message) => {
-      this.emit('rtpPacket', RtpPacket.deSerialize(message));
-    });
-    socket.bind(RTP_PORT);
-
-    const answerSDP =
-      `
-v=0
-o=- ${RTP_PORT} 0 IN IP4 127.0.0.1
-s=rc-softphone-ts
-c=IN IP4 127.0.0.1
-t=0 0
-m=audio ${RTP_PORT} RTP/AVP 0 101
-a=rtpmap:0 PCMU/8000
-a=rtpmap:101 telephone-event/8000
-a=fmtp:101 0-16
-a=sendrecv
-a=ssrc:${RTP_PORT} cname:${uuid()}
-`.trim() + '\r\n';
-    const newMessage = new ResponseMessage(
-      inboundMessage,
-      200,
-      {
-        Contact: `<sip:${this.fakeEmail};transport=ws>`,
-        'Content-Type': 'application/sdp',
-      },
-      answerSDP,
-    );
-    this.send(newMessage);
-
-    // send a DTMF to remote server so that it knows how to reply
-    const remoteIP = inboundMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-    const remotePort = parseInt(inboundMessage.body.match(/m=audio (\d+) /)![1], 10);
-    const dtmf_data = fs.readFileSync('./rtp_dtmf.bin'); // copied from https://github.com/shinyoshiaki/werift-webrtc/tree/develop/packages/rtp/tests/data
-    socket.send(new Uint8Array(dtmf_data), remotePort, remoteIP);
+  public async answer(inviteMessage: InboundMessage) {
+    const inboundCallSession = new InboundCallSession(this, inviteMessage);
+    await inboundCallSession.answer();
+    return inboundCallSession;
   }
 }
 

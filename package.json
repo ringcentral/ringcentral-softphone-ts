@@ -5,7 +5,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "lint": "eslint --fix '**/*.{ts,tsx,js,jsx}' && prettier --write . && sort-package-json",
-    "test": "tsx -r dotenv-override-true/config src/index.ts"
+    "test": "rm -rf *.raw && tsx -r dotenv-override-true/config src/index.ts"
   },
   "devDependencies": {
     "@types/node": "^20.10.3",

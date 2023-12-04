@@ -11,17 +11,15 @@ softphone.enableDebugMode(); // print all SIP messages
 
 const main = async () => {
   await softphone.register();
+
+  // inbound call
   softphone.on('invite', async (inviteMessage) => {
-    await softphone.answer(inviteMessage);
-  });
-  const audioFile = 'test.raw'; // audio file will be PCMU encoded, encoding is mu-law
-  if (fs.existsSync(audioFile)) {
-    fs.unlinkSync(audioFile);
-  }
-  const writeStream = fs.createWriteStream(audioFile, { flags: 'a' });
-  softphone.on('rtpPacket', (rtpPacket) => {
-    console.log('rtpPacket received');
-    writeStream.write(rtpPacket.payload);
+    const callSession = await softphone.answer(inviteMessage);
+    const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
+    callSession.on('rtpPacket', (rtpPacket) => {
+      console.log('rtpPacket received');
+      writeStream.write(rtpPacket.payload);
+    });
   });
 };
 main();
