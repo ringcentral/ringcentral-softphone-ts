@@ -13,3 +13,9 @@ Users are recommended to use this SDK instead of the JavaScript SDK.
 ```
 ffplay -autoexit -f mulaw -ar 8000 test.raw
 ```
+
+Or
+
+```
+play -b 8 -r 8000 -e mu-law test.raw
+```
