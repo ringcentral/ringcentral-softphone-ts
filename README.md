@@ -19,3 +19,10 @@ Or
 ```
 play -b 8 -r 8000 -e mu-law test.raw
 ```
+
+
+## Todo
+
+- outbound call
+- multiple calls
+- hangup

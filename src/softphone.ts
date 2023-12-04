@@ -5,6 +5,7 @@ import dgram from 'dgram';
 import fs from 'fs';
 import { RtpPacket } from 'werift-rtp';
 import waitFor from 'wait-for-async';
+import getPort from 'get-port';
 
 import type { OutboundMessage } from './sip-message';
 import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
@@ -46,22 +47,25 @@ class Softphone extends EventEmitter {
     if (!this.connected) {
       await waitFor({ interval: 100, condition: () => this.connected });
     }
-    const requestMessage = new RequestMessage(`REGISTER sip:${this.sipInfo.domain} SIP/2.0`, {
-      'Call-Id': this.callId,
-      Contact: `<sip:${this.fakeEmail};transport=ws>;expires=600`,
-      From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${this.fromTag}`,
-      To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
-      Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${uuid()}`,
-    });
-    const inboundMessage = (await this.send(requestMessage, true)) as InboundMessage;
-    const wwwAuth = inboundMessage.headers['Www-Authenticate'] || inboundMessage!.headers['WWW-Authenticate'];
-    const nonce = wwwAuth.match(/, nonce="(.+?)"/)![1];
-    const newMessage = requestMessage.fork();
-    newMessage.headers.Authorization = generateAuthorization(this.sipInfo, 'REGISTER', nonce);
-    this.send(newMessage);
+    const sipRegister = async () => {
+      const requestMessage = new RequestMessage(`REGISTER sip:${this.sipInfo.domain} SIP/2.0`, {
+        'Call-Id': this.callId,
+        Contact: `<sip:${this.fakeEmail};transport=ws>;expires=600`,
+        From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${this.fromTag}`,
+        To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
+        Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${uuid()}`,
+      });
+      const inboundMessage = (await this.send(requestMessage, true)) as InboundMessage;
+      const wwwAuth = inboundMessage.headers['Www-Authenticate'] || inboundMessage!.headers['WWW-Authenticate'];
+      const nonce = wwwAuth.match(/, nonce="(.+?)"/)![1];
+      const newMessage = requestMessage.fork();
+      newMessage.headers.Authorization = generateAuthorization(this.sipInfo, 'REGISTER', nonce);
+      this.send(newMessage);
+    };
+    sipRegister();
     this.intervalHandle = setInterval(
       () => {
-        this.send(newMessage);
+        sipRegister();
       },
       3 * 60 * 1000, // refresh registration every 3 minutes
     );
@@ -115,7 +119,7 @@ class Softphone extends EventEmitter {
   }
 
   public async answer(inboundMessage: InboundMessage) {
-    const RTP_PORT = 65106;
+    const RTP_PORT = await getPort();
     const socket = dgram.createSocket('udp4');
     socket.on('listening', () => {
       const address = socket.address();
@@ -129,8 +133,8 @@ class Softphone extends EventEmitter {
     const answerSDP =
       `
 v=0
-o=- 1645658372 0 IN IP4 127.0.0.1
-s=sipsorcery
+o=- ${RTP_PORT} 0 IN IP4 127.0.0.1
+s=rc-softphone-ts
 c=IN IP4 127.0.0.1
 t=0 0
 m=audio ${RTP_PORT} RTP/AVP 0 101
@@ -138,7 +142,7 @@ a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-16
 a=sendrecv
-a=ssrc:322229412 cname:fd410cd4-b177-47ad-ad5b-f52f93be65c1
+a=ssrc:${RTP_PORT} cname:${uuid()}
 `.trim() + '\r\n';
     const newMessage = new ResponseMessage(
       inboundMessage,
