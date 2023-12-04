@@ -78,7 +78,7 @@ class Softphone extends EventEmitter {
   }
 
   public async enableDebugMode() {
-    this.client.on('data', this.printData);
+    this.client.on('data', (data) => console.log('Receiving...\n' + data.toString('utf-8')));
     const tcpWrite = this.client.write.bind(this.client);
     this.client.write = (message) => {
       console.log('Sending...\n' + message);
@@ -121,10 +121,6 @@ class Softphone extends EventEmitter {
   public async answer(inboundMessage: InboundMessage) {
     const RTP_PORT = await getPort();
     const socket = dgram.createSocket('udp4');
-    socket.on('listening', () => {
-      const address = socket.address();
-      console.log(`RTP listener is listening on ${address.address}:${address.port}`);
-    });
     socket.on('message', (message) => {
       this.emit('rtpPacket', RtpPacket.deSerialize(message));
     });
@@ -159,14 +155,8 @@ a=ssrc:${RTP_PORT} cname:${uuid()}
     const remoteIP = inboundMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
     const remotePort = parseInt(inboundMessage.body.match(/m=audio (\d+) /)![1], 10);
     const dtmf_data = fs.readFileSync('./rtp_dtmf.bin'); // copied from https://github.com/shinyoshiaki/werift-webrtc/tree/develop/packages/rtp/tests/data
-    socket.send(new Uint8Array(dtmf_data), remotePort, remoteIP, (...args) => {
-      console.log('send dtmf callback', ...args);
-    });
+    socket.send(new Uint8Array(dtmf_data), remotePort, remoteIP);
   }
-
-  private printData = (data: Buffer) => {
-    console.log('Receiving...\n' + data.toString('utf-8'));
-  };
 }
 
 export default Softphone;

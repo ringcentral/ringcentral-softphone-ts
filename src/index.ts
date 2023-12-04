@@ -20,7 +20,7 @@ const main = async () => {
   }
   const writeStream = fs.createWriteStream(audioFile, { flags: 'a' });
   softphone.on('rtpPacket', (rtpPacket) => {
-    console.log(rtpPacket);
+    console.log('rtpPacket received');
     writeStream.write(rtpPacket.payload);
   });
 };
