@@ -38,12 +38,12 @@ const main = async () => {
     // }, 5000);
 
     // send DTMF
-    setTimeout(() => {
-      callSession.sendDTMF('0');
-    }, 2000);
-    setTimeout(() => {
-      callSession.sendDTMF('#');
-    }, 4000);
+    // setTimeout(() => {
+    //   callSession.sendDTMF('1');
+    // }, 2000);
+    // setTimeout(() => {
+    //   callSession.sendDTMF('#');
+    // }, 4000);
   });
 };
 main();

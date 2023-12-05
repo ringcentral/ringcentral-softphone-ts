@@ -125,6 +125,10 @@ class Softphone extends EventEmitter {
     const newMessage = new ResponseMessage(inviteMessage, 603);
     this.send(newMessage);
   }
+
+  public async call(to: string) {
+    // todo: make outbound call
+  }
 }
 
 export default Softphone;
