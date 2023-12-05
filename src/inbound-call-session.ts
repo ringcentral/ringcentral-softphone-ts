@@ -26,6 +26,11 @@ class InboundCallSession extends EventEmitter {
     });
     socket.bind(RTP_PORT);
 
+    // send a message to remote server so that it knows where to reply
+    const remoteIP = this.inviteMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
+    const remotePort = parseInt(this.inviteMessage.body.match(/m=audio (\d+) /)![1], 10);
+    socket.send('hello', remotePort, remoteIP);
+
     const answerSDP =
       `
 v=0
@@ -49,23 +54,15 @@ a=ssrc:${RTP_PORT} cname:${uuid()}
       answerSDP,
     );
     this.softphone.send(newMessage);
-
-    // send a message to remote server so that it knows where to reply
-    const remoteIP = this.inviteMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-    const remotePort = parseInt(this.inviteMessage.body.match(/m=audio (\d+) /)![1], 10);
-    socket.send('hello', remotePort, remoteIP);
   }
 
   public async hangup() {
-    const requestMessage = new RequestMessage(
-      `BYE ${this.inviteMessage.headers.Contact.substring(1, this.inviteMessage.headers.Contact.length - 1)} SIP/2.0`,
-      {
-        'Call-Id': this.callId,
-        From: this.inviteMessage.headers.To,
-        To: this.inviteMessage.headers.From,
-        Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${uuid()}`,
-      },
-    );
+    const requestMessage = new RequestMessage(`BYE sip:${this.softphone.sipInfo.domain} SIP/2.0`, {
+      'Call-Id': this.callId,
+      From: this.inviteMessage.headers.To,
+      To: this.inviteMessage.headers.From,
+      Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${uuid()}`,
+    });
     this.softphone.send(requestMessage);
   }
 }
