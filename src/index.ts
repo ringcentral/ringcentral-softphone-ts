@@ -19,6 +19,8 @@ const main = async () => {
     // decline the call
     // await waitFor({ interval: 1000 });
     // await softphone.decline(inviteMessage);
+
+    // answer the call
     const callSession = await softphone.answer(inviteMessage);
 
     // receive audio
