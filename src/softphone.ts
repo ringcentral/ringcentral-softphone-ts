@@ -7,6 +7,7 @@ import type { OutboundMessage } from './sip-message';
 import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
 import { generateAuthorization, uuid } from './utils';
 import InboundCallSession from './inbound-call-session';
+import getPort from 'get-port';
 
 class Softphone extends EventEmitter {
   public sipInfo: SipInfoResponse;
@@ -14,8 +15,6 @@ class Softphone extends EventEmitter {
 
   public fakeDomain = uuid() + '.invalid';
   public fakeEmail = uuid() + '@' + this.fakeDomain;
-  public fromTag = uuid();
-  public callId = uuid();
 
   private intervalHandle: NodeJS.Timeout;
   private connected = false;
@@ -46,9 +45,9 @@ class Softphone extends EventEmitter {
     }
     const sipRegister = async () => {
       const requestMessage = new RequestMessage(`REGISTER sip:${this.sipInfo.domain} SIP/2.0`, {
-        'Call-Id': this.callId,
+        'Call-Id': uuid(),
         Contact: `<sip:${this.fakeEmail};transport=tcp>;expires=600`,
-        From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${this.fromTag}`,
+        From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
         To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
         Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${uuid()}`,
       });
@@ -126,8 +125,33 @@ class Softphone extends EventEmitter {
     this.send(newMessage);
   }
 
-  public async call(to: string) {
-    // todo: make outbound call
+  public async call(callee: number) {
+    const rtpPort = await getPort();
+    const offerSDP = `
+v=0
+o=- ${rtpPort} 0 IN IP4 127.0.0.1
+s=rc-softphone-ts
+c=IN IP4 127.0.0.1
+t=0 0
+m=audio ${rtpPort} RTP/AVP 0 101
+a=sendrecv
+a=rtpmap:0 PCMU/8000
+a=rtpmap:101 telephone-event/8000
+a=fmtp:101 0-15
+`.trim();
+    const inviteMessage = new RequestMessage(
+      `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
+      {
+        'Call-Id': uuid(),
+        Contact: `<sip:${this.fakeEmail};transport=tcp>;expires=600`,
+        From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
+        To: `<sip:${callee}@${this.sipInfo.domain}>`,
+        Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${uuid()}`,
+        'Content-Type': 'application/sdp',
+      },
+      offerSDP,
+    );
+    this.send(inviteMessage);
   }
 }
 

@@ -47,8 +47,7 @@ class InboundCallSession extends EventEmitter {
     // send a message to remote server so that it knows where to reply
     this.send('hello');
 
-    const answerSDP =
-      `
+    const answerSDP = `
 v=0
 o=- ${this.rtpPort} 0 IN IP4 127.0.0.1
 s=rc-softphone-ts
@@ -57,10 +56,10 @@ t=0 0
 m=audio ${this.rtpPort} RTP/AVP 0 101
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
-a=fmtp:101 0-16
+a=fmtp:101 0-15
 a=sendrecv
 a=ssrc:${this.rtpPort} cname:${uuid()}
-`.trim() + '\r\n';
+`.trim();
     const newMessage = new ResponseMessage(
       this.inviteMessage,
       200,
