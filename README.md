@@ -11,6 +11,18 @@ Users are recommended to use this SDK instead of the JavaScript SDK.
 yarn install ringcentral-softphone
 ```
 
+## Where to get SIP_INFO_USERNAME, SIP_INFO_PASSWORD and SIP_INFO_AUTHORIZATION_ID?
+
+1. Login to https://service.ringcentral.com
+2. Find the user/extension you want to use
+3. Check the user's "Devices & Numbers"
+4. Find a phone/device that you want to use
+  1. if there is none, you need to create one. Check steps below for more details
+5. Click the "Set Up and Provision" button
+6. Click the link "Set up manually using SIP"
+7. At the bottom part of the page, you will find "User Name", "Password" and "Authorization ID"
+
+
 ## Usage
 
 ```typescript
