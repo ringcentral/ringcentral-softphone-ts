@@ -6,7 +6,7 @@ import dgram from 'dgram';
 import { ResponseMessage, type InboundMessage, RequestMessage } from './sip-message';
 import { uuid } from './utils';
 import type Softphone from './softphone';
-import { charToPayloads, payloadToChar } from './dtmf';
+import DTMF from './dtmf';
 
 class InboundCallSession extends EventEmitter {
   public disposed = false;
@@ -34,7 +34,7 @@ class InboundCallSession extends EventEmitter {
       this.emit('rtpPacket', rtpPacket);
       if (rtpPacket.header.payloadType === 101) {
         this.emit('dtmfPacket', rtpPacket);
-        const char = payloadToChar(rtpPacket.payload);
+        const char = DTMF.payloadToChar(rtpPacket.payload);
         if (char) {
           this.emit('dtmf', char);
         }
@@ -113,9 +113,7 @@ a=ssrc:${this.rtpPort} cname:${uuid()}
       extensionLength: undefined,
       extensions: [],
     });
-    const payloads = charToPayloads(char);
-
-    for (const payload of payloads) {
+    for (const payload of DTMF.charToPayloads(char)) {
       rtpHeader.sequenceNumber = sequenceNumber++;
       const rtpPacket = new RtpPacket(rtpHeader, payload);
       this.send(rtpPacket.serialize());
