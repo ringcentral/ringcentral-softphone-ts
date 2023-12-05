@@ -23,6 +23,9 @@ const main = async () => {
       console.log('rtpPacket received');
       writeStream.write(rtpPacket.payload);
     });
+    setTimeout(() => {
+      callSession.hangup();
+    }, 10000);
   });
 };
 main();

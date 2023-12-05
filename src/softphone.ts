@@ -47,7 +47,7 @@ class Softphone extends EventEmitter {
     const sipRegister = async () => {
       const requestMessage = new RequestMessage(`REGISTER sip:${this.sipInfo.domain} SIP/2.0`, {
         'Call-Id': this.callId,
-        Contact: `<sip:${this.fakeEmail};transport=ws>;expires=600`,
+        Contact: `<sip:${this.fakeEmail};transport=tcp>;expires=600`,
         From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${this.fromTag}`,
         To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
         Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${uuid()}`,

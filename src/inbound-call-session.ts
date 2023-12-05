@@ -4,7 +4,7 @@ import EventEmitter from 'events';
 import dgram from 'dgram';
 import fs from 'fs';
 
-import { ResponseMessage, type InboundMessage } from './sip-message';
+import { ResponseMessage, type InboundMessage, RequestMessage } from './sip-message';
 import { uuid } from './utils';
 import type Softphone from './softphone';
 
@@ -56,6 +56,19 @@ a=ssrc:${RTP_PORT} cname:${uuid()}
     const remotePort = parseInt(this.inviteMessage.body.match(/m=audio (\d+) /)![1], 10);
     const dtmf_data = fs.readFileSync('./rtp_dtmf.bin'); // copied from https://github.com/shinyoshiaki/werift-webrtc/tree/develop/packages/rtp/tests/data
     socket.send(new Uint8Array(dtmf_data), remotePort, remoteIP);
+  }
+
+  public async hangup() {
+    const requestMessage = new RequestMessage(
+      `BYE ${this.inviteMessage.headers.Contact.substring(1, this.inviteMessage.headers.Contact.length - 1)} SIP/2.0`,
+      {
+        'Call-Id': this.callId,
+        From: this.inviteMessage.headers.To,
+        To: this.inviteMessage.headers.From,
+        Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${uuid()}`,
+      },
+    );
+    this.softphone.send(requestMessage);
   }
 }
 
