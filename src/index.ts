@@ -25,7 +25,7 @@ const main = async () => {
     });
     setTimeout(() => {
       callSession.hangup();
-    }, 10000);
+    }, 5000);
   });
 };
 main();

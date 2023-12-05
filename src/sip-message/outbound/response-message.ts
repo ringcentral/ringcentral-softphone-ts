@@ -13,8 +13,6 @@ class ResponseMessage extends OutboundMessage {
         this.headers[key] = inboundMessage.headers[key];
       }
     }
-    this.headers.Supported = 'outbound';
-    this.headers = { ...this.headers, ...headers }; // user provided headers override auto headers
   }
 }
 
