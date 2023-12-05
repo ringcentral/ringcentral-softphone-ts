@@ -1,7 +1,7 @@
 import fs from 'fs';
+import type { RtpPacket } from 'werift-rtp';
 
 import Softphone from './softphone';
-import type { RtpPacket } from 'werift-rtp';
 // import waitFor from 'wait-for-async';
 
 const softphone = new Softphone({
@@ -48,10 +48,10 @@ const main = async () => {
     // }, 4000);
   });
 
-  // outbound call
-  setTimeout(() => {
-    // callee format sample: 16506668888
-    softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
-  }, 1000);
+  // // outbound call
+  // setTimeout(() => {
+  //   // callee format sample: 16506668888
+  //   softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
+  // }, 1000);
 };
 main();

@@ -1,12 +1,14 @@
 {
-  "name": "untitled-app",
-  "version": "0.1.0",
-  "private": true,
-  "license": "UNLICENSED",
+  "name": "ringcentral-softphone",
+  "version": "0.6.1",
+  "license": "MIT",
+  "main": "dist/softphone.js",
   "scripts": {
     "lint": "eslint --fix '**/*.{ts,tsx,js,jsx}' && prettier --write . && sort-package-json",
-    "test": "rm -rf *.raw && tsx -r dotenv-override-true/config src/index.ts"
+    "test": "rm -rf *.raw && tsx -r dotenv-override-true/config src/index.ts",
+    "prepublishOnly": "rm -rf *.raw && yarn tsc"
   },
+  "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "devDependencies": {
     "@types/node": "^20.10.3",
     "@typescript-eslint/eslint-plugin": "^6.13.1",
