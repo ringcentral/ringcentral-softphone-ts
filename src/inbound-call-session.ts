@@ -2,7 +2,6 @@ import getPort from 'get-port';
 import { RtpPacket } from 'werift-rtp';
 import EventEmitter from 'events';
 import dgram from 'dgram';
-import fs from 'fs';
 
 import { ResponseMessage, type InboundMessage, RequestMessage } from './sip-message';
 import { uuid } from './utils';
@@ -51,11 +50,10 @@ a=ssrc:${RTP_PORT} cname:${uuid()}
     );
     this.softphone.send(newMessage);
 
-    // send a DTMF to remote server so that it knows how to reply
+    // send a message to remote server so that it knows where to reply
     const remoteIP = this.inviteMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
     const remotePort = parseInt(this.inviteMessage.body.match(/m=audio (\d+) /)![1], 10);
-    const dtmf_data = fs.readFileSync('./rtp_dtmf.bin'); // copied from https://github.com/shinyoshiaki/werift-webrtc/tree/develop/packages/rtp/tests/data
-    socket.send(new Uint8Array(dtmf_data), remotePort, remoteIP);
+    socket.send('hello', remotePort, remoteIP);
   }
 
   public async hangup() {

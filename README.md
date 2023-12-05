@@ -24,5 +24,6 @@ play -b 8 -r 8000 -e mu-law test.raw
 ## Todo
 
 - outbound call
-- manually construct dtmf event
 - easliy send dtmf
+- receive dtmf
+- release resources after call ends
