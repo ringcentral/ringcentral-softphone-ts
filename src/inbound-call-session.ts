@@ -1,61 +1,65 @@
 import getPort from 'get-port';
-import { RtpPacket } from 'werift-rtp';
+import { RtpHeader, RtpPacket } from 'werift-rtp';
 import EventEmitter from 'events';
 import dgram from 'dgram';
 
 import { ResponseMessage, type InboundMessage, RequestMessage } from './sip-message';
 import { uuid } from './utils';
 import type Softphone from './softphone';
-import { dtmfMapping } from './dtmf';
+import { charToPayloads, payloadToChar } from './dtmf';
 
 class InboundCallSession extends EventEmitter {
   public disposed = false;
   public inviteMessage: InboundMessage;
   public softphone: Softphone;
+  private socket: dgram.Socket;
+  private remoteIP: string;
+  private remotePort: number;
+  private rtpPort: number;
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
     super();
     this.softphone = softphone;
     this.inviteMessage = inviteMessage;
+    this.remoteIP = this.inviteMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
+    this.remotePort = parseInt(this.inviteMessage.body.match(/m=audio (\d+) /)![1], 10);
   }
   public get callId() {
     return this.inviteMessage.headers['Call-Id'];
   }
   public async answer() {
-    const RTP_PORT = await getPort();
-    const socket = dgram.createSocket('udp4');
-    socket.on('message', (message) => {
+    this.rtpPort = await getPort();
+    this.socket = dgram.createSocket('udp4');
+    this.socket.on('message', (message) => {
       const rtpPacket = RtpPacket.deSerialize(message);
       this.emit('rtpPacket', rtpPacket);
       if (rtpPacket.header.payloadType === 101) {
         this.emit('dtmfPacket', rtpPacket);
-        const intBE = rtpPacket.payload.readIntBE(0, 4);
-        if (dtmfMapping[intBE]) {
-          this.emit('dtmf', dtmfMapping[intBE]);
+        const char = payloadToChar(rtpPacket.payload);
+        if (char) {
+          this.emit('dtmf', char);
         }
       } else {
         this.emit('audioPacket', rtpPacket);
       }
     });
-    socket.bind(RTP_PORT);
+    this.socket.bind(this.rtpPort);
 
     // send a message to remote server so that it knows where to reply
-    const remoteIP = this.inviteMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-    const remotePort = parseInt(this.inviteMessage.body.match(/m=audio (\d+) /)![1], 10);
-    socket.send('hello', remotePort, remoteIP);
+    this.send('hello');
 
     const answerSDP =
       `
 v=0
-o=- ${RTP_PORT} 0 IN IP4 127.0.0.1
+o=- ${this.rtpPort} 0 IN IP4 127.0.0.1
 s=rc-softphone-ts
 c=IN IP4 127.0.0.1
 t=0 0
-m=audio ${RTP_PORT} RTP/AVP 0 101
+m=audio ${this.rtpPort} RTP/AVP 0 101
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-16
 a=sendrecv
-a=ssrc:${RTP_PORT} cname:${uuid()}
+a=ssrc:${this.rtpPort} cname:${uuid()}
 `.trim() + '\r\n';
     const newMessage = new ResponseMessage(
       this.inviteMessage,
@@ -72,11 +76,8 @@ a=ssrc:${RTP_PORT} cname:${uuid()}
         return;
       }
       if (inboundMessage.headers.CSeq.endsWith(' BYE')) {
-        this.disposed = true;
-        this.emit('disposed', inboundMessage);
         this.softphone.off('message', byeHandler);
-        socket.removeAllListeners();
-        socket.close();
+        this.dispose();
       }
     };
     this.softphone.on('message', byeHandler);
@@ -90,6 +91,46 @@ a=ssrc:${RTP_PORT} cname:${uuid()}
       Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${uuid()}`,
     });
     this.softphone.send(requestMessage);
+  }
+
+  public async sendDTMF(char: '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '*' | '#') {
+    const timestamp = Math.floor(Date.now() / 1000);
+    let sequenceNumber = timestamp % 65536;
+    const rtpHeader = new RtpHeader({
+      version: 2,
+      padding: false,
+      paddingSize: 0,
+      extension: false,
+      marker: false,
+      payloadOffset: 12,
+      payloadType: 101,
+      sequenceNumber,
+      timestamp,
+      ssrc: this.rtpPort,
+      csrcLength: 0,
+      csrc: [],
+      extensionProfile: 48862,
+      extensionLength: undefined,
+      extensions: [],
+    });
+    const payloads = charToPayloads(char);
+
+    for (const payload of payloads) {
+      rtpHeader.sequenceNumber = sequenceNumber++;
+      const rtpPacket = new RtpPacket(rtpHeader, payload);
+      this.send(rtpPacket.serialize());
+    }
+  }
+
+  private dispose() {
+    this.disposed = true;
+    this.emit('disposed');
+    this.socket.removeAllListeners();
+    this.socket.close();
+  }
+
+  private send(data: string | Buffer) {
+    this.socket.send(data, this.remotePort, this.remoteIP);
   }
 }
 

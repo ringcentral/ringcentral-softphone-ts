@@ -20,18 +20,30 @@ const main = async () => {
     // await waitFor({ interval: 1000 });
     // await softphone.decline(inviteMessage);
     const callSession = await softphone.answer(inviteMessage);
+
+    // receive audio
     const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
     callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
-      // console.log('rtpPacket received');
       writeStream.write(rtpPacket.payload);
     });
+
+    // receive DTMF
     callSession.on('dtmf', (digit) => {
       console.log('dtmf', digit);
     });
+
     // hang up the call
     // setTimeout(() => {
     //   callSession.hangup();
     // }, 5000);
+
+    // send DTMF
+    setTimeout(() => {
+      callSession.sendDTMF('0');
+    }, 2000);
+    setTimeout(() => {
+      callSession.sendDTMF('#');
+    }, 4000);
   });
 };
 main();

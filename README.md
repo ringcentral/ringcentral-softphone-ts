@@ -24,5 +24,4 @@ play -b 8 -r 8000 -e mu-law test.raw
 ## Todo
 
 - outbound call
-- send dtmf
 - Try other payload types, such as OPUS
