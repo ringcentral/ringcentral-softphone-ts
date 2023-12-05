@@ -6,6 +6,7 @@ import dgram from 'dgram';
 import { ResponseMessage, type InboundMessage, RequestMessage } from './sip-message';
 import { uuid } from './utils';
 import type Softphone from './softphone';
+import { dtmfMapping } from './dtmf';
 
 class InboundCallSession extends EventEmitter {
   public disposed = false;
@@ -23,7 +24,17 @@ class InboundCallSession extends EventEmitter {
     const RTP_PORT = await getPort();
     const socket = dgram.createSocket('udp4');
     socket.on('message', (message) => {
-      this.emit('rtpPacket', RtpPacket.deSerialize(message));
+      const rtpPacket = RtpPacket.deSerialize(message);
+      this.emit('rtpPacket', rtpPacket);
+      if (rtpPacket.header.payloadType === 101) {
+        this.emit('dtmfPacket', rtpPacket);
+        const intBE = rtpPacket.payload.readIntBE(0, 4);
+        if (dtmfMapping[intBE]) {
+          this.emit('dtmf', dtmfMapping[intBE]);
+        }
+      } else {
+        this.emit('audioPacket', rtpPacket);
+      }
     });
     socket.bind(RTP_PORT);
 

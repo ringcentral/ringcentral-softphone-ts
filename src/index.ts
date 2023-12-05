@@ -1,6 +1,7 @@
 import fs from 'fs';
 
 import Softphone from './softphone';
+import type { RtpPacket } from 'werift-rtp';
 // import waitFor from 'wait-for-async';
 
 const softphone = new Softphone({
@@ -20,9 +21,12 @@ const main = async () => {
     // await softphone.decline(inviteMessage);
     const callSession = await softphone.answer(inviteMessage);
     const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
-    callSession.on('rtpPacket', (rtpPacket) => {
-      console.log('rtpPacket received');
+    callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
+      // console.log('rtpPacket received');
       writeStream.write(rtpPacket.payload);
+    });
+    callSession.on('dtmf', (digit) => {
+      console.log('dtmf', digit);
     });
     // hang up the call
     // setTimeout(() => {
