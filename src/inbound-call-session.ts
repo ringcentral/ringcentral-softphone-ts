@@ -8,6 +8,7 @@ import { uuid } from './utils';
 import type Softphone from './softphone';
 
 class InboundCallSession extends EventEmitter {
+  public disposed = false;
   public inviteMessage: InboundMessage;
   public softphone: Softphone;
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
@@ -54,6 +55,20 @@ a=ssrc:${RTP_PORT} cname:${uuid()}
       answerSDP,
     );
     this.softphone.send(newMessage);
+
+    const byeHandler = (inboundMessage: InboundMessage) => {
+      if (inboundMessage.headers['Call-Id'] !== this.callId) {
+        return;
+      }
+      if (inboundMessage.headers.CSeq.endsWith(' BYE')) {
+        this.disposed = true;
+        this.emit('disposed', inboundMessage);
+        this.softphone.off('message', byeHandler);
+        socket.removeAllListeners();
+        socket.close();
+      }
+    };
+    this.softphone.on('message', byeHandler);
   }
 
   public async hangup() {

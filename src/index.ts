@@ -15,6 +15,7 @@ const main = async () => {
 
   // inbound call
   softphone.on('invite', async (inviteMessage) => {
+    // decline the call
     // await waitFor({ interval: 1000 });
     // await softphone.decline(inviteMessage);
     const callSession = await softphone.answer(inviteMessage);
@@ -23,9 +24,10 @@ const main = async () => {
       console.log('rtpPacket received');
       writeStream.write(rtpPacket.payload);
     });
-    setTimeout(() => {
-      callSession.hangup();
-    }, 5000);
+    // hang up the call
+    // setTimeout(() => {
+    //   callSession.hangup();
+    // }, 5000);
   });
 };
 main();
