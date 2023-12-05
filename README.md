@@ -35,6 +35,7 @@ const softphone = new Softphone({
   password: process.env.SIP_INFO_PASSWORD,
   authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID,
 });
+softphone.enableDebugMode(); // optional, print all SIP messages
 const main = async () => {
   await softphone.register();
   // inbound call
@@ -57,6 +58,12 @@ main();
 
 For a complete example, see [src/index.ts](src/index.ts)
 
+
+## How to test
+
+Make a phone call to you device's number.
+
+There will be audio stream coming in. And you can also get the DTMF digits the caller pressed.
 
 ## Notes
 
