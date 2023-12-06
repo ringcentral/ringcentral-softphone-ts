@@ -53,10 +53,10 @@ const main = async () => {
     // }, 4000);
   });
 
-  // // outbound call
-  // setTimeout(() => {
-  //   // callee format sample: 16506668888
-  //   softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
-  // }, 1000);
+  // outbound call
+  setTimeout(() => {
+    // callee format sample: 16506668888
+    softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
+  }, 1000);
 };
 main();
