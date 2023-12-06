@@ -34,6 +34,11 @@ const main = async () => {
       console.log('dtmf', digit);
     });
 
+    callSession.on('disposed', () => {
+      // either you or the peer hang up
+      writeStream.close();
+    });
+
     // hang up the call
     // setTimeout(() => {
     //   callSession.hangup();

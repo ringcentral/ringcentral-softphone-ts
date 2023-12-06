@@ -51,6 +51,10 @@ const main = async () => {
     callSession.on('dtmf', (digit) => {
       console.log('dtmf', digit);
     });
+    callSession.on('disposed', () => {
+      // either you or the peer hang up
+      writeStream.close();
+    });
   });
 };
 main();
@@ -86,3 +90,4 @@ play -b 8 -r 8000 -e mu-law test.raw
 - Try other payload types, such as OPUS
 - support callerId
 - do not hard code `domain` and `outboundProxy`
+- send audio to remote peer
