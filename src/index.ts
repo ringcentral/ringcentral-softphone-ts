@@ -54,9 +54,16 @@ const main = async () => {
   });
 
   // outbound call
-  setTimeout(() => {
+  setTimeout(async () => {
     // callee format sample: 16506668888
-    softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
+    const callSession = await softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
+    const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
+    callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
+      writeStream.write(rtpPacket.payload);
+    });
+    callSession.on('dtmf', (digit) => {
+      console.log('dtmf', digit);
+    });
   }, 1000);
 };
 main();

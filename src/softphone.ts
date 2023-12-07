@@ -6,8 +6,9 @@ import getPort from 'get-port';
 
 import type { OutboundMessage } from './sip-message';
 import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
-import { generateAuthorization, uuid } from './utils';
+import { generateAuthorization, generateProxyAuthorization, uuid } from './utils';
 import InboundCallSession from './inbound-call-session';
+import OutboundCallSession from './outbound-call-session';
 
 class Softphone extends EventEmitter {
   public sipInfo: SipInfoResponse;
@@ -55,7 +56,7 @@ class Softphone extends EventEmitter {
       const wwwAuth = inboundMessage.headers['Www-Authenticate'] || inboundMessage!.headers['WWW-Authenticate'];
       const nonce = wwwAuth.match(/, nonce="(.+?)"/)![1];
       const newMessage = requestMessage.fork();
-      newMessage.headers.Authorization = generateAuthorization(this.sipInfo, 'REGISTER', nonce);
+      newMessage.headers.Authorization = generateAuthorization(this.sipInfo, nonce);
       this.send(newMessage);
     };
     sipRegister();
@@ -155,8 +156,9 @@ a=fmtp:101 0-15
     const proxyAuthenticate = inboundMessage.headers['Proxy-Authenticate'];
     const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];
     const newMessage = inviteMessage.fork();
-    newMessage.headers['Proxy-Authorization'] = generateAuthorization(this.sipInfo, 'INVITE', nonce);
-    await this.send(newMessage);
+    newMessage.headers['Proxy-Authorization'] = generateProxyAuthorization(this.sipInfo, nonce, callee);
+    const answerMessage = await this.send(newMessage, true);
+    return new OutboundCallSession(this, answerMessage, rtpPort);
   }
 }
 
