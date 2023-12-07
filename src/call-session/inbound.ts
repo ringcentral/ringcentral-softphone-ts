@@ -2,7 +2,7 @@ import getPort from 'get-port';
 import { RtpHeader, RtpPacket } from 'werift-rtp';
 import dgram from 'dgram';
 
-import { ResponseMessage, type InboundMessage, RequestMessage } from '../sip-message';
+import { ResponseMessage, type InboundMessage } from '../sip-message';
 import { uuid } from '../utils';
 import type Softphone from '../softphone';
 import DTMF from '../dtmf';
@@ -13,6 +13,8 @@ class InboundCallSession extends CallSession {
   private rtpPort: number;
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
     super(softphone, inviteMessage);
+    this.localPeer = inviteMessage.headers.To;
+    this.remotePeer = inviteMessage.headers.From;
   }
   public async answer() {
     this.rtpPort = await getPort();
@@ -68,16 +70,6 @@ a=ssrc:${this.rtpPort} cname:${uuid()}
       }
     };
     this.softphone.on('message', byeHandler);
-  }
-
-  public async hangup() {
-    const requestMessage = new RequestMessage(`BYE sip:${this.softphone.sipInfo.domain} SIP/2.0`, {
-      'Call-Id': this.callId,
-      From: this.sipMessage.headers.To,
-      To: this.sipMessage.headers.From,
-      Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${uuid()}`,
-    });
-    this.softphone.send(requestMessage);
   }
 
   public async sendDTMF(char: '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '*' | '#') {

@@ -11,6 +11,8 @@ class OutboundCallSession extends CallSession {
   public constructor(softphone: Softphone, answerMessage: InboundMessage, rtpPort: number) {
     super(softphone, answerMessage);
     this.rtpPort = rtpPort;
+    this.localPeer = answerMessage.headers.From;
+    this.remotePeer = answerMessage.headers.To;
     this.init();
   }
 
