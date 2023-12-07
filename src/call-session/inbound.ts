@@ -1,30 +1,18 @@
 import getPort from 'get-port';
 import { RtpHeader, RtpPacket } from 'werift-rtp';
-import EventEmitter from 'events';
 import dgram from 'dgram';
 
-import { ResponseMessage, type InboundMessage, RequestMessage } from './sip-message';
-import { uuid } from './utils';
-import type Softphone from './softphone';
-import DTMF from './dtmf';
+import { ResponseMessage, type InboundMessage, RequestMessage } from '../sip-message';
+import { uuid } from '../utils';
+import type Softphone from '../softphone';
+import DTMF from '../dtmf';
+import CallSession from '.';
 
-class InboundCallSession extends EventEmitter {
+class InboundCallSession extends CallSession {
   public disposed = false;
-  public inviteMessage: InboundMessage;
-  public softphone: Softphone;
-  private socket: dgram.Socket;
-  private remoteIP: string;
-  private remotePort: number;
   private rtpPort: number;
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
-    super();
-    this.softphone = softphone;
-    this.inviteMessage = inviteMessage;
-    this.remoteIP = this.inviteMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-    this.remotePort = parseInt(this.inviteMessage.body.match(/m=audio (\d+) /)![1], 10);
-  }
-  public get callId() {
-    return this.inviteMessage.headers['Call-Id'];
+    super(softphone, inviteMessage);
   }
   public async answer() {
     this.rtpPort = await getPort();
@@ -61,7 +49,7 @@ a=sendrecv
 a=ssrc:${this.rtpPort} cname:${uuid()}
 `.trim();
     const newMessage = new ResponseMessage(
-      this.inviteMessage,
+      this.sipMessage,
       200,
       {
         'Content-Type': 'application/sdp',
@@ -85,8 +73,8 @@ a=ssrc:${this.rtpPort} cname:${uuid()}
   public async hangup() {
     const requestMessage = new RequestMessage(`BYE sip:${this.softphone.sipInfo.domain} SIP/2.0`, {
       'Call-Id': this.callId,
-      From: this.inviteMessage.headers.To,
-      To: this.inviteMessage.headers.From,
+      From: this.sipMessage.headers.To,
+      To: this.sipMessage.headers.From,
       Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${uuid()}`,
     });
     this.softphone.send(requestMessage);
@@ -124,10 +112,6 @@ a=ssrc:${this.rtpPort} cname:${uuid()}
     this.emit('disposed');
     this.socket.removeAllListeners();
     this.socket.close();
-  }
-
-  private send(data: string | Buffer) {
-    this.socket.send(data, this.remotePort, this.remoteIP);
   }
 }
 

@@ -7,8 +7,8 @@ import getPort from 'get-port';
 import type { OutboundMessage } from './sip-message';
 import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
 import { generateAuthorization, uuid } from './utils';
-import InboundCallSession from './inbound-call-session';
-import OutboundCallSession from './outbound-call-session';
+import InboundCallSession from './call-session/inbound';
+import OutboundCallSession from './call-session/outbound';
 
 class Softphone extends EventEmitter {
   public sipInfo: SipInfoResponse;
