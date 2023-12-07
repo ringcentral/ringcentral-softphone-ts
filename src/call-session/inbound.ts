@@ -1,5 +1,5 @@
 import getPort from 'get-port';
-import { RtpHeader, RtpPacket } from 'werift-rtp';
+import { RtpPacket } from 'werift-rtp';
 import dgram from 'dgram';
 
 import { ResponseMessage, type InboundMessage } from '../sip-message';
@@ -10,7 +10,6 @@ import CallSession from '.';
 
 class InboundCallSession extends CallSession {
   public disposed = false;
-  private rtpPort: number;
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
     super(softphone, inviteMessage);
     this.localPeer = inviteMessage.headers.To;
@@ -70,33 +69,6 @@ a=ssrc:${this.rtpPort} cname:${uuid()}
       }
     };
     this.softphone.on('message', byeHandler);
-  }
-
-  public async sendDTMF(char: '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '*' | '#') {
-    const timestamp = Math.floor(Date.now() / 1000);
-    let sequenceNumber = timestamp % 65536;
-    const rtpHeader = new RtpHeader({
-      version: 2,
-      padding: false,
-      paddingSize: 0,
-      extension: false,
-      marker: false,
-      payloadOffset: 12,
-      payloadType: 101,
-      sequenceNumber,
-      timestamp,
-      ssrc: this.rtpPort,
-      csrcLength: 0,
-      csrc: [],
-      extensionProfile: 48862,
-      extensionLength: undefined,
-      extensions: [],
-    });
-    for (const payload of DTMF.charToPayloads(char)) {
-      rtpHeader.sequenceNumber = sequenceNumber++;
-      const rtpPacket = new RtpPacket(rtpHeader, payload);
-      this.send(rtpPacket.serialize());
-    }
   }
 
   private dispose() {

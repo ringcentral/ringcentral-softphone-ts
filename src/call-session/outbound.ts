@@ -7,7 +7,6 @@ import DTMF from '../dtmf';
 import CallSession from '.';
 
 class OutboundCallSession extends CallSession {
-  public rtpPort: number;
   public constructor(softphone: Softphone, answerMessage: InboundMessage, rtpPort: number) {
     super(softphone, answerMessage);
     this.rtpPort = rtpPort;
