@@ -2,12 +2,12 @@ import type SipInfoResponse from '@rc-ex/core/lib/definitions/SipInfoResponse';
 import EventEmitter from 'events';
 import net from 'net';
 import waitFor from 'wait-for-async';
+import getPort from 'get-port';
 
 import type { OutboundMessage } from './sip-message';
 import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
 import { generateAuthorization, uuid } from './utils';
 import InboundCallSession from './inbound-call-session';
-import getPort from 'get-port';
 
 class Softphone extends EventEmitter {
   public sipInfo: SipInfoResponse;
@@ -51,7 +51,7 @@ class Softphone extends EventEmitter {
         To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
         Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${uuid()}`,
       });
-      const inboundMessage = (await this.send(requestMessage, true)) as InboundMessage;
+      const inboundMessage = await this.send(requestMessage, true);
       const wwwAuth = inboundMessage.headers['Www-Authenticate'] || inboundMessage!.headers['WWW-Authenticate'];
       const nonce = wwwAuth.match(/, nonce="(.+?)"/)![1];
       const newMessage = requestMessage.fork();
@@ -151,7 +151,12 @@ a=fmtp:101 0-15
       },
       offerSDP,
     );
-    this.send(inviteMessage);
+    const inboundMessage = await this.send(inviteMessage, true);
+    const proxyAuthenticate = inboundMessage.headers['Proxy-Authenticate'];
+    const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];
+    const newMessage = inviteMessage.fork();
+    newMessage.headers['Proxy-Authorization'] = generateAuthorization(this.sipInfo, 'INVITE', nonce);
+    await this.send(newMessage);
   }
 }
 

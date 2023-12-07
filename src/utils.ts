@@ -10,7 +10,7 @@ const generateResponse = (sipInfo: SipInfoResponse, method: string, nonce: strin
   return response;
 };
 
-export const generateAuthorization = (sipInfo: SipInfoResponse, method: 'REGISTER', nonce: string) => {
+export const generateAuthorization = (sipInfo: SipInfoResponse, method: 'REGISTER' | 'INVITE', nonce: string) => {
   const authObj = {
     'Digest algorithm': 'MD5',
     username: sipInfo.authorizationId,
