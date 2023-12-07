@@ -59,7 +59,6 @@ const main = async () => {
     const callSession = await softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
     const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
     callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
-      console.log('audioPacket');
       writeStream.write(rtpPacket.payload);
     });
     callSession.on('dtmf', (digit) => {
