@@ -8,7 +8,13 @@ class SipMessage {
   public constructor(subject = '', headers = {}, body = '') {
     this.subject = subject;
     this.headers = headers;
-    this.body = body.trim();
+    this.body = body
+      .trim()
+      .split(/[\r\n]+/)
+      .join('\r\n');
+    if (this.body.length > 0) {
+      this.body += '\r\n';
+    }
   }
 
   public toString() {
