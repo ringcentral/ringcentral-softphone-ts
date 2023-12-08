@@ -91,6 +91,7 @@ play -b 8 -r 8000 -e mu-law test.raw
 - do not hard code `domain` and `outboundProxy`
 - send audio to remote peer
 - check the code of PJSIP and refactor the code.
+- Let user check the call info, such as who is calling, who is being called, etc.
 
 
 ## Dev Notes

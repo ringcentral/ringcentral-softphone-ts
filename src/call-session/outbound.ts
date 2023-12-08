@@ -1,10 +1,5 @@
-import { RtpPacket } from 'werift-rtp';
-import dgram from 'dgram';
-import getPort from 'get-port';
-
 import { RequestMessage, type InboundMessage } from '../sip-message';
 import type Softphone from '../softphone';
-import DTMF from '../dtmf';
 import CallSession from '.';
 import { extractAddress, withoutTag } from '../utils';
 
@@ -29,26 +24,7 @@ class OutboundCallSession extends CallSession {
     };
     this.softphone.on('message', answerHandler);
 
-    this.once('answered', async () => {
-      this.socket = dgram.createSocket('udp4');
-      this.socket.on('message', (message) => {
-        const rtpPacket = RtpPacket.deSerialize(message);
-        this.emit('rtpPacket', rtpPacket);
-        if (rtpPacket.header.payloadType === 101) {
-          this.emit('dtmfPacket', rtpPacket);
-          const char = DTMF.payloadToChar(rtpPacket.payload);
-          if (char) {
-            this.emit('dtmf', char);
-          }
-        } else {
-          this.emit('audioPacket', rtpPacket);
-        }
-      });
-      const rtpPort = await getPort();
-      this.socket.bind(rtpPort);
-      // send a message to remote server so that it knows where to reply
-      this.send('hello');
-    });
+    this.once('answered', async () => this.startRtpServer());
   }
 
   public async cancel() {

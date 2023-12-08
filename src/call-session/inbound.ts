@@ -1,11 +1,6 @@
-import getPort from 'get-port';
-import { RtpPacket } from 'werift-rtp';
-import dgram from 'dgram';
-
 import { ResponseMessage, type InboundMessage } from '../sip-message';
 import { randomInt, uuid } from '../utils';
 import type Softphone from '../softphone';
-import DTMF from '../dtmf';
 import CallSession from '.';
 
 class InboundCallSession extends CallSession {
@@ -18,25 +13,6 @@ class InboundCallSession extends CallSession {
   }
 
   public async answer() {
-    this.socket = dgram.createSocket('udp4');
-    this.socket.on('message', (message) => {
-      const rtpPacket = RtpPacket.deSerialize(message);
-      this.emit('rtpPacket', rtpPacket);
-      if (rtpPacket.header.payloadType === 101) {
-        this.emit('dtmfPacket', rtpPacket);
-        const char = DTMF.payloadToChar(rtpPacket.payload);
-        if (char) {
-          this.emit('dtmf', char);
-        }
-      } else {
-        this.emit('audioPacket', rtpPacket);
-      }
-    });
-    const rtpPort = await getPort();
-    this.socket.bind(rtpPort);
-    // send a message to remote server so that it knows where to reply
-    this.send('hello');
-
     const answerSDP = `
 v=0
 o=- ${randomInt()} 0 IN IP4 127.0.0.1
@@ -59,6 +35,8 @@ a=ssrc:${randomInt()} cname:${uuid()}
       answerSDP,
     );
     this.softphone.send(newMessage);
+
+    this.startRtpServer();
 
     const byeHandler = (inboundMessage: InboundMessage) => {
       if (inboundMessage.headers['Call-Id'] !== this.callId) {
