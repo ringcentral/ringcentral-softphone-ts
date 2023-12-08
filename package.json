@@ -6,7 +6,8 @@
   "types": "dist/softphone.d.ts",
   "scripts": {
     "lint": "eslint --fix '**/*.{ts,tsx,js,jsx}' && prettier --write . && sort-package-json",
-    "test": "rm -rf *.raw && tsx -r dotenv-override-true/config src/index.ts",
+    "in": "rm -rf *.raw && tsx -r dotenv-override-true/config demos/inbound-call.ts",
+    "out": "rm -rf *.raw && tsx -r dotenv-override-true/config demos/outbound-call.ts",
     "prepublishOnly": "rm -rf *.raw && yarn tsc"
   },
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
