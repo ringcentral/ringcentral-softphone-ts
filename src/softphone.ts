@@ -136,7 +136,7 @@ class Softphone extends EventEmitter {
     this.send(newMessage);
   }
 
-  public async call(callee: number) {
+  public async call(callee: number, callerId?: number) {
     const offerSDP = `
 v=0
 o=- ${randomInt()} 0 IN IP4 127.0.0.1
@@ -161,6 +161,9 @@ a=fmtp:101 0-15
       },
       offerSDP,
     );
+    if (callerId) {
+      inviteMessage.headers['P-Asserted-Identity'] = `sip:${callerId}@${this.sipInfo.domain}`;
+    }
     const inboundMessage = await this.send(inviteMessage, true);
     const proxyAuthenticate = inboundMessage.headers['Proxy-Authenticate'];
     const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];

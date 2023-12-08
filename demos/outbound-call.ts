@@ -14,8 +14,12 @@ softphone.enableDebugMode(); // print all SIP messages
 const main = async () => {
   await softphone.register();
   await waitFor({ interval: 1000 });
-  // callee format sample: 16506668888
-  const callSession = await softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
+  // callee format sample: 16506668888, country code is required, otherwise behavior is undefined
+  const callSession = await softphone.call(
+    parseInt(process.env.CALLEE_FOR_TESTING!, 10),
+    // parseInt(process.env.RINGCENTRAL_CALLER_ID!, 10), // Optionally, you can specify callerId as the second parameter
+  );
+
   // callee answers the call
   callSession.once('answered', () => {
     // receive audio

@@ -73,6 +73,7 @@ For a complete example, see [src/index.ts](src/index.ts)
 - cancel outbound call
 - hang up ongoing call
 - receive remote audio stream
+- outbound call caller ID
 
 
 ## How to test
