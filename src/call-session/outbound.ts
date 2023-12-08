@@ -6,7 +6,7 @@ import { RequestMessage, type InboundMessage } from '../sip-message';
 import type Softphone from '../softphone';
 import DTMF from '../dtmf';
 import CallSession from '.';
-import { uuid } from '../utils';
+import { extractAddress, withoutTag } from '../utils';
 
 class OutboundCallSession extends CallSession {
   public callee: string;
@@ -41,17 +41,14 @@ class OutboundCallSession extends CallSession {
     this.send('hello');
   }
 
-  // todo: simplify this method, not all data are required
   public async cancel() {
-    const requestMessage = new RequestMessage(`CANCEL sip:${this.callee}@${this.softphone.sipInfo.domain} SIP/2.0`, {
+    const requestMessage = new RequestMessage(`CANCEL ${extractAddress(this.remotePeer)} SIP/2.0`, {
       'Call-Id': this.callId,
       From: this.localPeer,
-      To: `<sip:${this.callee}@${this.softphone.sipInfo.domain}>`,
-      Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${uuid()}`,
+      To: withoutTag(this.remotePeer),
+      Via: this.sipMessage.headers.Via,
+      CSeq: this.sipMessage.headers.CSeq.replace(' INVITE', ' CANCEL'),
     });
-    requestMessage.headers.CSeq = this.sipMessage.headers.CSeq.replace('INVITE', 'CANCEL');
-    // The line below is essential
-    requestMessage.headers.Via = this.sipMessage.headers.Via;
     this.softphone.send(requestMessage);
   }
 }

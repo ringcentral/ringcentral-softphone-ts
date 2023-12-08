@@ -6,7 +6,9 @@ let cseq = Math.floor(Math.random() * 10000);
 class RequestMessage extends OutboundMessage {
   public constructor(subject = '', headers = {}, body = '') {
     super(subject, headers, body);
-    this.newCseq();
+    if (this.headers.CSeq === undefined) {
+      this.newCseq();
+    }
   }
 
   public newCseq() {

@@ -78,10 +78,10 @@ const main = async () => {
     //   callSession.sendDTMF('#');
     // }, 4000);
 
-    // cancel the call
+    // cancel the call (before the peer answers)
     // setTimeout(() => {
     //   callSession.cancel();
-    // }, 3000);
+    // }, 8000);
   }, 1000);
 };
 main();
