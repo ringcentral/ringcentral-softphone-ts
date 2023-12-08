@@ -13,8 +13,8 @@ abstract class CallSession extends EventEmitter {
   public socket: dgram.Socket;
   public localPeer: string;
   public remotePeer: string;
-  private remoteIP: string;
-  private remotePort: number;
+  public remoteIP: string;
+  public remotePort: number;
 
   public constructor(softphone: Softphone, sipMessage: InboundMessage) {
     super();
