@@ -50,7 +50,7 @@ For complete examples, see [demos/](demos/)
 - cancel outbound call
 - hang up ongoing call
 - receive audio stream from peer
-- send audio to remote peer
+- stream local audio to remote peer
 - outbound call caller ID
 
 
@@ -58,7 +58,7 @@ For complete examples, see [demos/](demos/)
 
 ### Audio formats
 
-The codec is "PCMU/8000", bit rate 8, which mean 8 bits per sample, sample rate 8000, which means 8000 samples per second.
+The codec is "PCMU/8000". Bit rate is 8, which means 8 bits per sample. Sample rate is 8000, which means 8000 samples per second.
 
 You may play saved audio by the following commands:
 
@@ -86,4 +86,4 @@ play -b 8 -r 8000 -e mu-law test.raw
 
 ## Dev Notes
 
-- We don't need to explicitly tell remote server our local RTP port via SIP SDP message. We will have to send a RTP message to the remote server first, so the remote server knows our IP and port. So the port number in SDP message could be fake.
+- We don't need to explicitly tell remote server our local RTP port via SIP SDP message. We send a RTP message to the remote server first, so the remote server knows our IP and port. So, the port number in SDP message could be fake.
