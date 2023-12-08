@@ -1,7 +1,6 @@
 import EventEmitter from 'events';
 import dgram from 'dgram';
 import { RtpHeader, RtpPacket } from 'werift-rtp';
-import getPort from 'get-port';
 
 import { RequestMessage, type InboundMessage } from '../sip-message';
 import type Softphone from '../softphone';
@@ -85,8 +84,7 @@ abstract class CallSession extends EventEmitter {
         this.emit('audioPacket', rtpPacket);
       }
     });
-    const rtpPort = await getPort();
-    this.socket.bind(rtpPort);
+    this.socket.bind();
     // send a message to remote server so that it knows where to reply
     this.send('hello');
 
