@@ -10,11 +10,13 @@ import CallSession from '.';
 
 class InboundCallSession extends CallSession {
   public disposed = false;
+
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
     super(softphone, inviteMessage);
     this.localPeer = inviteMessage.headers.To;
     this.remotePeer = inviteMessage.headers.From;
   }
+
   public async answer() {
     this.socket = dgram.createSocket('udp4');
     this.socket.on('message', (message) => {
@@ -32,7 +34,6 @@ class InboundCallSession extends CallSession {
     });
     const rtpPort = await getPort();
     this.socket.bind(rtpPort);
-
     // send a message to remote server so that it knows where to reply
     this.send('hello');
 

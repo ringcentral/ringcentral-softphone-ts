@@ -57,12 +57,15 @@ const main = async () => {
   setTimeout(async () => {
     // callee format sample: 16506668888
     const callSession = await softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
-    const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
-    callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
-      writeStream.write(rtpPacket.payload);
-    });
-    callSession.on('dtmf', (digit) => {
-      console.log('dtmf', digit);
+    // callee answers the call
+    callSession.once('answered', () => {
+      const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
+      callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
+        writeStream.write(rtpPacket.payload);
+      });
+      callSession.on('dtmf', (digit) => {
+        console.log('dtmf', digit);
+      });
     });
 
     // hang up the call

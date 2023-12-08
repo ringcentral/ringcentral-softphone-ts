@@ -20,25 +20,35 @@ class OutboundCallSession extends CallSession {
   }
 
   public async init() {
-    this.socket = dgram.createSocket('udp4');
-    this.socket.on('message', (message) => {
-      const rtpPacket = RtpPacket.deSerialize(message);
-      this.emit('rtpPacket', rtpPacket);
-      if (rtpPacket.header.payloadType === 101) {
-        this.emit('dtmfPacket', rtpPacket);
-        const char = DTMF.payloadToChar(rtpPacket.payload);
-        if (char) {
-          this.emit('dtmf', char);
-        }
-      } else {
-        this.emit('audioPacket', rtpPacket);
+    // wait for user to answer the call
+    const answerHandler = (message: InboundMessage) => {
+      if (message.headers.CSeq === this.sipMessage.headers.CSeq) {
+        this.softphone.off('message', answerHandler);
+        this.emit('answered');
       }
-    });
-    const rtpPort = await getPort();
-    this.socket.bind(rtpPort);
+    };
+    this.softphone.on('message', answerHandler);
 
-    // send a message to remote server so that it knows where to reply
-    this.send('hello');
+    this.once('answered', async () => {
+      this.socket = dgram.createSocket('udp4');
+      this.socket.on('message', (message) => {
+        const rtpPacket = RtpPacket.deSerialize(message);
+        this.emit('rtpPacket', rtpPacket);
+        if (rtpPacket.header.payloadType === 101) {
+          this.emit('dtmfPacket', rtpPacket);
+          const char = DTMF.payloadToChar(rtpPacket.payload);
+          if (char) {
+            this.emit('dtmf', char);
+          }
+        } else {
+          this.emit('audioPacket', rtpPacket);
+        }
+      });
+      const rtpPort = await getPort();
+      this.socket.bind(rtpPort);
+      // send a message to remote server so that it knows where to reply
+      this.send('hello');
+    });
   }
 
   public async cancel() {
