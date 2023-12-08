@@ -91,3 +91,8 @@ play -b 8 -r 8000 -e mu-law test.raw
 - do not hard code `domain` and `outboundProxy`
 - send audio to remote peer
 - check the code of PJSIP and refactor the code.
+
+
+## Dev Notes
+
+- We don't need to explicitly tell remote server our local RTP port vis SIP SDP message. We will have to send a RTP message to the remote server first, so the remote server knows our IP and port. So the port number in SDP message could be fake.

@@ -3,7 +3,7 @@ import { RtpPacket } from 'werift-rtp';
 import dgram from 'dgram';
 
 import { ResponseMessage, type InboundMessage } from '../sip-message';
-import { uuid } from '../utils';
+import { randomInt, uuid } from '../utils';
 import type Softphone from '../softphone';
 import DTMF from '../dtmf';
 import CallSession from '.';
@@ -16,7 +16,6 @@ class InboundCallSession extends CallSession {
     this.remotePeer = inviteMessage.headers.From;
   }
   public async answer() {
-    this.rtpPort = await getPort();
     this.socket = dgram.createSocket('udp4');
     this.socket.on('message', (message) => {
       const rtpPacket = RtpPacket.deSerialize(message);
@@ -31,23 +30,24 @@ class InboundCallSession extends CallSession {
         this.emit('audioPacket', rtpPacket);
       }
     });
-    this.socket.bind(this.rtpPort);
+    const rtpPort = await getPort();
+    this.socket.bind(rtpPort);
 
     // send a message to remote server so that it knows where to reply
     this.send('hello');
 
     const answerSDP = `
 v=0
-o=- ${this.rtpPort} 0 IN IP4 127.0.0.1
+o=- ${randomInt()} 0 IN IP4 127.0.0.1
 s=rc-softphone-ts
 c=IN IP4 127.0.0.1
 t=0 0
-m=audio ${this.rtpPort} RTP/AVP 0 101
+m=audio ${randomInt()} RTP/AVP 0 101
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
 a=sendrecv
-a=ssrc:${this.rtpPort} cname:${uuid()}
+a=ssrc:${randomInt()} cname:${uuid()}
 `.trim();
     const newMessage = new ResponseMessage(
       this.sipMessage,

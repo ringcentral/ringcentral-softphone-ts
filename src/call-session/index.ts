@@ -4,7 +4,7 @@ import { RtpHeader, RtpPacket } from 'werift-rtp';
 
 import { RequestMessage, type InboundMessage } from '../sip-message';
 import type Softphone from '../softphone';
-import { uuid } from '../utils';
+import { randomInt, uuid } from '../utils';
 import DTMF from '../dtmf';
 
 abstract class CallSession extends EventEmitter {
@@ -13,7 +13,6 @@ abstract class CallSession extends EventEmitter {
   public socket: dgram.Socket;
   public localPeer: string;
   public remotePeer: string;
-  public rtpPort: number;
   private remoteIP: string;
   private remotePort: number;
 
@@ -54,7 +53,7 @@ abstract class CallSession extends EventEmitter {
       payloadType: 101,
       sequenceNumber,
       timestamp,
-      ssrc: this.rtpPort,
+      ssrc: randomInt(),
       csrcLength: 0,
       csrc: [],
       extensionProfile: 48862,

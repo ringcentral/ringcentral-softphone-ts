@@ -2,11 +2,10 @@ import type SipInfoResponse from '@rc-ex/core/lib/definitions/SipInfoResponse';
 import EventEmitter from 'events';
 import net from 'net';
 import waitFor from 'wait-for-async';
-import getPort from 'get-port';
 
 import type { OutboundMessage } from './sip-message';
 import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
-import { generateAuthorization, uuid } from './utils';
+import { generateAuthorization, randomInt, uuid } from './utils';
 import InboundCallSession from './call-session/inbound';
 import OutboundCallSession from './call-session/outbound';
 
@@ -34,9 +33,22 @@ class Softphone extends EventEmitter {
     this.client.connect(parseInt(tokens[1], 10), tokens[0], () => {
       this.connected = true;
     });
+
+    let cache = '';
     this.client.on('data', (data) => {
-      const message = data.toString('utf-8');
-      this.emit('message', InboundMessage.fromString(message));
+      cache += data.toString('utf-8');
+      if (!cache.endsWith('\r\n')) {
+        return; // haven't received a complete message yet
+      }
+      const tempMessages = cache.split('\r\n\r\nSIP/2.0 ');
+      cache = '';
+      for (let i = 1; i < tempMessages.length; i++) {
+        // received 2 or more messages in one go
+        tempMessages[i] = 'SIP/2.0 ' + tempMessages[i];
+      }
+      for (const message of tempMessages) {
+        this.emit('message', InboundMessage.fromString(message));
+      }
     });
   }
 
@@ -102,10 +114,7 @@ class Softphone extends EventEmitter {
         if (inboundMessage.headers.CSeq !== message.headers.CSeq) {
           return;
         }
-        if (
-          inboundMessage.subject === 'SIP/2.0 100 Trying' ||
-          inboundMessage.subject === 'SIP/2.0 183 Session Progress'
-        ) {
+        if (inboundMessage.subject === 'SIP/2.0 100 Trying') {
           return; // ignore
         }
         this.off('message', messageListerner);
@@ -121,20 +130,20 @@ class Softphone extends EventEmitter {
     return inboundCallSession;
   }
 
+  // decline an inbound call
   public async decline(inviteMessage: InboundMessage) {
     const newMessage = new ResponseMessage(inviteMessage, 603);
     this.send(newMessage);
   }
 
   public async call(callee: number) {
-    const rtpPort = await getPort();
     const offerSDP = `
 v=0
-o=- ${rtpPort} 0 IN IP4 127.0.0.1
+o=- ${randomInt()} 0 IN IP4 127.0.0.1
 s=rc-softphone-ts
 c=IN IP4 127.0.0.1
 t=0 0
-m=audio ${rtpPort} RTP/AVP 0 101
+m=audio ${randomInt()} RTP/AVP 0 101
 a=sendrecv
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
@@ -157,8 +166,8 @@ a=fmtp:101 0-15
     const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];
     const newMessage = inviteMessage.fork();
     newMessage.headers['Proxy-Authorization'] = generateAuthorization(this.sipInfo, nonce, 'INVITE');
-    const answerMessage = await this.send(newMessage, true);
-    return new OutboundCallSession(this, answerMessage, rtpPort);
+    const progressMessage = await this.send(newMessage, true);
+    return new OutboundCallSession(this, progressMessage);
   }
 }
 
