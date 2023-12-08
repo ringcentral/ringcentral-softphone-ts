@@ -49,7 +49,8 @@ For complete examples, see [demos/](demos/)
 - reject inbound call
 - cancel outbound call
 - hang up ongoing call
-- receive remote audio stream
+- receive audio stream from peer
+- send audio to remote peer
 - outbound call caller ID
 
 
