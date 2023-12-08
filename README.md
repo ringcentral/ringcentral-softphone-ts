@@ -67,12 +67,12 @@ For a complete example, see [src/index.ts](src/index.ts)
 
 - inbound call
 - outbound call
-- inbund DTMF 
+- inbound DTMF 
 - outbound DTMF
 - reject inbound call
 - cancel outbound call
 - hang up ongoing call
-- receive remote autio stream
+- receive remote audio stream
 
 
 ## How to test
@@ -100,6 +100,7 @@ play -b 8 -r 8000 -e mu-law test.raw
 ## Todo
 
 - Try other payload types, such as OPUS
+  - tried OPUS/16000, but the received packets are quite small and cannot be played
 - support callerId
 - do not hard code `domain` and `outboundProxy`
 - send audio to remote peer
@@ -109,4 +110,4 @@ play -b 8 -r 8000 -e mu-law test.raw
 
 ## Dev Notes
 
-- We don't need to explicitly tell remote server our local RTP port vis SIP SDP message. We will have to send a RTP message to the remote server first, so the remote server knows our IP and port. So the port number in SDP message could be fake.
+- We don't need to explicitly tell remote server our local RTP port via SIP SDP message. We will have to send a RTP message to the remote server first, so the remote server knows our IP and port. So the port number in SDP message could be fake.
