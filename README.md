@@ -103,6 +103,8 @@ play -b 8 -r 8000 -e mu-law test.raw
   - tried OPUS/16000, but the received packets are quite small and cannot be played
 - support callerId
 - do not hard code `domain` and `outboundProxy`
+  - I tried `sip10.ringcentral.com:5096` as `outboundProxy`, it requires TLS instead of TCP
+  - I made TLS work, however for inbound call there is not INVITE message coming in, for outbound call "488 Not Acceptable Here"
 - send audio to remote peer
 - check the code of PJSIP and refactor the code.
 - Let user check the call info, such as who is calling, who is being called, etc.
