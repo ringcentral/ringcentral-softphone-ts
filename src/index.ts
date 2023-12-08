@@ -29,28 +29,28 @@ const main = async () => {
       writeStream.write(rtpPacket.payload);
     });
 
+    // either you or the peer hang up
+    callSession.once('disposed', () => {
+      writeStream.close();
+    });
+
     // receive DTMF
     callSession.on('dtmf', (digit) => {
       console.log('dtmf', digit);
     });
 
-    callSession.on('disposed', () => {
-      // either you or the peer hang up
-      writeStream.close();
-    });
+    // // send DTMF
+    // setTimeout(() => {
+    //   callSession.sendDTMF('1');
+    // }, 2000);
+    // setTimeout(() => {
+    //   callSession.sendDTMF('#');
+    // }, 4000);
 
     // // hang up the call
     // setTimeout(() => {
     //   callSession.hangup();
     // }, 5000);
-
-    // send DTMF
-    setTimeout(() => {
-      callSession.sendDTMF('1');
-    }, 2000);
-    setTimeout(() => {
-      callSession.sendDTMF('#');
-    }, 4000);
   });
 
   // outbound call
@@ -59,10 +59,17 @@ const main = async () => {
     const callSession = await softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
     // callee answers the call
     callSession.once('answered', () => {
+      // receive audio
       const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
       callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
         writeStream.write(rtpPacket.payload);
       });
+      // either you or the peer hang up
+      callSession.once('disposed', () => {
+        writeStream.close();
+      });
+
+      // receive DTMF
       callSession.on('dtmf', (digit) => {
         console.log('dtmf', digit);
       });

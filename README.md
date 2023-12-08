@@ -25,7 +25,7 @@ yarn install ringcentral-softphone
 
 ## Usage
 
-```typescript
+```ts
 import fs from 'fs';
 import Softphone from 'ringcentral-softphone';
 import type { RtpPacket } from 'werift-rtp';
@@ -47,13 +47,13 @@ const main = async () => {
     callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
       writeStream.write(rtpPacket.payload);
     });
+     // either you or the peer hang up
+    callSession.on('disposed', () => {
+      writeStream.close();
+    });
     // receive DTMF
     callSession.on('dtmf', (digit) => {
       console.log('dtmf', digit);
-    });
-    callSession.on('disposed', () => {
-      // either you or the peer hang up
-      writeStream.close();
     });
   });
 };
@@ -63,11 +63,24 @@ main();
 For a complete example, see [src/index.ts](src/index.ts)
 
 
+## Supported features
+
+- inbound call
+- outbound call
+- inbund DTMF 
+- outbound DTMF
+- reject inbound call
+- cancel outbound call
+- hang up ongoing call
+- receive remote autio stream
+
+
 ## How to test
 
 Make a phone call to you device's number.
 
 There will be audio stream coming in. And you can also get the DTMF digits the caller pressed.
+
 
 ## Notes
 
