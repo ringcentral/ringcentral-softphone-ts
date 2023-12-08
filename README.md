@@ -35,32 +35,9 @@ const softphone = new Softphone({
   password: process.env.SIP_INFO_PASSWORD,
   authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID,
 });
-softphone.enableDebugMode(); // optional, print all SIP messages
-const main = async () => {
-  await softphone.register();
-  // inbound call
-  softphone.on('invite', async (inviteMessage) => {
-    // answer the call
-    const callSession = await softphone.answer(inviteMessage);
-    // receive audio
-    const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
-    callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
-      writeStream.write(rtpPacket.payload);
-    });
-     // either you or the peer hang up
-    callSession.on('disposed', () => {
-      writeStream.close();
-    });
-    // receive DTMF
-    callSession.on('dtmf', (digit) => {
-      console.log('dtmf', digit);
-    });
-  });
-};
-main();
 ```
 
-For a complete example, see [src/index.ts](src/index.ts)
+For complete examples, see [demos/](demos/)
 
 
 ## Supported features
@@ -76,16 +53,13 @@ For a complete example, see [src/index.ts](src/index.ts)
 - outbound call caller ID
 
 
-## How to test
-
-Make a phone call to you device's number.
-
-There will be audio stream coming in. And you can also get the DTMF digits the caller pressed.
-
-
 ## Notes
 
-### How to play saved audio file
+### Audio formats
+
+The codec is "PCMU/8000", bit rate 8, which mean 8 bits per sample, sample rate 8000, which means 8000 samples per second.
+
+You may play saved audio by the following commands:
 
 ```
 ffplay -autoexit -f mulaw -ar 8000 test.raw
@@ -102,13 +76,11 @@ play -b 8 -r 8000 -e mu-law test.raw
 
 - Try other payload types, such as OPUS
   - tried OPUS/16000, but the received packets are quite small and cannot be played
-- support callerId
 - do not hard code `domain` and `outboundProxy`
   - I tried `sip10.ringcentral.com:5096` as `outboundProxy`, it requires TLS instead of TCP
   - I made TLS work, however for inbound call there is not INVITE message coming in, for outbound call "488 Not Acceptable Here"
-- send audio to remote peer
 - check the code of PJSIP and refactor the code.
-- Let user check the call info, such as who is calling, who is being called, etc.
+- Let developer check the call info, such as who is calling, who is being called, etc.
 
 
 ## Dev Notes

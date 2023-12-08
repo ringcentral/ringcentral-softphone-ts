@@ -32,6 +32,9 @@ const main = async () => {
       writeStream.close();
     });
 
+    // send audio
+    callSession.streamAudio(fs.readFileSync('demos/test.raw'));
+
     // receive DTMF
     callSession.on('dtmf', (digit) => {
       console.log('dtmf', digit);
