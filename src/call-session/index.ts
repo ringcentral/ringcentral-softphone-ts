@@ -70,7 +70,7 @@ abstract class CallSession extends EventEmitter {
     }
   }
 
-  protected async startRtpServer() {
+  protected async startLocalServices() {
     this.socket = dgram.createSocket('udp4');
     this.socket.on('message', (message) => {
       const rtpPacket = RtpPacket.deSerialize(message);
@@ -89,6 +89,23 @@ abstract class CallSession extends EventEmitter {
     this.socket.bind(rtpPort);
     // send a message to remote server so that it knows where to reply
     this.send('hello');
+
+    const byeHandler = (inboundMessage: InboundMessage) => {
+      if (inboundMessage.headers['Call-Id'] !== this.callId) {
+        return;
+      }
+      if (inboundMessage.headers.CSeq.endsWith(' BYE')) {
+        this.softphone.off('message', byeHandler);
+        this.dispose();
+      }
+    };
+    this.softphone.on('message', byeHandler);
+  }
+
+  private dispose() {
+    this.emit('disposed');
+    this.socket.removeAllListeners();
+    this.socket.close();
   }
 }
 

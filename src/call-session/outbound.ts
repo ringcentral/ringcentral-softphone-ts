@@ -4,13 +4,10 @@ import CallSession from '.';
 import { extractAddress, withoutTag } from '../utils';
 
 class OutboundCallSession extends CallSession {
-  public callee: string;
-
   public constructor(softphone: Softphone, answerMessage: InboundMessage) {
     super(softphone, answerMessage);
     this.localPeer = answerMessage.headers.From;
     this.remotePeer = answerMessage.headers.To;
-    this.callee = this.remotePeer.match(/<sip:(\d+)@sip.ringcentral.com>;tag=/)[1];
     this.init();
   }
 
@@ -24,7 +21,7 @@ class OutboundCallSession extends CallSession {
     };
     this.softphone.on('message', answerHandler);
 
-    this.once('answered', async () => this.startRtpServer());
+    this.once('answered', async () => this.startLocalServices());
   }
 
   public async cancel() {

@@ -4,8 +4,6 @@ import type Softphone from '../softphone';
 import CallSession from '.';
 
 class InboundCallSession extends CallSession {
-  public disposed = false;
-
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
     super(softphone, inviteMessage);
     this.localPeer = inviteMessage.headers.To;
@@ -36,25 +34,7 @@ a=ssrc:${randomInt()} cname:${uuid()}
     );
     this.softphone.send(newMessage);
 
-    this.startRtpServer();
-
-    const byeHandler = (inboundMessage: InboundMessage) => {
-      if (inboundMessage.headers['Call-Id'] !== this.callId) {
-        return;
-      }
-      if (inboundMessage.headers.CSeq.endsWith(' BYE')) {
-        this.softphone.off('message', byeHandler);
-        this.dispose();
-      }
-    };
-    this.softphone.on('message', byeHandler);
-  }
-
-  private dispose() {
-    this.disposed = true;
-    this.emit('disposed');
-    this.socket.removeAllListeners();
-    this.socket.close();
+    this.startLocalServices();
   }
 }
 

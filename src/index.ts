@@ -54,37 +54,37 @@ const main = async () => {
   });
 
   // outbound call
-  // setTimeout(async () => {
-  //   // callee format sample: 16506668888
-  //   const callSession = await softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
-  //   // callee answers the call
-  //   callSession.once('answered', () => {
-  //     const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
-  //     callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
-  //       writeStream.write(rtpPacket.payload);
-  //     });
-  //     callSession.on('dtmf', (digit) => {
-  //       console.log('dtmf', digit);
-  //     });
+  setTimeout(async () => {
+    // callee format sample: 16506668888
+    const callSession = await softphone.call(parseInt(process.env.CALLEE_FOR_TESTING!, 10));
+    // callee answers the call
+    callSession.once('answered', () => {
+      const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
+      callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
+        writeStream.write(rtpPacket.payload);
+      });
+      callSession.on('dtmf', (digit) => {
+        console.log('dtmf', digit);
+      });
 
-  //     // send DTMF
-  //     // setTimeout(() => {
-  //     //   callSession.sendDTMF('1');
-  //     // }, 2000);
-  //     // setTimeout(() => {
-  //     //   callSession.sendDTMF('#');
-  //     // }, 4000);
+      // // send DTMF
+      // setTimeout(() => {
+      //   callSession.sendDTMF('1');
+      // }, 2000);
+      // setTimeout(() => {
+      //   callSession.sendDTMF('#');
+      // }, 4000);
 
-  //     // hang up the call
-  //     // setTimeout(() => {
-  //     //   callSession.hangup();
-  //     // }, 5000);
-  //   });
+      // // hang up the call
+      // setTimeout(() => {
+      //   callSession.hangup();
+      // }, 5000);
+    });
 
-  //   // cancel the call (before the peer answers)
-  //   // setTimeout(() => {
-  //   //   callSession.cancel();
-  //   // }, 8000);
-  // }, 1000);
+    // // cancel the call (before the peer answers)
+    // setTimeout(() => {
+    //   callSession.cancel();
+    // }, 8000);
+  }, 1000);
 };
 main();
