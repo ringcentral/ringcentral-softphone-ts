@@ -25,6 +25,7 @@ export const generateAuthorization = (sipInfo: SipInfoResponse, nonce: string, m
 };
 
 export const uuid = () => crypto.randomUUID();
+export const branch = () => 'z9hG4bK-' + uuid();
 
 export const randomInt = () => Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
 

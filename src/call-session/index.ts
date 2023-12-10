@@ -4,7 +4,7 @@ import { RtpHeader, RtpPacket } from 'werift-rtp';
 
 import { RequestMessage, type InboundMessage } from '../sip-message';
 import type Softphone from '../softphone';
-import { randomInt, uuid } from '../utils';
+import { branch, randomInt } from '../utils';
 import DTMF from '../dtmf';
 
 abstract class CallSession extends EventEmitter {
@@ -38,7 +38,7 @@ abstract class CallSession extends EventEmitter {
       'Call-Id': this.callId,
       From: this.localPeer,
       To: this.remotePeer,
-      Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${uuid()}`,
+      Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${branch()}`,
     });
     this.softphone.send(requestMessage);
   }

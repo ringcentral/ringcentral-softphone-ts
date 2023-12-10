@@ -87,3 +87,4 @@ play -b 8 -r 8000 -e mu-law test.raw
 ## Dev Notes
 
 - We don't need to explicitly tell remote server our local RTP port via SIP SDP message. We send a RTP message to the remote server first, so the remote server knows our IP and port. So, the port number in SDP message could be fake.
+- Ref: https://www.ietf.org/rfc/rfc3261.txt

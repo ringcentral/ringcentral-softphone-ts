@@ -5,7 +5,7 @@ import waitFor from 'wait-for-async';
 
 import type { OutboundMessage } from './sip-message';
 import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
-import { generateAuthorization, randomInt, uuid } from './utils';
+import { branch, generateAuthorization, randomInt, uuid } from './utils';
 import InboundCallSession from './call-session/inbound';
 import OutboundCallSession from './call-session/outbound';
 
@@ -62,7 +62,7 @@ class Softphone extends EventEmitter {
         Contact: `<sip:${this.fakeEmail};transport=tcp>;expires=600`,
         From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
         To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
-        Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${uuid()}`,
+        Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${branch()}`,
       });
       const inboundMessage = await this.send(requestMessage, true);
       const wwwAuth = inboundMessage.headers['Www-Authenticate'] || inboundMessage!.headers['WWW-Authenticate'];
@@ -114,7 +114,7 @@ class Softphone extends EventEmitter {
         if (inboundMessage.headers.CSeq !== message.headers.CSeq) {
           return;
         }
-        if (inboundMessage.subject === 'SIP/2.0 100 Trying') {
+        if (inboundMessage.subject.startsWith('SIP/2.0 100 ')) {
           return; // ignore
         }
         this.off('message', messageListerner);
@@ -144,10 +144,10 @@ s=rc-softphone-ts
 c=IN IP4 127.0.0.1
 t=0 0
 m=audio ${randomInt()} RTP/AVP 0 101
-a=sendrecv
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
+a=sendrecv
   `.trim();
     const inviteMessage = new RequestMessage(
       `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
@@ -156,7 +156,7 @@ a=fmtp:101 0-15
         Contact: `<sip:${this.fakeEmail};transport=tcp>;expires=600`,
         From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
         To: `<sip:${callee}@${this.sipInfo.domain}>`,
-        Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${uuid()}`,
+        Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${branch()}`,
         'Content-Type': 'application/sdp',
       },
       offerSDP,
