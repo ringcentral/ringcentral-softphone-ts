@@ -22,7 +22,6 @@ a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
 a=sendrecv
-a=ssrc:${randomInt()} cname:${uuid()}
 `.trim();
     const newMessage = new ResponseMessage(
       this.sipMessage,
