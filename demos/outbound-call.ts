@@ -21,7 +21,7 @@ const main = async () => {
   );
 
   // callee answers the call
-  callSession.once('answered', () => {
+  callSession.once('answered', async () => {
     // receive audio
     const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
     callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
