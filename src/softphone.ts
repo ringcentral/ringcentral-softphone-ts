@@ -87,7 +87,7 @@ class Softphone extends EventEmitter {
   }
 
   public async enableDebugMode() {
-    this.client.on('data', (data) => console.log(`Receiving...(${new Date()})\n` + data.toString('utf-8')));
+    this.on('message', (message) => console.log(`Receiving...(${new Date()})\n` + message.toString()));
     const tcpWrite = this.client.write.bind(this.client);
     this.client.write = (message) => {
       console.log(`Sending...(${new Date()})\n` + message);

@@ -17,10 +17,18 @@ class OutboundCallSession extends CallSession {
       if (message.headers.CSeq === this.sipMessage.headers.CSeq) {
         this.softphone.off('message', answerHandler);
         this.emit('answered');
+
+        const ackMessage = new RequestMessage(`ACK ${extractAddress(this.remotePeer)} SIP/2.0`, {
+          'Call-Id': this.callId,
+          From: this.localPeer,
+          To: this.remotePeer,
+          Via: this.sipMessage.headers.Via,
+          CSeq: this.sipMessage.headers.CSeq.replace(' INVITE', ' ACK'),
+        });
+        this.softphone.send(ackMessage);
       }
     };
     this.softphone.on('message', answerHandler);
-
     this.once('answered', async () => this.startLocalServices());
   }
 
