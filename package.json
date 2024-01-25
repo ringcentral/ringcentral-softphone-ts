@@ -1,9 +1,9 @@
 {
   "name": "ringcentral-softphone",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "license": "MIT",
-  "main": "dist/softphone.js",
-  "types": "dist/softphone.d.ts",
+  "main": "dist/src/softphone.js",
+  "types": "dist/src/softphone.d.ts",
   "scripts": {
     "lint": "eslint --fix '**/*.{ts,tsx,js,jsx}' && prettier --write . && sort-package-json",
     "in": "rm -rf *.raw && tsx -r dotenv-override-true/config demos/inbound-call.ts",
