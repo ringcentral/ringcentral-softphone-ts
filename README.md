@@ -28,7 +28,6 @@ yarn install ringcentral-softphone
 ```ts
 import fs from 'fs';
 import Softphone from 'ringcentral-softphone';
-import type { RtpPacket } from 'werift-rtp';
 
 const softphone = new Softphone({
   username: process.env.SIP_INFO_USERNAME,
@@ -79,7 +78,7 @@ play -b 8 -r 8000 -e mu-law test.raw
   - tried OPUS/16000, but the received packets are quite small and cannot be played
 - do not hard code `domain` and `outboundProxy`
   - I tried `sip10.ringcentral.com:5096` as `outboundProxy`, it requires TLS instead of TCP
-  - I made TLS work, however for inbound call there is not INVITE message coming in, for outbound call "488 Not Acceptable Here"
+  - I made TLS work, however for inbound call there is no INVITE message coming in, for outbound call "488 Not Acceptable Here"
 - check the code of PJSIP and refactor the code.
 - Let developer check the call info, such as who is calling, who is being called, etc.
 
