@@ -4,7 +4,7 @@ import { RtpHeader, RtpPacket } from 'werift-rtp';
 
 import { RequestMessage, type InboundMessage } from '../sip-message';
 import type Softphone from '../softphone';
-import { branch, randomInt } from '../utils';
+import { branch, extractAddress, randomInt } from '../utils';
 import DTMF from '../dtmf';
 
 abstract class CallSession extends EventEmitter {
@@ -31,6 +31,18 @@ abstract class CallSession extends EventEmitter {
 
   public send(data: string | Buffer) {
     this.socket.send(data, this.remotePort, this.remoteIP);
+  }
+
+  public async transfer(target: string) {
+    const requestMessage = new RequestMessage(`REFER sip:${extractAddress(this.remotePeer)} SIP/2.0`, {
+      'Call-Id': this.callId,
+      From: this.localPeer,
+      To: this.remotePeer,
+      Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${branch()}`,
+      'Refer-To': `sip:${target}@sip.ringcentral.com`,
+      'Referred-By': `<${extractAddress(this.localPeer)}>`,
+    });
+    this.softphone.send(requestMessage);
   }
 
   public async hangup() {

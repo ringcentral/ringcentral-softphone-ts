@@ -2,7 +2,7 @@ import fs from 'fs';
 import type { RtpPacket } from 'werift-rtp';
 
 import Softphone from '../src/softphone';
-// import waitFor from 'wait-for-async';
+import waitFor from 'wait-for-async';
 
 const softphone = new Softphone({
   username: process.env.SIP_INFO_USERNAME,
@@ -50,6 +50,10 @@ const main = async () => {
     // // hang up the call
     // await waitFor({ interval: 5000 });
     // callSession.hangup();
+
+    // transfer the call
+    await waitFor({ interval: 2000 });
+    await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING);
   });
 };
 main();

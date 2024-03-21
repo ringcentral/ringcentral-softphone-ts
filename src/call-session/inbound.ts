@@ -1,5 +1,5 @@
 import { ResponseMessage, type InboundMessage } from '../sip-message';
-import { randomInt, uuid } from '../utils';
+import { randomInt } from '../utils';
 import type Softphone from '../softphone';
 import CallSession from '.';
 
