@@ -40,11 +40,13 @@ class Softphone extends EventEmitter {
       if (!cache.endsWith('\r\n')) {
         return; // haven't received a complete message yet
       }
-      const tempMessages = cache.split('\r\n\r\nSIP/2.0 ');
+      // received two empty body messages
+      const tempMessages = cache.split('\r\nContent-Length: 0\r\n\r\n').filter((message) => message.trim() !== '');
       cache = '';
-      for (let i = 1; i < tempMessages.length; i++) {
-        // received 2 or more messages in one go
-        tempMessages[i] = 'SIP/2.0 ' + tempMessages[i];
+      for (let i = 0; i < tempMessages.length; i++) {
+        if (!tempMessages[i].includes('Content-Length: ')) {
+          tempMessages[i] = tempMessages[i] + '\r\nContent-Length: 0';
+        }
       }
       for (const message of tempMessages) {
         this.emit('message', InboundMessage.fromString(message));
