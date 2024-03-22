@@ -2,7 +2,7 @@ import EventEmitter from 'events';
 import dgram from 'dgram';
 import { RtpHeader, RtpPacket } from 'werift-rtp';
 
-import { RequestMessage, type InboundMessage } from '../sip-message';
+import { RequestMessage, type InboundMessage, ResponseMessage } from '../sip-message';
 import type Softphone from '../softphone';
 import { branch, extractAddress, randomInt } from '../utils';
 import DTMF from '../dtmf';
@@ -43,6 +43,18 @@ abstract class CallSession extends EventEmitter {
       'Referred-By': `<${extractAddress(this.localPeer)}>`,
     });
     this.softphone.send(requestMessage);
+    // reply to those NOTIFY messages
+    const notifyHandler = (inboundMessage: InboundMessage) => {
+      if (!inboundMessage.subject.startsWith('NOTIFY ')) {
+        return;
+      }
+      const responseMessage = new ResponseMessage(inboundMessage, 200);
+      this.softphone.send(responseMessage);
+      if (inboundMessage.body.endsWith('SIP/2.0 200 OK')) {
+        this.softphone.off('message', notifyHandler);
+      }
+    };
+    this.softphone.on('message', notifyHandler);
   }
 
   public async hangup() {

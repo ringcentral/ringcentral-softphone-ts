@@ -51,9 +51,9 @@ const main = async () => {
     // await waitFor({ interval: 5000 });
     // callSession.hangup();
 
-    // transfer the call
-    await waitFor({ interval: 2000 });
-    await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING);
+    // // transfer the call
+    // await waitFor({ interval: 2000 });
+    // await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING);
   });
 };
 main();

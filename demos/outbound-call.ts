@@ -49,6 +49,10 @@ const main = async () => {
     // // hang up the call
     // await waitFor({ interval: 5000 });
     // callSession.hangup();
+
+    // // transfer the call
+    // await waitFor({ interval: 2000 });
+    // await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING);
   });
 
   // // cancel the call (before the peer answers)
