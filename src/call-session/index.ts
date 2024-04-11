@@ -96,11 +96,16 @@ abstract class CallSession extends EventEmitter {
 
   // buffer is the content of a audio file, it is supposed to be PCMU/8000 encoded.
   // The audio should be playable by command: ffplay -autoexit -f mulaw -ar 8000 test.raw
-  public async streamAudio(input: Buffer) {
+  public streamAudio(input: Buffer) {
     let buffer = input;
     let sequenceNumber = randomInt();
     let timestamp = randomInt();
     const ssrc = randomInt();
+    const streamer = {
+      stop() {
+        buffer = Buffer.alloc(0);
+      },
+    };
     const sendPacket = () => {
       if (buffer.length >= 160) {
         const temp = buffer.subarray(0, 160);
@@ -131,10 +136,11 @@ abstract class CallSession extends EventEmitter {
         this.send(rtpPacket.serialize());
         sequenceNumber += 1;
         timestamp += 160; // inbound audio use this time interval, in my opinion, it should be 20
+        setTimeout(() => sendPacket(), 20);
       }
-      setTimeout(() => sendPacket(), 20);
     };
     sendPacket();
+    return streamer;
   }
 
   protected async startLocalServices() {

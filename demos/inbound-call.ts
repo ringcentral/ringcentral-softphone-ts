@@ -28,8 +28,11 @@ const main = async () => {
       writeStream.write(rtpPacket.payload);
     });
 
-    // // send audio to remote peer
-    // callSession.streamAudio(fs.readFileSync('demos/test.raw'));
+    // // // send audio to remote peer
+    // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.raw'));
+    // await waitFor({ interval: 3000 });
+    // // you may interrupt audio sending at any time
+    // streamer.stop();
 
     // either you or the peer hang up
     callSession.once('disposed', () => {

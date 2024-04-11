@@ -33,7 +33,10 @@ const main = async () => {
     });
 
     // // send audio to remote peer
-    // callSession.streamAudio(fs.readFileSync('demos/test.raw'));
+    // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.raw'));
+    // await waitFor({ interval: 3000 });
+    // // you may interrupt audio sending at any time
+    // streamer.stop();
 
     // receive DTMF
     callSession.on('dtmf', (digit) => {
