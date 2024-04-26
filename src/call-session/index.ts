@@ -6,6 +6,7 @@ import { RequestMessage, type InboundMessage, ResponseMessage } from '../sip-mes
 import type Softphone from '../softphone';
 import { branch, extractAddress, randomInt } from '../utils';
 import DTMF from '../dtmf';
+import Streamer from './streamer';
 
 abstract class CallSession extends EventEmitter {
   public softphone: Softphone;
@@ -97,49 +98,8 @@ abstract class CallSession extends EventEmitter {
   // buffer is the content of a audio file, it is supposed to be PCMU/8000 encoded.
   // The audio should be playable by command: ffplay -autoexit -f mulaw -ar 8000 test.raw
   public streamAudio(input: Buffer) {
-    let buffer = input;
-    let sequenceNumber = randomInt();
-    let timestamp = randomInt();
-    const ssrc = randomInt();
-    const streamer = {
-      stop() {
-        buffer = Buffer.alloc(0);
-      },
-    };
-    const sendPacket = () => {
-      if (buffer.length >= 160) {
-        const temp = buffer.subarray(0, 160);
-        buffer = buffer.subarray(160);
-        const rtpPacket = new RtpPacket(
-          new RtpHeader({
-            version: 2,
-            padding: false,
-            paddingSize: 0,
-            extension: false,
-            marker: false,
-            payloadOffset: 12,
-            payloadType: 0,
-            sequenceNumber,
-            timestamp,
-            ssrc,
-            csrcLength: 0,
-            csrc: [],
-            extensionProfile: 48862,
-            extensionLength: undefined,
-            extensions: [],
-          }),
-          temp,
-        );
-        if (this.disposed) {
-          return;
-        }
-        this.send(rtpPacket.serialize());
-        sequenceNumber += 1;
-        timestamp += 160; // inbound audio use this time interval, in my opinion, it should be 20
-        setTimeout(() => sendPacket(), 20);
-      }
-    };
-    sendPacket();
+    const streamer = new Streamer(this, input);
+    streamer.start();
     return streamer;
   }
 

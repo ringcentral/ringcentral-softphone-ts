@@ -2,7 +2,7 @@ import fs from 'fs';
 import type { RtpPacket } from 'werift-rtp';
 
 import Softphone from '../src/softphone';
-import waitFor from 'wait-for-async';
+// import waitFor from 'wait-for-async';
 
 const softphone = new Softphone({
   username: process.env.SIP_INFO_USERNAME,

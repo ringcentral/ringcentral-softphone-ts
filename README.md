@@ -4,7 +4,6 @@ This is a TypeScript SDK for RingCentral Softphone. It is a complete rewrite of 
 
 Users are recommended to use this SDK instead of the JavaScript SDK.
 
-
 ## Installation
 
 ```
@@ -17,11 +16,10 @@ yarn install ringcentral-softphone
 2. Find the user/extension you want to use
 3. Check the user's "Devices & Numbers"
 4. Find a phone/device that you want to use
-  1. if there is none, you need to create one. Check steps below for more details
-5. Click the "Set Up and Provision" button
-6. Click the link "Set up manually using SIP"
-7. At the bottom part of the page, you will find "User Name", "Password" and "Authorization ID"
-
+5. if there is none, you need to create one. Check steps below for more details
+6. Click the "Set Up and Provision" button
+7. Click the link "Set up manually using SIP"
+8. At the bottom part of the page, you will find "User Name", "Password" and "Authorization ID"
 
 ## Usage
 
@@ -38,12 +36,11 @@ const softphone = new Softphone({
 
 For complete examples, see [demos/](demos/)
 
-
 ## Supported features
 
 - inbound call
 - outbound call
-- inbound DTMF 
+- inbound DTMF
 - outbound DTMF
 - reject inbound call
 - cancel outbound call
@@ -71,7 +68,6 @@ Or
 play -b 8 -r 8000 -e mu-law test.raw
 ```
 
-
 ## Todo
 
 - Try other payload types, such as OPUS
@@ -81,7 +77,6 @@ play -b 8 -r 8000 -e mu-law test.raw
   - I made TLS work, however for inbound call there is no INVITE message coming in, for outbound call "488 Not Acceptable Here"
 - check the code of PJSIP and refactor the code.
 - Let developer check the call info, such as who is calling, who is being called, etc.
-
 
 ## Dev Notes
 
