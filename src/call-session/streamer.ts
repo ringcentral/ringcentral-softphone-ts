@@ -4,11 +4,10 @@ import type CallSession from '.';
 import { randomInt } from '../utils';
 
 class Streamer {
+  public paused = false;
   private callSession: CallSession;
   private buffer: Buffer;
   private originalBuffer: Buffer;
-  private paused = false;
-  private finished = false;
   private sequenceNumber = randomInt();
   private timestamp = randomInt();
   private ssrc = randomInt();
@@ -20,14 +19,13 @@ class Streamer {
   }
 
   public async start() {
-    this.finished = false;
     this.buffer = this.originalBuffer;
     this.paused = false;
     this.sendPacket();
   }
 
   public async stop() {
-    this.finished = true;
+    this.buffer = Buffer.alloc(0);
   }
 
   public async pause() {
@@ -39,8 +37,12 @@ class Streamer {
     this.sendPacket();
   }
 
+  public get finished() {
+    return this.buffer.length < 160;
+  }
+
   private sendPacket() {
-    if (!this.callSession.disposed && !this.finished && !this.paused && this.buffer.length >= 160) {
+    if (!this.callSession.disposed && !this.paused && !this.finished) {
       const temp = this.buffer.subarray(0, 160);
       this.buffer = this.buffer.subarray(160);
       const rtpPacket = new RtpPacket(
