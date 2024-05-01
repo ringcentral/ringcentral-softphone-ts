@@ -67,6 +67,9 @@ class Streamer {
       );
       this.callSession.send(rtpPacket.serialize());
       this.sequenceNumber += 1;
+      if (this.sequenceNumber > 65535) {
+        this.sequenceNumber = 0;
+      }
       this.timestamp += 160; // inbound audio use this time interval, in my opinion, it should be 20
       setTimeout(() => this.sendPacket(), 20);
     }
