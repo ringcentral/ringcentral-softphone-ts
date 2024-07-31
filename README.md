@@ -24,7 +24,6 @@ yarn install ringcentral-softphone
 ## Usage
 
 ```ts
-import fs from 'fs';
 import Softphone from 'ringcentral-softphone';
 
 const softphone = new Softphone({
@@ -76,7 +75,7 @@ play -b 8 -r 8000 -e mu-law test.raw
   - I tried `sip10.ringcentral.com:5096` as `outboundProxy`, it requires TLS instead of TCP
   - I made TLS work, however for inbound call there is no INVITE message coming in, for outbound call "488 Not Acceptable Here"
 - check the code of PJSIP and refactor the code.
-- Let developer check the call info, such as who is calling, who is being called, etc.
+- Provide an easy way for developers to check the call info, such as who is calling, who is being called, etc.
 
 ## Dev Notes
 
