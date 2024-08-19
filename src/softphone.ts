@@ -67,6 +67,10 @@ class Softphone extends EventEmitter {
         Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${branch()}`,
       });
       const inboundMessage = await this.send(requestMessage, true);
+      if (inboundMessage.subject.startsWith('SIP/2.0 200 ')) {
+        // sometimes the server will return 200 OK directly
+        return;
+      }
       const wwwAuth = inboundMessage.headers['Www-Authenticate'] || inboundMessage!.headers['WWW-Authenticate'];
       const nonce = wwwAuth.match(/, nonce="(.+?)"/)![1];
       const newMessage = requestMessage.fork();

@@ -35,6 +35,16 @@ const softphone = new Softphone({
 
 For complete examples, see [demos/](demos/)
 
+For UK accounts you need to explicitly specify the `domain` parameter:
+
+```ts
+{
+  domain: 'sip.ringcentral.co.uk',
+}
+```
+
+US accounts use `sip.ringcentral.com` by default.
+
 ## Supported features
 
 - inbound call

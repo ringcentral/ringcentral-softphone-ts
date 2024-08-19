@@ -8,6 +8,7 @@ const softphone = new Softphone({
   username: process.env.SIP_INFO_USERNAME,
   password: process.env.SIP_INFO_PASSWORD,
   authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID,
+  domain: process.env.SIP_INFO_DOMAIN,
 });
 softphone.enableDebugMode(); // print all SIP messages
 
