@@ -137,6 +137,7 @@ abstract class CallSession extends EventEmitter {
   private dispose() {
     this.disposed = true;
     this.emit('disposed');
+    this.removeAllListeners();
     this.socket.removeAllListeners();
     this.socket.close();
   }
