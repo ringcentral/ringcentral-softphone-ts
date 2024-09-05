@@ -1,6 +1,6 @@
-import fs from 'fs';
+import fs from 'node:fs';
 import type { RtpPacket } from 'werift-rtp';
-import waitFor from 'wait-for-async';
+// import waitFor from 'wait-for-async';
 
 import Softphone from '../src/softphone';
 
@@ -14,7 +14,7 @@ softphone.enableDebugMode(); // print all SIP messages
 
 const main = async () => {
   await softphone.register();
-  await waitFor({ interval: 1000 });
+  // await waitFor({ interval: 1000 });
   // callee format sample: 16506668888, country code is required, otherwise behavior is undefined
   const callSession = await softphone.call(
     parseInt(process.env.CALLEE_FOR_TESTING!, 10),

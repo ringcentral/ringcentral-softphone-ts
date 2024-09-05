@@ -218,10 +218,10 @@
     axios "^1.7.2"
     qs "^6.12.2"
 
-"@types/node@^22.4.1":
-  version "22.4.1"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-22.4.1.tgz#9b595d292c65b94c20923159e2ce947731b6fdce"
-  integrity sha512-1tbpb9325+gPnKK0dMm+/LMriX0vKxf6RnB0SZUqfyVkQ4fMgUSySqhxE/y8Jvs4NyF1yHzTfG9KlnkIODxPKg==
+"@types/node@^22.5.4":
+  version "22.5.4"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-22.5.4.tgz#83f7d1f65bc2ed223bdbf57c7884f1d5a4fa84e8"
+  integrity sha512-FDuKUJQm/ju9fT/SeX/6+gBzoPzlVCzfzmGkwKvRHQVxi4BntVbyIwf6a4Xn62mrvndLiml6z/UBXIdEVjQLXg==
   dependencies:
     undici-types "~6.19.2"
 
@@ -1467,11 +1467,6 @@ uri-js@^4.2.2:
   integrity sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==
   dependencies:
     punycode "^2.1.0"
-
-wait-for-async@^0.6.1:
-  version "0.6.1"
-  resolved "https://registry.yarnpkg.com/wait-for-async/-/wait-for-async-0.6.1.tgz#7e3f92de3e6c26db1460439e18c7c6f7eb2067b1"
-  integrity sha512-iKwUTzFmuwnzArmHz8lk4OkRF5We9lp88zGj23s1Nr9oJh5I57HpcAvjW+0c8nYXm7Vm98RP5WhjYogZzDWvhw==
 
 werift-rtp@^0.8.1:
   version "0.8.1"

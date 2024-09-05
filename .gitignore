@@ -1,5 +1,5 @@
 node_modules/
 .env
 *.raw
-dist/
 *.cap
+*.lock
