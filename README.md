@@ -84,7 +84,10 @@ play -b 8 -r 8000 -e mu-law test.raw
 - do not hard code `domain` and `outboundProxy`
   - I tried `sip10.ringcentral.com:5096` as `outboundProxy`, it requires TLS instead of TCP
   - I made TLS work, however for inbound call there is no INVITE message coming in, for outbound call "488 Not Acceptable Here"
+    - change the codec list in SDP could solve the 488 issue.
 - check the code of PJSIP and refactor the code.
+  - with PJSIP 2.10, I have made TCP & TLS work.
+  - TLS is too complicated, next step is to copy PJSIP TCP example.
 - Provide an easy way for developers to check the call info, such as who is calling, who is being called, etc.
 
 ## Dev Notes
