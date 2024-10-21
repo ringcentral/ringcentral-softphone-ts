@@ -11,11 +11,13 @@ class Streamer {
   private sequenceNumber = randomInt();
   private timestamp = randomInt();
   private ssrc = randomInt();
+  private payloadType: number;
 
-  public constructor(callSesstion: CallSession, buffer: Buffer) {
+  public constructor(callSesstion: CallSession, buffer: Buffer, payloadType: number = 0) {
     this.callSession = callSesstion;
     this.buffer = buffer;
     this.originalBuffer = buffer;
+    this.payloadType = payloadType;
   }
 
   public async start() {
@@ -53,7 +55,7 @@ class Streamer {
           extension: false,
           marker: false,
           payloadOffset: 12,
-          payloadType: 0,
+          payloadType: this.payloadType,
           sequenceNumber: this.sequenceNumber,
           timestamp: this.timestamp,
           ssrc: this.ssrc,

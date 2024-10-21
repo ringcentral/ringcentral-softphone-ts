@@ -7,7 +7,8 @@ declare class Streamer {
     private sequenceNumber;
     private timestamp;
     private ssrc;
-    constructor(callSesstion: CallSession, buffer: Buffer);
+    private payloadType;
+    constructor(callSesstion: CallSession, buffer: Buffer, payloadType?: number);
     start(): Promise<void>;
     stop(): Promise<void>;
     pause(): Promise<void>;

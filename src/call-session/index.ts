@@ -15,6 +15,8 @@ abstract class CallSession extends EventEmitter {
   public localPeer: string;
   public remotePeer: string;
   public remoteIP: string;
+  public To: string;
+  public From: string;
   public remotePort: number;
   public disposed = false;
 
@@ -97,8 +99,8 @@ abstract class CallSession extends EventEmitter {
 
   // buffer is the content of a audio file, it is supposed to be PCMU/8000 encoded.
   // The audio should be playable by command: ffplay -autoexit -f mulaw -ar 8000 test.raw
-  public streamAudio(input: Buffer) {
-    const streamer = new Streamer(this, input);
+  public streamAudio(input: Buffer, payloadType: number = 0) {
+    const streamer = new Streamer(this, input, payloadType);
     streamer.start();
     return streamer;
   }

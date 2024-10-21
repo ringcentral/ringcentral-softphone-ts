@@ -1,4 +1,27 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -17,14 +40,19 @@ const net_1 = __importDefault(require("net"));
 const wait_for_async_1 = __importDefault(require("wait-for-async"));
 const sip_message_1 = require("./sip-message");
 const utils_1 = require("./utils");
-const inbound_1 = __importDefault(require("./call-session/inbound"));
+const inbound_1 = __importStar(require("./call-session/inbound"));
 const outbound_1 = __importDefault(require("./call-session/outbound"));
+const defaultSDPConfig = {
+    client: 'rc-softphone-ts',
+    protocols: inbound_1.defaultProtocols
+};
 class Softphone extends events_1.default {
-    constructor(sipInfo) {
+    constructor(sipInfo, sdpConfig = {}) {
         super();
         this.fakeDomain = (0, utils_1.uuid)() + '.invalid';
         this.fakeEmail = (0, utils_1.uuid)() + '@' + this.fakeDomain;
         this.connected = false;
+        this.sdpConfig = Object.assign(Object.assign({}, defaultSDPConfig), sdpConfig);
         this.sipInfo = sipInfo;
         if (this.sipInfo.domain === undefined) {
             this.sipInfo.domain = 'sip.ringcentral.com';
@@ -134,7 +162,7 @@ class Softphone extends events_1.default {
     answer(inviteMessage) {
         return __awaiter(this, void 0, void 0, function* () {
             const inboundCallSession = new inbound_1.default(this, inviteMessage);
-            yield inboundCallSession.answer();
+            yield inboundCallSession.answer(this.sdpConfig.protocols, this.sdpConfig.client);
             return inboundCallSession;
         });
     }

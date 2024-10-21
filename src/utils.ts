@@ -31,3 +31,8 @@ export const randomInt = () => Math.floor(Math.random() * (65535 - 1024 + 1)) + 
 
 export const withoutTag = (s: string) => s.replace(/;tag=.*$/, '');
 export const extractAddress = (s: string) => s.match(/<(sip:.+?)>/)[1];
+
+const regPhoneNumber = /^<sip:(\d+)/;
+export function extractPhoneNumber(peerHeader: string) {
+    return peerHeader.match(regPhoneNumber)?.[1] ?? '--';
+}

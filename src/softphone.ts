@@ -6,11 +6,20 @@ import waitFor from 'wait-for-async';
 import type { OutboundMessage } from './sip-message';
 import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
 import { branch, generateAuthorization, randomInt, uuid } from './utils';
-import InboundCallSession from './call-session/inbound';
+import InboundCallSession, { defaultProtocols, Protocol } from './call-session/inbound';
 import OutboundCallSession from './call-session/outbound';
+type SDPConfig = {
+  protocols: Protocol[];
+  client: string;
+}
 
+const defaultSDPConfig: SDPConfig = {
+  client: 'rc-softphone-ts',
+  protocols: defaultProtocols
+}
 class Softphone extends EventEmitter {
   public sipInfo: SipInfoResponse;
+  public sdpConfig: SDPConfig;
   public client: net.Socket;
 
   public fakeDomain = uuid() + '.invalid';
@@ -19,8 +28,9 @@ class Softphone extends EventEmitter {
   private intervalHandle: NodeJS.Timeout;
   private connected = false;
 
-  public constructor(sipInfo: SipInfoResponse) {
+  public constructor(sipInfo: SipInfoResponse, sdpConfig: Partial<SDPConfig> = {}) {
     super();
+    this.sdpConfig = { ...defaultSDPConfig, ...sdpConfig };
     this.sipInfo = sipInfo;
     if (this.sipInfo.domain === undefined) {
       this.sipInfo.domain = 'sip.ringcentral.com';
@@ -132,7 +142,7 @@ class Softphone extends EventEmitter {
 
   public async answer(inviteMessage: InboundMessage) {
     const inboundCallSession = new InboundCallSession(this, inviteMessage);
-    await inboundCallSession.answer();
+    await inboundCallSession.answer(this.sdpConfig.protocols, this.sdpConfig.client);
     return inboundCallSession;
   }
 

@@ -100,8 +100,8 @@ class CallSession extends events_1.default {
     }
     // buffer is the content of a audio file, it is supposed to be PCMU/8000 encoded.
     // The audio should be playable by command: ffplay -autoexit -f mulaw -ar 8000 test.raw
-    streamAudio(input) {
-        const streamer = new streamer_1.default(this, input);
+    streamAudio(input, payloadType = 0) {
+        const streamer = new streamer_1.default(this, input, payloadType);
         streamer.start();
         return streamer;
     }

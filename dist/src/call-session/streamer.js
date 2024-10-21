@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const werift_rtp_1 = require("werift-rtp");
 const utils_1 = require("../utils");
 class Streamer {
-    constructor(callSesstion, buffer) {
+    constructor(callSesstion, buffer, payloadType = 0) {
         this.paused = false;
         this.sequenceNumber = (0, utils_1.randomInt)();
         this.timestamp = (0, utils_1.randomInt)();
@@ -20,6 +20,7 @@ class Streamer {
         this.callSession = callSesstion;
         this.buffer = buffer;
         this.originalBuffer = buffer;
+        this.payloadType = payloadType;
     }
     start() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -58,7 +59,7 @@ class Streamer {
                 extension: false,
                 marker: false,
                 payloadOffset: 12,
-                payloadType: 0,
+                payloadType: this.payloadType,
                 sequenceNumber: this.sequenceNumber,
                 timestamp: this.timestamp,
                 ssrc: this.ssrc,

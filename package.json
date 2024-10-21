@@ -9,7 +9,8 @@
     "in": "rm -rf *.raw && tsx -r dotenv-override-true/config demos/inbound-call.ts",
     "lint": "eslint --fix '**/*.{ts,tsx,js,jsx}' && prettier --write . && sort-package-json",
     "out": "rm -rf *.raw && tsx -r dotenv-override-true/config demos/outbound-call.ts",
-    "prepublishOnly": "rm -rf *.raw && rm -rf dist && yarn tsc"
+    "prepublishOnly": "rm -rf *.raw && rm -rf dist && yarn tsc",
+    "build": "rm -rf dist && yarn tsc"
   },
   "dependencies": {
     "@rc-ex/core": "^1.4.0",
