@@ -1,6 +1,6 @@
 {
   "name": "ringcentral-softphone",
-  "version": "0.11.5",
+  "version": "0.12.0",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
   "main": "dist/src/softphone.js",
@@ -12,14 +12,14 @@
     "prepublishOnly": "rm -rf *.raw && rm -rf dist && yarn tsc"
   },
   "dependencies": {
-    "@rc-ex/core": "^1.4.1",
+    "@rc-ex/core": "^1.4.2",
     "wait-for-async": "^0.7.0",
     "werift-rtp": "^0.8.1"
   },
   "devDependencies": {
-    "@types/node": "^22.6.1",
-    "@typescript-eslint/eslint-plugin": "^8.7.0",
-    "@typescript-eslint/parser": "^8.7.0",
+    "@types/node": "^22.7.9",
+    "@typescript-eslint/eslint-plugin": "^8.11.0",
+    "@typescript-eslint/parser": "^8.11.0",
     "dotenv-override-true": "^6.2.2",
     "eslint": "^8.57.0",
     "eslint-config-alloy": "^5.1.2",
@@ -28,8 +28,8 @@
     "prettier": "^3.3.3",
     "sort-package-json": "^2.10.1",
     "tsx": "^4.19.1",
-    "ttpt": "^0.12.1",
-    "typescript": "^5.6.2",
+    "ttpt": "^0.12.6",
+    "typescript": "^5.6.3",
     "yarn-upgrade-all": "^0.7.4"
   },
   "yarn-upgrade-all": {

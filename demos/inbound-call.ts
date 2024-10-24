@@ -29,10 +29,18 @@ const main = async () => {
       writeStream.write(rtpPacket.payload);
     });
 
-    // // // send audio to remote peer
+    // // send audio to remote peer
     // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.raw'));
+    // // You may subscribe to the 'finished' event of the streamer to know when the audio sending is finished
+    // streamer.once('finished', () => {
+    //   console.log('audio sending finished');
+    // });
+    // // you may pause/resume/stop audio sending at any time
     // await waitFor({ interval: 3000 });
-    // // you may interrupt audio sending at any time
+    // streamer.pause();
+    // await waitFor({ interval: 3000 });
+    // streamer.resume();
+    // await waitFor({ interval: 2000 });
     // streamer.stop();
 
     // either you or the peer hang up

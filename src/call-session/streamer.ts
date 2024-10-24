@@ -1,9 +1,10 @@
 import { RtpHeader, RtpPacket } from 'werift-rtp';
+import EventEmitter from 'events';
 
 import type CallSession from '.';
 import { randomInt } from '../utils';
 
-class Streamer {
+class Streamer extends EventEmitter {
   public paused = false;
   private callSession: CallSession;
   private buffer: Buffer;
@@ -13,6 +14,7 @@ class Streamer {
   private ssrc = randomInt();
 
   public constructor(callSesstion: CallSession, buffer: Buffer) {
+    super();
     this.callSession = callSesstion;
     this.buffer = buffer;
     this.originalBuffer = buffer;
@@ -44,7 +46,6 @@ class Streamer {
   private sendPacket() {
     if (!this.callSession.disposed && !this.paused && !this.finished) {
       const temp = this.buffer.subarray(0, 160);
-      this.buffer = this.buffer.subarray(160);
       const rtpPacket = new RtpPacket(
         new RtpHeader({
           version: 2,
@@ -71,7 +72,12 @@ class Streamer {
         this.sequenceNumber = 0;
       }
       this.timestamp += 160; // inbound audio use this time interval, in my opinion, it should be 20
-      setTimeout(() => this.sendPacket(), 20);
+      this.buffer = this.buffer.subarray(160);
+      if (this.finished) {
+        this.emit('finished');
+      } else {
+        setTimeout(() => this.sendPacket(), 20);
+      }
     }
   }
 }

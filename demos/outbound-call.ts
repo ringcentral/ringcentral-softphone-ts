@@ -34,10 +34,13 @@ const main = async () => {
     });
 
     // // send audio to remote peer
-    // await waitFor({ interval: 2000 });
     // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.raw'));
-    // await waitFor({ interval: 3000 });
+    // // You may subscribe to the 'finished' event of the streamer to know when the audio sending is finished
+    // streamer.once('finished', () => {
+    //   console.log('audio sending finished');
+    // });
     // // you may pause/resume/stop audio sending at any time
+    // await waitFor({ interval: 3000 });
     // streamer.pause();
     // await waitFor({ interval: 3000 });
     // streamer.resume();
