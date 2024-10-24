@@ -1,11 +1,16 @@
-import EventEmitter from 'events';
 import dgram from 'dgram';
+import EventEmitter from 'events';
+
 import { RtpHeader, RtpPacket } from 'werift-rtp';
 
-import { RequestMessage, type InboundMessage, ResponseMessage } from '../sip-message';
+import DTMF from '../dtmf';
+import {
+  RequestMessage,
+  ResponseMessage,
+  type InboundMessage,
+} from '../sip-message';
 import type Softphone from '../softphone';
 import { branch, extractAddress, randomInt } from '../utils';
-import DTMF from '../dtmf';
 import Streamer from './streamer';
 
 abstract class CallSession extends EventEmitter {
@@ -23,7 +28,10 @@ abstract class CallSession extends EventEmitter {
     this.softphone = softphone;
     this.sipMessage = sipMessage;
     this.remoteIP = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-    this.remotePort = parseInt(this.sipMessage.body.match(/m=audio (\d+) /)![1], 10);
+    this.remotePort = parseInt(
+      this.sipMessage.body.match(/m=audio (\d+) /)![1],
+      10,
+    );
   }
 
   public get callId() {
@@ -35,14 +43,17 @@ abstract class CallSession extends EventEmitter {
   }
 
   public async transfer(target: string) {
-    const requestMessage = new RequestMessage(`REFER sip:${extractAddress(this.remotePeer)} SIP/2.0`, {
-      'Call-Id': this.callId,
-      From: this.localPeer,
-      To: this.remotePeer,
-      Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${branch()}`,
-      'Refer-To': `sip:${target}@sip.ringcentral.com`,
-      'Referred-By': `<${extractAddress(this.localPeer)}>`,
-    });
+    const requestMessage = new RequestMessage(
+      `REFER sip:${extractAddress(this.remotePeer)} SIP/2.0`,
+      {
+        'Call-Id': this.callId,
+        From: this.localPeer,
+        To: this.remotePeer,
+        Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${branch()}`,
+        'Refer-To': `sip:${target}@sip.ringcentral.com`,
+        'Referred-By': `<${extractAddress(this.localPeer)}>`,
+      },
+    );
     this.softphone.send(requestMessage);
     // reply to those NOTIFY messages
     const notifyHandler = (inboundMessage: InboundMessage) => {
@@ -59,16 +70,21 @@ abstract class CallSession extends EventEmitter {
   }
 
   public async hangup() {
-    const requestMessage = new RequestMessage(`BYE sip:${this.softphone.sipInfo.domain} SIP/2.0`, {
-      'Call-Id': this.callId,
-      From: this.localPeer,
-      To: this.remotePeer,
-      Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${branch()}`,
-    });
+    const requestMessage = new RequestMessage(
+      `BYE sip:${this.softphone.sipInfo.domain} SIP/2.0`,
+      {
+        'Call-Id': this.callId,
+        From: this.localPeer,
+        To: this.remotePeer,
+        Via: `SIP/2.0/TCP ${this.softphone.fakeDomain};branch=${branch()}`,
+      },
+    );
     this.softphone.send(requestMessage);
   }
 
-  public async sendDTMF(char: '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '*' | '#') {
+  public async sendDTMF(
+    char: '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '*' | '#',
+  ) {
     const timestamp = Math.floor(Date.now() / 1000);
     let sequenceNumber = timestamp % 65536;
     const rtpHeader = new RtpHeader({

@@ -1,7 +1,7 @@
-import { ResponseMessage, type InboundMessage } from '../sip-message';
-import { randomInt } from '../utils';
-import type Softphone from '../softphone';
 import CallSession from '.';
+import { ResponseMessage, type InboundMessage } from '../sip-message';
+import type Softphone from '../softphone';
+import { randomInt } from '../utils';
 
 class InboundCallSession extends CallSession {
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {

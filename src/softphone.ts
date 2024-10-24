@@ -1,13 +1,14 @@
-import type SipInfoResponse from '@rc-ex/core/lib/definitions/SipInfoResponse';
 import EventEmitter from 'events';
 import net from 'net';
+
+import type SipInfoResponse from '@rc-ex/core/lib/definitions/SipInfoResponse';
 import waitFor from 'wait-for-async';
 
+import InboundCallSession from './call-session/inbound';
+import OutboundCallSession from './call-session/outbound';
 import type { OutboundMessage } from './sip-message';
 import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
 import { branch, generateAuthorization, randomInt, uuid } from './utils';
-import InboundCallSession from './call-session/inbound';
-import OutboundCallSession from './call-session/outbound';
 
 class Softphone extends EventEmitter {
   public sipInfo: SipInfoResponse;
@@ -41,7 +42,9 @@ class Softphone extends EventEmitter {
         return; // haven't received a complete message yet
       }
       // received two empty body messages
-      const tempMessages = cache.split('\r\nContent-Length: 0\r\n\r\n').filter((message) => message.trim() !== '');
+      const tempMessages = cache
+        .split('\r\nContent-Length: 0\r\n\r\n')
+        .filter((message) => message.trim() !== '');
       cache = '';
       for (let i = 0; i < tempMessages.length; i++) {
         if (!tempMessages[i].includes('Content-Length: ')) {
@@ -59,22 +62,31 @@ class Softphone extends EventEmitter {
       await waitFor({ interval: 100, condition: () => this.connected });
     }
     const sipRegister = async () => {
-      const requestMessage = new RequestMessage(`REGISTER sip:${this.sipInfo.domain} SIP/2.0`, {
-        'Call-Id': uuid(),
-        Contact: `<sip:${this.fakeEmail};transport=tcp>;expires=600`,
-        From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
-        To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
-        Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${branch()}`,
-      });
+      const requestMessage = new RequestMessage(
+        `REGISTER sip:${this.sipInfo.domain} SIP/2.0`,
+        {
+          'Call-Id': uuid(),
+          Contact: `<sip:${this.fakeEmail};transport=tcp>;expires=600`,
+          From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
+          To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
+          Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${branch()}`,
+        },
+      );
       const inboundMessage = await this.send(requestMessage, true);
       if (inboundMessage.subject.startsWith('SIP/2.0 200 ')) {
         // sometimes the server will return 200 OK directly
         return;
       }
-      const wwwAuth = inboundMessage.headers['Www-Authenticate'] || inboundMessage!.headers['WWW-Authenticate'];
+      const wwwAuth =
+        inboundMessage.headers['Www-Authenticate'] ||
+        inboundMessage!.headers['WWW-Authenticate'];
       const nonce = wwwAuth.match(/, nonce="(.+?)"/)![1];
       const newMessage = requestMessage.fork();
-      newMessage.headers.Authorization = generateAuthorization(this.sipInfo, nonce, 'REGISTER');
+      newMessage.headers.Authorization = generateAuthorization(
+        this.sipInfo,
+        nonce,
+        'REGISTER',
+      );
       this.send(newMessage);
     };
     sipRegister();
@@ -93,7 +105,9 @@ class Softphone extends EventEmitter {
   }
 
   public async enableDebugMode() {
-    this.on('message', (message) => console.log(`Receiving...(${new Date()})\n` + message.toString()));
+    this.on('message', (message) =>
+      console.log(`Receiving...(${new Date()})\n` + message.toString()),
+    );
     const tcpWrite = this.client.write.bind(this.client);
     this.client.write = (message) => {
       console.log(`Sending...(${new Date()})\n` + message);
@@ -168,13 +182,18 @@ a=sendrecv
       offerSDP,
     );
     if (callerId) {
-      inviteMessage.headers['P-Asserted-Identity'] = `sip:${callerId}@${this.sipInfo.domain}`;
+      inviteMessage.headers['P-Asserted-Identity'] =
+        `sip:${callerId}@${this.sipInfo.domain}`;
     }
     const inboundMessage = await this.send(inviteMessage, true);
     const proxyAuthenticate = inboundMessage.headers['Proxy-Authenticate'];
     const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];
     const newMessage = inviteMessage.fork();
-    newMessage.headers['Proxy-Authorization'] = generateAuthorization(this.sipInfo, nonce, 'INVITE');
+    newMessage.headers['Proxy-Authorization'] = generateAuthorization(
+      this.sipInfo,
+      nonce,
+      'INVITE',
+    );
     const progressMessage = await this.send(newMessage, true);
     return new OutboundCallSession(this, progressMessage);
   }

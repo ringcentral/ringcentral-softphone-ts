@@ -1,5 +1,6 @@
-import { RtpHeader, RtpPacket } from 'werift-rtp';
 import EventEmitter from 'events';
+
+import { RtpHeader, RtpPacket } from 'werift-rtp';
 
 import type CallSession from '.';
 import { randomInt } from '../utils';

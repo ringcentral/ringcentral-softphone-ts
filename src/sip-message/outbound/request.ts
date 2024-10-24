@@ -16,10 +16,17 @@ class RequestMessage extends OutboundMessage {
   }
 
   public fork() {
-    const newMessage = new RequestMessage(this.subject, { ...this.headers }, this.body);
+    const newMessage = new RequestMessage(
+      this.subject,
+      { ...this.headers },
+      this.body,
+    );
     newMessage.newCseq();
     if (newMessage.headers.Via) {
-      newMessage.headers.Via = newMessage.headers.Via.replace(/;branch=.+?$/, `;branch=${branch()}`);
+      newMessage.headers.Via = newMessage.headers.Via.replace(
+        /;branch=.+?$/,
+        `;branch=${branch()}`,
+      );
     }
     return newMessage;
   }
