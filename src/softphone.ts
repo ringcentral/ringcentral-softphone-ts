@@ -11,8 +11,8 @@ import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
 import {
   branch,
   generateAuthorization,
+  getRandomAvailablePort,
   localKey,
-  randomInt,
   uuid,
 } from './utils';
 
@@ -163,7 +163,12 @@ class Softphone extends EventEmitter {
   }
 
   public async answer(inviteMessage: InboundMessage) {
-    const inboundCallSession = new InboundCallSession(this, inviteMessage);
+    const udpPort = await getRandomAvailablePort();
+    const inboundCallSession = new InboundCallSession(
+      this,
+      inviteMessage,
+      udpPort,
+    );
     await inboundCallSession.answer();
     return inboundCallSession;
   }
@@ -175,13 +180,14 @@ class Softphone extends EventEmitter {
   }
 
   public async call(callee: number, callerId?: number) {
+    const udpPort = await getRandomAvailablePort();
     const offerSDP = `
 v=0
-o=- ${randomInt()} 0 IN IP4 127.0.0.1
+o=- ${Date.now()} 0 IN IP4 127.0.0.1
 s=rc-softphone-ts
-c=IN IP4 127.0.0.1
+c=IN IP4 ${this.client.localAddress}
 t=0 0
-m=audio ${randomInt()} RTP/SAVP 0 101
+m=audio ${udpPort} RTP/SAVP 0 101
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
@@ -220,7 +226,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
       'INVITE',
     );
     const progressMessage = await this.send(newMessage, true);
-    return new OutboundCallSession(this, progressMessage);
+    return new OutboundCallSession(this, progressMessage, udpPort);
   }
 }
 

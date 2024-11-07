@@ -4,8 +4,13 @@ import type Softphone from '../softphone';
 import { extractAddress, withoutTag } from '../utils';
 
 class OutboundCallSession extends CallSession {
-  public constructor(softphone: Softphone, answerMessage: InboundMessage) {
+  public constructor(
+    softphone: Softphone,
+    answerMessage: InboundMessage,
+    udpPort: number,
+  ) {
     super(softphone, answerMessage);
+    this.udpPort = udpPort;
     this.localPeer = answerMessage.headers.From;
     this.remotePeer = answerMessage.headers.To;
     this.remoteKey = answerMessage.body.match(

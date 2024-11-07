@@ -6,6 +6,7 @@ import type { RtpPacket } from 'werift-rtp';
 import Softphone from '../src/softphone';
 
 const softphone = new Softphone({
+  outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY,
   username: process.env.SIP_INFO_USERNAME,
   password: process.env.SIP_INFO_PASSWORD,
   authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID,
