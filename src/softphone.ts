@@ -6,8 +6,12 @@ import waitFor from 'wait-for-async';
 
 import InboundCallSession from './call-session/inbound';
 import OutboundCallSession from './call-session/outbound';
-import type { OutboundMessage } from './sip-message';
-import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
+import {
+  InboundMessage,
+  OutboundMessage,
+  RequestMessage,
+  ResponseMessage,
+} from './sip-message';
 import {
   branch,
   generateAuthorization,
@@ -118,6 +122,15 @@ class Softphone extends EventEmitter {
       if (!inboundMessage.subject.startsWith('INVITE sip:')) {
         return;
       }
+      const outboundMessage = new OutboundMessage('SIP/2.0 100 Trying', {
+        Via: inboundMessage.headers.Via,
+        'Call-ID': inboundMessage.headers['Call-ID'],
+        From: inboundMessage.headers.From,
+        To: inboundMessage.headers.To,
+        CSeq: inboundMessage.headers.CSeq,
+        'Content-Length': '0',
+      });
+      this.send(outboundMessage);
       this.emit('invite', inboundMessage);
     });
   }
@@ -177,7 +190,7 @@ class Softphone extends EventEmitter {
   public async call(callee: number, callerId?: number) {
     const offerSDP = `
 v=0
-o=- ${Date.now()} 0 IN IP4 127.0.0.1
+o=- ${Date.now()} 0 IN IP4 ${this.client.localAddress}
 s=rc-softphone-ts
 c=IN IP4 ${this.client.localAddress}
 t=0 0
@@ -196,7 +209,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
         From: `sip:${this.sipInfo.username}@${this.sipInfo.domain};tag=${uuid()}`,
         To: `sip:${callee}`,
         Contact: ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
-        'Call-Id': uuid(),
+        'Call-ID': uuid(),
         Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
         Allow: `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
         Supported: `replaces, 100rel, timer, norefersub`,

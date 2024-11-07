@@ -27,7 +27,7 @@ class OutboundCallSession extends CallSession {
         const ackMessage = new RequestMessage(
           `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
           {
-            'Call-Id': this.callId,
+            'Call-ID': this.callId,
             From: this.localPeer,
             To: this.remotePeer,
             Via: this.sipMessage.headers.Via,
@@ -45,7 +45,7 @@ class OutboundCallSession extends CallSession {
     const requestMessage = new RequestMessage(
       `CANCEL ${extractAddress(this.remotePeer)} SIP/2.0`,
       {
-        'Call-Id': this.callId,
+        'Call-ID': this.callId,
         From: this.localPeer,
         To: withoutTag(this.remotePeer),
         Via: this.sipMessage.headers.Via,

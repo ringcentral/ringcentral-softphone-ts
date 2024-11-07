@@ -50,7 +50,7 @@ abstract class CallSession extends EventEmitter {
   }
 
   public get callId() {
-    return this.sipMessage.headers['Call-Id'];
+    return this.sipMessage.headers['Call-ID'];
   }
 
   public send(data: string | Buffer) {
@@ -61,7 +61,7 @@ abstract class CallSession extends EventEmitter {
     const requestMessage = new RequestMessage(
       `REFER sip:${extractAddress(this.remotePeer)} SIP/2.0`,
       {
-        'Call-Id': this.callId,
+        'Call-ID': this.callId,
         From: this.localPeer,
         To: this.remotePeer,
         Via: `SIP/2.0/TLS ${this.softphone.fakeDomain};branch=${branch()}`,
@@ -88,7 +88,7 @@ abstract class CallSession extends EventEmitter {
     const requestMessage = new RequestMessage(
       `BYE sip:${this.softphone.sipInfo.domain} SIP/2.0`,
       {
-        'Call-Id': this.callId,
+        'Call-ID': this.callId,
         From: this.localPeer,
         To: this.remotePeer,
         Via: `SIP/2.0/TLS ${this.softphone.fakeDomain};branch=${branch()}`,
@@ -159,7 +159,7 @@ abstract class CallSession extends EventEmitter {
     this.send('hello');
 
     const byeHandler = (inboundMessage: InboundMessage) => {
-      if (inboundMessage.headers['Call-Id'] !== this.callId) {
+      if (inboundMessage.headers['Call-ID'] !== this.callId) {
         return;
       }
       if (inboundMessage.headers.CSeq.endsWith(' BYE')) {
