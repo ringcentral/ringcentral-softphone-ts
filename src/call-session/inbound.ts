@@ -1,16 +1,11 @@
 import CallSession from '.';
 import { ResponseMessage, type InboundMessage } from '../sip-message';
 import type Softphone from '../softphone';
-import { localKey } from '../utils';
+import { localKey, randomInt } from '../utils';
 
 class InboundCallSession extends CallSession {
-  public constructor(
-    softphone: Softphone,
-    inviteMessage: InboundMessage,
-    udpPort: number,
-  ) {
+  public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
     super(softphone, inviteMessage);
-    this.udpPort = udpPort;
     this.localPeer = inviteMessage.headers.To;
     this.remotePeer = inviteMessage.headers.From;
     this.remoteKey = inviteMessage.body.match(
@@ -25,7 +20,7 @@ o=- ${Date.now()} 0 IN IP4 127.0.0.1
 s=rc-softphone-ts
 c=IN IP4 ${this.softphone.client.localAddress}
 t=0 0
-m=audio ${this.udpPort} RTP/SAVP 0 101
+m=audio ${randomInt()} RTP/SAVP 0 101
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15

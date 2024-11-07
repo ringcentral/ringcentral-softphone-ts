@@ -51,18 +51,3 @@ export const extractAddress = (s: string) => s.match(/<(sip:.+?)>/)[1];
 
 const keyAndSalt = crypto.randomBytes(30);
 export const localKey = keyAndSalt.toString('base64').replace(/=+$/, '');
-
-export const getRandomAvailablePort = async (): Promise<number> => {
-  const randomPort = Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
-  return new Promise((resolve) => {
-    const server = createServer();
-    server.listen(randomPort, () => {
-      server.close(() => {
-        resolve(randomPort);
-      });
-    });
-    server.on('error', () => {
-      resolve(getRandomAvailablePort());
-    });
-  });
-};

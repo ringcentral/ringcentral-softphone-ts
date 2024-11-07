@@ -23,7 +23,6 @@ abstract class CallSession extends EventEmitter {
   public remotePort: number;
   public disposed = false;
   public srtpSession: SrtpSession;
-  public udpPort: number;
 
   public constructor(softphone: Softphone, sipMessage: InboundMessage) {
     super();
@@ -154,8 +153,8 @@ abstract class CallSession extends EventEmitter {
     });
 
     // as I tested, we can use a random port here and it still works
-    // but it seems that in SDP we need to tell remote our IP Address.
-    this.socket.bind(this.udpPort);
+    // but it seems that in SDP we need to tell remote our local IP Address, not 127.0.0.1
+    this.socket.bind(); // random port
     // send a message to remote server so that it knows where to reply
     this.send('hello');
 
