@@ -25,7 +25,7 @@ const main = async () => {
   // callee answers the call
   callSession.once('answered', async () => {
     // receive audio
-    const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, {
+    const writeStream = fs.createWriteStream(`${callSession.callId}.wav`, {
       flags: 'a',
     });
     callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
@@ -37,7 +37,7 @@ const main = async () => {
     });
 
     // // send audio to remote peer
-    // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.raw'));
+    // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.wav'));
     // // You may subscribe to the 'finished' event of the streamer to know when the audio sending is finished
     // streamer.once('finished', () => {
     //   console.log('audio sending finished');

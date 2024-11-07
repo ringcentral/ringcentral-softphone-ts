@@ -67,18 +67,18 @@ Please do not specify port number in domain.
 
 ### Audio formats
 
-The codec is "PCMU/8000". Bit rate is 8, which means 8 bits per sample. Sample rate is 8000, which means 8000 samples per second.
+The codec used between server and client is "OPUS/48000/2".
+This SDK will auto decode/encode the codec to/from "uncompressed PCM".
 
-You may play saved audio by the following commands:
+Bit rate is 16, which means 16 bits per sample.
+Sample rate is 48000, which means 48000 samples per second.
+Encoding is "signed-integer".
+There are two channels
+
+You may play saved audio by the following command:
 
 ```
-ffplay -autoexit -f mulaw -ar 8000 test.raw
-```
-
-Or
-
-```
-play -b 8 -r 8000 -e mu-law test.raw
+play -t raw -b 16 -r 48000 -e signed-integer -c 2 test.wav
 ```
 
 ### Invalid callee number
