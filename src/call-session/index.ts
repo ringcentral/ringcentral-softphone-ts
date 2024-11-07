@@ -1,9 +1,9 @@
 import dgram from 'dgram';
 import EventEmitter from 'events';
 
-import { OpusEncoder } from '@discordjs/opus';
 import { RtpHeader, RtpPacket, SrtpSession } from 'werift-rtp';
 
+import { opus } from '../codec';
 import DTMF from '../dtmf';
 import {
   RequestMessage,
@@ -13,8 +13,6 @@ import {
 import type Softphone from '../softphone';
 import { branch, extractAddress, localKey, randomInt } from '../utils';
 import Streamer from './streamer';
-
-const encoder = new OpusEncoder(48000, 2);
 
 abstract class CallSession extends EventEmitter {
   public softphone: Softphone;
@@ -151,7 +149,7 @@ abstract class CallSession extends EventEmitter {
           this.emit('dtmf', char);
         }
       } else {
-        rtpPacket.payload = encoder.decode(rtpPacket.payload);
+        rtpPacket.payload = opus.decode(rtpPacket.payload);
         this.emit('audioPacket', rtpPacket);
       }
     });

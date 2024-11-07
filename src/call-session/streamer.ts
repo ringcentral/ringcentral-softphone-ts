@@ -3,6 +3,7 @@ import EventEmitter from 'events';
 import { RtpHeader, RtpPacket } from 'werift-rtp';
 
 import type CallSession from '.';
+import { opus } from '../codec';
 import { randomInt } from '../utils';
 
 class Streamer extends EventEmitter {
@@ -41,12 +42,12 @@ class Streamer extends EventEmitter {
   }
 
   public get finished() {
-    return this.buffer.length < 160;
+    return this.buffer.length < 3840;
   }
 
   private sendPacket() {
     if (!this.callSession.disposed && !this.paused && !this.finished) {
-      const temp = this.buffer.subarray(0, 160);
+      const temp = opus.encode(this.buffer.subarray(0, 3840));
       const rtpPacket = new RtpPacket(
         new RtpHeader({
           version: 2,
@@ -55,7 +56,7 @@ class Streamer extends EventEmitter {
           extension: false,
           marker: false,
           payloadOffset: 12,
-          payloadType: 0,
+          payloadType: 111,
           sequenceNumber: this.sequenceNumber,
           timestamp: this.timestamp,
           ssrc: this.ssrc,
@@ -77,8 +78,8 @@ class Streamer extends EventEmitter {
       if (this.sequenceNumber > 65535) {
         this.sequenceNumber = 0;
       }
-      this.timestamp += 160; // inbound audio use this time interval, in my opinion, it should be 20
-      this.buffer = this.buffer.subarray(160);
+      this.timestamp += 960;
+      this.buffer = this.buffer.subarray(3840);
       if (this.finished) {
         this.emit('finished');
       } else {
