@@ -22,6 +22,10 @@ const main = async () => {
     parseInt(process.env.CALLEE_FOR_TESTING!, 10),
   );
 
+  callSession.on('busy', () => {
+    console.log('cannot reach the callee');
+  });
+
   // callee answers the call
   callSession.once('answered', async () => {
     // receive audio

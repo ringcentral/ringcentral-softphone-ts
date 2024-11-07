@@ -17,10 +17,16 @@ class OutboundCallSession extends CallSession {
   public async init() {
     // wait for user to answer the call
     const answerHandler = (message: InboundMessage) => {
-      if (
-        message.headers.CSeq === this.sipMessage.headers.CSeq &&
-        message.subject.startsWith('SIP/2.0 200')
-      ) {
+      if (message.headers.CSeq !== this.sipMessage.headers.CSeq) {
+        return;
+      }
+      if (message.subject.startsWith('SIP/2.0 486')) {
+        this.softphone.off('message', answerHandler);
+        this.emit('busy');
+        this.dispose();
+        return;
+      }
+      if (message.subject.startsWith('SIP/2.0 200')) {
         this.softphone.off('message', answerHandler);
         this.emit('answered');
 
