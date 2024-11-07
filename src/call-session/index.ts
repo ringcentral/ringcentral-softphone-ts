@@ -162,6 +162,12 @@ abstract class CallSession extends EventEmitter {
       if (inboundMessage.headers['Call-ID'] !== this.callId) {
         return;
       }
+      if (inboundMessage.subject.endsWith('486 Busy Here')) {
+        this.softphone.off('message', byeHandler);
+        this.emit('busy');
+        this.dispose();
+        return;
+      }
       if (inboundMessage.headers.CSeq.endsWith(' BYE')) {
         this.softphone.off('message', byeHandler);
         this.dispose();
