@@ -8,7 +8,13 @@ import InboundCallSession from './call-session/inbound';
 import OutboundCallSession from './call-session/outbound';
 import type { OutboundMessage } from './sip-message';
 import { InboundMessage, RequestMessage, ResponseMessage } from './sip-message';
-import { branch, generateAuthorization, randomInt, uuid } from './utils';
+import {
+  branch,
+  generateAuthorization,
+  localKey,
+  randomInt,
+  uuid,
+} from './utils';
 
 class Softphone extends EventEmitter {
   public sipInfo: SipInfoResponse;
@@ -180,7 +186,7 @@ a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
 a=sendrecv
-a=crypto:3 AES_CM_128_HMAC_SHA1_80 inline:4m4EiWWnul+FiUoHrpacZ4qobtce0w89dL4RekY9
+a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
   `.trim();
     const inviteMessage = new RequestMessage(
       `INVITE sip:${callee} SIP/2.0`,

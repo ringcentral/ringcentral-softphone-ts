@@ -1,13 +1,16 @@
 import CallSession from '.';
 import { ResponseMessage, type InboundMessage } from '../sip-message';
 import type Softphone from '../softphone';
-import { randomInt } from '../utils';
+import { localKey, randomInt } from '../utils';
 
 class InboundCallSession extends CallSession {
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
     super(softphone, inviteMessage);
     this.localPeer = inviteMessage.headers.To;
     this.remotePeer = inviteMessage.headers.From;
+    this.remoteKey = inviteMessage.body.match(
+      /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
+    )![1];
   }
 
   public async answer() {
@@ -22,7 +25,7 @@ a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
 a=sendrecv
-a=crypto:3 AES_CM_128_HMAC_SHA1_80 inline:4m4EiWWnul+FiUoHrpacZ4qobtce0w89dL4RekY9
+a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
 `.trim();
     const newMessage = new ResponseMessage(
       this.sipMessage,

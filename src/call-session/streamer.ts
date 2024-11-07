@@ -1,24 +1,9 @@
 import EventEmitter from 'events';
 
-import { RtpHeader, RtpPacket, SrtpSession } from 'werift-rtp';
+import { RtpHeader, RtpPacket } from 'werift-rtp';
 
 import type CallSession from '.';
 import { randomInt } from '../utils';
-
-const buffer = Buffer.from(
-  '4m4EiWWnul+FiUoHrpacZ4qobtce0w89dL4RekY9',
-  'base64',
-);
-
-const srtpSession = new SrtpSession({
-  profile: 0x0001,
-  keys: {
-    localMasterKey: buffer.subarray(0, 16),
-    localMasterSalt: buffer.subarray(16, 30),
-    remoteMasterKey: buffer.subarray(0, 16), // todo: remote should be dynamically determined
-    remoteMasterSalt: buffer.subarray(16, 30),
-  },
-});
 
 class Streamer extends EventEmitter {
   public paused = false;
@@ -83,7 +68,10 @@ class Streamer extends EventEmitter {
         temp,
       );
       this.callSession.send(
-        srtpSession.encrypt(rtpPacket.payload, rtpPacket.header),
+        this.callSession.srtpSession.encrypt(
+          rtpPacket.payload,
+          rtpPacket.header,
+        ),
       );
       this.sequenceNumber += 1;
       if (this.sequenceNumber > 65535) {

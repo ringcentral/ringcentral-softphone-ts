@@ -47,3 +47,6 @@ export const randomInt = () =>
 
 export const withoutTag = (s: string) => s.replace(/;tag=.*$/, '');
 export const extractAddress = (s: string) => s.match(/<(sip:.+?)>/)[1];
+
+const keyAndSalt = crypto.randomBytes(30);
+export const localKey = keyAndSalt.toString('base64').replace(/=+$/, '');

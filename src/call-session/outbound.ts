@@ -8,6 +8,9 @@ class OutboundCallSession extends CallSession {
     super(softphone, answerMessage);
     this.localPeer = answerMessage.headers.From;
     this.remotePeer = answerMessage.headers.To;
+    this.remoteKey = answerMessage.body.match(
+      /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
+    )![1];
     this.init();
   }
 

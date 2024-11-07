@@ -1,7 +1,7 @@
 import dgram from 'dgram';
 import EventEmitter from 'events';
 
-import { RtpHeader, RtpPacket } from 'werift-rtp';
+import { RtpHeader, RtpPacket, SrtpSession } from 'werift-rtp';
 
 import DTMF from '../dtmf';
 import {
@@ -10,7 +10,7 @@ import {
   type InboundMessage,
 } from '../sip-message';
 import type Softphone from '../softphone';
-import { branch, extractAddress, randomInt } from '../utils';
+import { branch, extractAddress, localKey, randomInt } from '../utils';
 import Streamer from './streamer';
 
 abstract class CallSession extends EventEmitter {
@@ -22,6 +22,7 @@ abstract class CallSession extends EventEmitter {
   public remoteIP: string;
   public remotePort: number;
   public disposed = false;
+  public srtpSession: SrtpSession;
 
   public constructor(softphone: Softphone, sipMessage: InboundMessage) {
     super();
@@ -32,6 +33,20 @@ abstract class CallSession extends EventEmitter {
       this.sipMessage.body.match(/m=audio (\d+) /)![1],
       10,
     );
+  }
+
+  public set remoteKey(key: string) {
+    const localKeyBuffer = Buffer.from(localKey, 'base64');
+    const remoteKeyBuffer = Buffer.from(key, 'base64');
+    this.srtpSession = new SrtpSession({
+      profile: 0x0001,
+      keys: {
+        localMasterKey: localKeyBuffer.subarray(0, 16),
+        localMasterSalt: localKeyBuffer.subarray(16, 30),
+        remoteMasterKey: remoteKeyBuffer.subarray(0, 16),
+        remoteMasterSalt: remoteKeyBuffer.subarray(16, 30),
+      },
+    });
   }
 
   public get callId() {
@@ -107,7 +122,7 @@ abstract class CallSession extends EventEmitter {
     for (const payload of DTMF.charToPayloads(char)) {
       rtpHeader.sequenceNumber = sequenceNumber++;
       const rtpPacket = new RtpPacket(rtpHeader, payload);
-      this.send(rtpPacket.serialize());
+      this.send(this.srtpSession.encrypt(rtpPacket.payload, rtpPacket.header));
     }
   }
 
@@ -122,7 +137,10 @@ abstract class CallSession extends EventEmitter {
   protected async startLocalServices() {
     this.socket = dgram.createSocket('udp4');
     this.socket.on('message', (message) => {
-      const rtpPacket = RtpPacket.deSerialize(message);
+      console.log('received message');
+      const rtpPacket = RtpPacket.deSerialize(
+        this.srtpSession.decrypt(message),
+      );
       this.emit('rtpPacket', rtpPacket);
       if (rtpPacket.header.payloadType === 101) {
         this.emit('dtmfPacket', rtpPacket);
