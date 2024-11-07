@@ -17,11 +17,12 @@ o=- ${randomInt()} 0 IN IP4 127.0.0.1
 s=rc-softphone-ts
 c=IN IP4 127.0.0.1
 t=0 0
-m=audio ${randomInt()} RTP/AVP 0 101
+m=audio ${randomInt()} RTP/SAVP 0 101
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
 a=sendrecv
+a=crypto:3 AES_CM_128_HMAC_SHA1_80 inline:4m4EiWWnul+FiUoHrpacZ4qobtce0w89dL4RekY9
 `.trim();
     const newMessage = new ResponseMessage(
       this.sipMessage,
