@@ -61,7 +61,6 @@ Please do not specify port number in domain.
 - hang up ongoing call
 - receive audio stream from peer
 - stream local audio to remote peer
-- call transfer
 
 ## Notes
 

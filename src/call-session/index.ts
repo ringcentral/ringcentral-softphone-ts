@@ -5,13 +5,9 @@ import { RtpHeader, RtpPacket, SrtpSession } from 'werift-rtp';
 
 import { opus } from '../codec';
 import DTMF from '../dtmf';
-import {
-  RequestMessage,
-  ResponseMessage,
-  type InboundMessage,
-} from '../sip-message';
+import { RequestMessage, type InboundMessage } from '../sip-message';
 import type Softphone from '../softphone';
-import { branch, extractAddress, localKey, randomInt } from '../utils';
+import { branch, localKey, randomInt } from '../utils';
 import Streamer from './streamer';
 
 abstract class CallSession extends EventEmitter {
@@ -56,33 +52,6 @@ abstract class CallSession extends EventEmitter {
 
   public send(data: string | Buffer) {
     this.socket.send(data, this.remotePort, this.remoteIP);
-  }
-
-  public async transfer(target: string) {
-    const requestMessage = new RequestMessage(
-      `REFER sip:${extractAddress(this.remotePeer)} SIP/2.0`,
-      {
-        'Call-ID': this.callId,
-        From: this.localPeer,
-        To: this.remotePeer,
-        Via: `SIP/2.0/TLS ${this.softphone.fakeDomain};branch=${branch()}`,
-        'Refer-To': `sip:${target}@sip.ringcentral.com`,
-        'Referred-By': `<${extractAddress(this.localPeer)}>`,
-      },
-    );
-    this.softphone.send(requestMessage);
-    // reply to those NOTIFY messages
-    const notifyHandler = (inboundMessage: InboundMessage) => {
-      if (!inboundMessage.subject.startsWith('NOTIFY ')) {
-        return;
-      }
-      const responseMessage = new ResponseMessage(inboundMessage, 200);
-      this.softphone.send(responseMessage);
-      if (inboundMessage.body.trim() === 'SIP/2.0 200 OK') {
-        this.softphone.off('message', notifyHandler);
-      }
-    };
-    this.softphone.on('message', notifyHandler);
   }
 
   public async hangup() {
