@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import net from 'net';
+import tls, { TLSSocket } from 'tls';
 
 import type SipInfoResponse from '@rc-ex/core/lib/definitions/SipInfoResponse';
 import waitFor from 'wait-for-async';
@@ -12,7 +12,7 @@ import { branch, generateAuthorization, randomInt, uuid } from './utils';
 
 class Softphone extends EventEmitter {
   public sipInfo: SipInfoResponse;
-  public client: net.Socket;
+  public client: TLSSocket;
 
   public fakeDomain = uuid() + '.invalid';
   public fakeEmail = uuid() + '@' + this.fakeDomain;
@@ -27,13 +27,15 @@ class Softphone extends EventEmitter {
       this.sipInfo.domain = 'sip.ringcentral.com';
     }
     if (this.sipInfo.outboundProxy === undefined) {
-      this.sipInfo.outboundProxy = 'sip112-1241.ringcentral.com:5091';
+      this.sipInfo.outboundProxy = 'sip10.ringcentral.com:5096';
     }
-    this.client = new net.Socket();
     const tokens = this.sipInfo.outboundProxy!.split(':');
-    this.client.connect(parseInt(tokens[1], 10), tokens[0], () => {
-      this.connected = true;
-    });
+    this.client = tls.connect(
+      { host: tokens[0], port: parseInt(tokens[1], 10) },
+      () => {
+        this.connected = true;
+      },
+    );
 
     let cache = '';
     this.client.on('data', (data) => {
@@ -57,19 +59,29 @@ class Softphone extends EventEmitter {
     });
   }
 
+  private instanceId = uuid();
+  private registerCallId = uuid();
+
   public async register() {
     if (!this.connected) {
       await waitFor({ interval: 100, condition: () => this.connected });
     }
     const sipRegister = async () => {
+      const fromTag = uuid();
       const requestMessage = new RequestMessage(
         `REGISTER sip:${this.sipInfo.domain} SIP/2.0`,
         {
-          'Call-Id': uuid(),
-          Contact: `<sip:${this.fakeEmail};transport=tcp>;expires=600`,
-          From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
+          Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
+          Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
+          'Max-Forwards': '70',
+          From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${fromTag}`,
           To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
-          Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${branch()}`,
+          'Call-ID': this.registerCallId,
+          Supported: 'outbound, path',
+          Contact: `<sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
+          Expires: 300,
+          Allow:
+            'PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS',
         },
       );
       const inboundMessage = await this.send(requestMessage, true);
@@ -108,10 +120,10 @@ class Softphone extends EventEmitter {
     this.on('message', (message) =>
       console.log(`Receiving...(${new Date()})\n` + message.toString()),
     );
-    const tcpWrite = this.client.write.bind(this.client);
+    const tlsWrite = this.client.write.bind(this.client);
     this.client.write = (message) => {
       console.log(`Sending...(${new Date()})\n` + message);
-      return tcpWrite(message);
+      return tlsWrite(message);
     };
   }
 
@@ -163,20 +175,27 @@ o=- ${randomInt()} 0 IN IP4 127.0.0.1
 s=rc-softphone-ts
 c=IN IP4 127.0.0.1
 t=0 0
-m=audio ${randomInt()} RTP/AVP 0 101
+m=audio ${randomInt()} RTP/SAVP 0 101
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
 a=sendrecv
+a=crypto:3 AES_CM_128_HMAC_SHA1_80 inline:4m4EiWWnul+FiUoHrpacZ4qobtce0w89dL4RekY9
   `.trim();
     const inviteMessage = new RequestMessage(
-      `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
+      `INVITE sip:${callee} SIP/2.0`,
       {
+        Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
+        'Max-Forwards': 70,
+        From: `sip:${this.sipInfo.username}@${this.sipInfo.domain};tag=${uuid()}`,
+        To: `sip:${callee}`,
+        Contact: ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
         'Call-Id': uuid(),
-        Contact: `<sip:${this.fakeEmail};transport=tcp>;expires=600`,
-        From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
-        To: `<sip:${callee}@${this.sipInfo.domain}>`,
-        Via: `SIP/2.0/TCP ${this.fakeDomain};branch=${branch()}`,
+        Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
+        Allow: `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
+        Supported: `replaces, 100rel, timer, norefersub`,
+        'Session-Expires': 1800,
+        'Min-SE': 90,
         'Content-Type': 'application/sdp',
       },
       offerSDP,

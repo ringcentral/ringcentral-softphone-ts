@@ -27,6 +27,7 @@ yarn install ringcentral-softphone
 import Softphone from 'ringcentral-softphone';
 
 const softphone = new Softphone({
+  outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY,
   username: process.env.SIP_INFO_USERNAME,
   password: process.env.SIP_INFO_PASSWORD,
   authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID,
@@ -34,6 +35,8 @@ const softphone = new Softphone({
 ```
 
 For complete examples, see [demos/](demos/)
+
+### domain
 
 For UK accounts you need to explicitly specify the `domain` parameter:
 
@@ -43,7 +46,9 @@ For UK accounts you need to explicitly specify the `domain` parameter:
 }
 ```
 
-US accounts use `sip.ringcentral.com` by default.
+US accounts use `sip.ringcentral.com` by default if you don't specify it.
+
+Please do not specify port number in domain.
 
 ## Supported features
 
