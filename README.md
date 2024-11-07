@@ -10,7 +10,7 @@ Users are recommended to use this SDK instead of the JavaScript SDK.
 yarn install ringcentral-softphone
 ```
 
-## Where to get SIP_INFO_USERNAME, SIP_INFO_PASSWORD and SIP_INFO_AUTHORIZATION_ID?
+## Where to get SIP_INFO_OUTBOUND_PROXY, SIP_INFO_USERNAME, SIP_INFO_PASSWORD and SIP_INFO_AUTHORIZATION_ID?
 
 1. Login to https://service.ringcentral.com
 2. Find the user/extension you want to use
@@ -19,7 +19,7 @@ yarn install ringcentral-softphone
 5. if there is none, you need to create one. Check steps below for more details
 6. Click the "Set Up and Provision" button
 7. Click the link "Set up manually using SIP"
-8. At the bottom part of the page, you will find "User Name", "Password" and "Authorization ID"
+8. At the bottom part of the page, you will find "Outbound Proxy", "User Name", "Password" and "Authorization ID"
 
 ## Usage
 
@@ -61,7 +61,6 @@ Please do not specify port number in domain.
 - hang up ongoing call
 - receive audio stream from peer
 - stream local audio to remote peer
-- outbound call caller ID
 - call transfer
 
 ## Notes
@@ -86,16 +85,10 @@ play -b 8 -r 8000 -e mu-law test.raw
 
 - Try other payload types, such as OPUS
   - tried OPUS/16000, but the received packets are quite small and cannot be played
-- do not hard code `domain` and `outboundProxy`
-  - I tried `sip10.ringcentral.com:5096` as `outboundProxy`, it requires TLS instead of TCP
-  - I made TLS work, however for inbound call there is no INVITE message coming in, for outbound call "488 Not Acceptable Here"
-    - change the codec list in SDP could solve the 488 issue.
 - check the code of PJSIP and refactor the code.
-  - with PJSIP 2.10, I have made TCP & TLS work.
-  - TLS is too complicated, next step is to copy PJSIP TCP example.
-- Provide an easy way for developers to check the call info, such as who is calling, who is being called, etc.
 
 ## Dev Notes
 
 - We don't need to explicitly tell remote server our local RTP port via SIP SDP message. We send a RTP message to the remote server first, so the remote server knows our IP and port. So, the port number in SDP message could be fake.
 - Ref: https://www.ietf.org/rfc/rfc3261.txt
+- Caller Id feature is not supported. `P-Asserted-Identity` doesn't work. I think it is by design, since hardphone cannot support it.

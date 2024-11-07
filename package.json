@@ -1,6 +1,6 @@
 {
   "name": "ringcentral-softphone",
-  "version": "0.12.1",
+  "version": "1.0.0-alpha.1",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
   "main": "dist/src/softphone.js",
@@ -18,7 +18,7 @@
     "werift-rtp": "^0.8.2"
   },
   "devDependencies": {
-    "@types/node": "^22.8.7",
+    "@types/node": "^22.9.0",
     "dotenv-override-true": "^6.2.2",
     "eslint-config-tyler": "^0.2.1",
     "sort-package-json": "^2.10.1",
