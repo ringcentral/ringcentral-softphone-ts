@@ -83,7 +83,7 @@ play -b 8 -r 8000 -e mu-law test.raw
 
 ### Invalid callee number
 
-If you can an invalid number. The sip server will return "SIP/2.0 486 Busy Here".
+If you call an invalid number. The sip server will return "SIP/2.0 486 Busy Here".
 
 This SDK will emit a "busy" event for the call session and dispose it.
 
