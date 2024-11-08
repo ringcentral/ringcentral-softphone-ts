@@ -1,6 +1,6 @@
 {
   "name": "ringcentral-softphone",
-  "version": "1.0.0-alpha.4",
+  "version": "1.0.0-alpha.5",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
   "main": "dist/src/softphone.js",

@@ -42,12 +42,12 @@ class Streamer extends EventEmitter {
   }
 
   public get finished() {
-    return this.buffer.length < 3840;
+    return this.buffer.length < 640;
   }
 
   private sendPacket() {
     if (!this.callSession.disposed && !this.paused && !this.finished) {
-      const temp = opus.encode(this.buffer.subarray(0, 3840));
+      const temp = opus.encode(this.buffer.subarray(0, 640));
       const rtpPacket = new RtpPacket(
         new RtpHeader({
           version: 2,
@@ -56,7 +56,7 @@ class Streamer extends EventEmitter {
           extension: false,
           marker: false,
           payloadOffset: 12,
-          payloadType: 111,
+          payloadType: 109,
           sequenceNumber: this.sequenceNumber,
           timestamp: this.timestamp,
           ssrc: this.ssrc,
@@ -78,8 +78,8 @@ class Streamer extends EventEmitter {
       if (this.sequenceNumber > 65535) {
         this.sequenceNumber = 0;
       }
-      this.timestamp += 960;
-      this.buffer = this.buffer.subarray(3840);
+      this.timestamp += 320;
+      this.buffer = this.buffer.subarray(640);
       if (this.finished) {
         this.emit('finished');
       } else {

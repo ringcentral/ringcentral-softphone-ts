@@ -67,18 +67,17 @@ Please do not specify port number in domain.
 
 ### Audio formats
 
-The codec used between server and client is "OPUS/48000/2".
+The codec used between server and client is "OPUS/16000".
 This SDK will auto decode/encode the codec to/from "uncompressed PCM".
 
 Bit rate is 16, which means 16 bits per sample.
-Sample rate is 48000, which means 48000 samples per second.
+Sample rate is 16000, which means 16000 samples per second.
 Encoding is "signed-integer".
-There are two channels
 
 You may play saved audio by the following command:
 
 ```
-play -t raw -b 16 -r 48000 -e signed-integer -c 2 test.wav
+play -t raw -b 16 -r 16000 -e signed-integer test.wav
 ```
 
 ### Invalid callee number
