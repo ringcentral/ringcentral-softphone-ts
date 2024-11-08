@@ -122,8 +122,12 @@ abstract class CallSession extends EventEmitter {
           this.emit('dtmf', char);
         }
       } else {
-        rtpPacket.payload = opus.decode(rtpPacket.payload);
-        this.emit('audioPacket', rtpPacket);
+        try {
+          rtpPacket.payload = opus.decode(rtpPacket.payload);
+          this.emit('audioPacket', rtpPacket);
+        } catch {
+          console.error('opus decode failed');
+        }
       }
     });
 
