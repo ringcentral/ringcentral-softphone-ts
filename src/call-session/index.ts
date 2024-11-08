@@ -5,7 +5,11 @@ import { RtpHeader, RtpPacket, SrtpSession } from 'werift-rtp';
 
 import { opus } from '../codec';
 import DTMF from '../dtmf';
-import { RequestMessage, type InboundMessage } from '../sip-message';
+import {
+  RequestMessage,
+  ResponseMessage,
+  type InboundMessage,
+} from '../sip-message';
 import type Softphone from '../softphone';
 import { branch, localKey, randomInt } from '../utils';
 import Streamer from './streamer';
@@ -147,6 +151,40 @@ abstract class CallSession extends EventEmitter {
     this.removeAllListeners();
     this.socket?.removeAllListeners();
     this.socket?.close();
+  }
+
+  public transfer(transferTo: number) {
+    const requestMessage = new RequestMessage(
+      `REFER sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.outboundProxy};transport=tls SIP/2.0`,
+      {
+        Via: `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
+        'Max-Forwards': 70,
+        From: this.localPeer,
+        To: this.remotePeer,
+        Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+        'Call-ID': this.callId,
+        Event: 'refer',
+        Expires: 600,
+        Supported: 'replaces, 100rel, timer, norefersub',
+        Accept: 'message/sipfrag;version=2.0',
+        'Allow-Events': 'presence, message-summary, refer',
+        'Refer-To': `sip:${transferTo}@${this.softphone.sipInfo.domain}`,
+        'Referred-By': `<sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.domain}>`,
+      },
+    );
+    this.softphone.send(requestMessage);
+    // reply to those NOTIFY messages
+    const notifyHandler = (inboundMessage: InboundMessage) => {
+      if (!inboundMessage.subject.startsWith('NOTIFY ')) {
+        return;
+      }
+      const responseMessage = new ResponseMessage(inboundMessage, 200);
+      this.softphone.send(responseMessage);
+      if (inboundMessage.body.trim() === 'SIP/2.0 200 OK') {
+        this.softphone.off('message', notifyHandler);
+      }
+    };
+    this.softphone.on('message', notifyHandler);
   }
 }
 

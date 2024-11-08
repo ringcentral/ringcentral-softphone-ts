@@ -40,6 +40,10 @@ const main = async () => {
       writeStream.close();
     });
 
+    // call transfer
+    // await waitFor({ interval: 3000 });
+    // callSession.transfer(parseInt(process.env.ANOTHER_CALLEE_FOR_TESTING!, 10));
+
     // // send audio to remote peer
     // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.wav'));
     // // You may subscribe to the 'finished' event of the streamer to know when the audio sending is finished

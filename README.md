@@ -10,7 +10,7 @@ Users are recommended to use this SDK instead of the JavaScript SDK.
 yarn install ringcentral-softphone
 ```
 
-## Where to get SIP_INFO_OUTBOUND_PROXY, SIP_INFO_USERNAME, SIP_INFO_PASSWORD and SIP_INFO_AUTHORIZATION_ID?
+## Where to get credentials?
 
 1. Login to https://service.ringcentral.com
 2. Find the user/extension you want to use
@@ -61,6 +61,7 @@ Please do not specify port number in domain.
 - hang up ongoing call
 - receive audio stream from peer
 - stream local audio to remote peer
+- call transfer
 
 ## Notes
 
@@ -94,16 +95,12 @@ callSession.once('busy', () => {
 });
 ```
 
-## Call Control operations
-
-Call transfer is not supported by the current version, we may add it in the future.
-
 ---
 
 ## Dev Notes
 
 Content below is for the maintainer of this SDK.
 
-- We don't need to explicitly tell remote server our local RTP port via SIP SDP message. We send a RTP message to the remote server first, so the remote server knows our IP and port. So, the port number in SDP message could be fake.
+- We don't need to explicitly tell remote server our local UDP port (for audio streaming) via SIP SDP message. We send a RTP message to the remote server first, so the remote server knows our IP and port. So, the port number in SDP message could be fake.
 - Ref: https://www.ietf.org/rfc/rfc3261.txt
 - Caller Id feature is not supported. `P-Asserted-Identity` doesn't work. I think it is by design, since hardphone cannot support it.
