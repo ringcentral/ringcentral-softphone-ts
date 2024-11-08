@@ -94,13 +94,15 @@ callSession.once('busy', () => {
 });
 ```
 
-## Todo
+## Call Control operations
 
-- Try other payload types, such as OPUS
-  - tried OPUS/16000, but the received packets are quite small and cannot be played
-- check the code of PJSIP and refactor the code.
+Call transfer is not supported by the current version, we may add it in the future.
+
+---
 
 ## Dev Notes
+
+Content below is for the maintainer of this SDK.
 
 - We don't need to explicitly tell remote server our local RTP port via SIP SDP message. We send a RTP message to the remote server first, so the remote server knows our IP and port. So, the port number in SDP message could be fake.
 - Ref: https://www.ietf.org/rfc/rfc3261.txt
