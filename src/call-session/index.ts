@@ -100,8 +100,8 @@ abstract class CallSession extends EventEmitter {
     }
   }
 
-  // buffer is the content of a audio file, it is supposed to be PCMU/8000 encoded.
-  // The audio should be playable by command: ffplay -autoexit -f mulaw -ar 8000 test.raw
+  // buffer is the content of a audio file, it is supposed to be uncompressed PCM data
+  // The audio should be playable by command: play -t raw -b 16 -r 16000 -e signed-integer test.wav
   public streamAudio(input: Buffer) {
     const streamer = new Streamer(this, input);
     streamer.start();

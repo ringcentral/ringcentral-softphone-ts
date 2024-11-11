@@ -12,6 +12,8 @@ yarn install ringcentral-softphone
 
 ## Where to get credentials?
 
+### Manually
+
 1. Login to https://service.ringcentral.com
 2. Find the user/extension you want to use
 3. Check the user's "Devices & Numbers"
@@ -19,7 +21,80 @@ yarn install ringcentral-softphone
 5. if there is none, you need to create one. Check steps below for more details
 6. Click the "Set Up and Provision" button
 7. Click the link "Set up manually using SIP"
-8. At the bottom part of the page, you will find "Outbound Proxy", "User Name", "Password" and "Authorization ID"
+8. You will find "SIP Domain", "Outbound Proxy", "User Name", "Password" and "Authorization ID"
+
+Please note that, "SIP Domain" name should come without port number. I don't know why it shows a port number on the page.
+This SDK requires a "domain" which is "SIP Domain" but without the port number.
+
+### Programmatically
+
+Invoke this RESTful API: https://developers.ringcentral.com/api-reference/Devices/readDeviceSipInfo
+
+Please note that, in order to invoke this API, you need to be familiar with RingCentral RESTful programmming.
+
+Here is a demo: https://github.com/tylerlong/rc-get-device-info-demo/blob/main/src/demo.ts
+
+The credentials data returned by that API is like this:
+
+```json
+{
+  "domain": "sip.ringcentral.com",
+  "outboundProxies": [
+    {
+      "region": "EMEA",
+      "proxy": "sip40.ringcentral.com:5090",
+      "proxyTLS": "sip40.ringcentral.com:5096"
+    },
+    {
+      "region": "APAC",
+      "proxy": "sip71.ringcentral.com:5090",
+      "proxyTLS": "sip71.ringcentral.com:5096"
+    },
+    {
+      "region": "APAC",
+      "proxy": "sip60.ringcentral.com:5090",
+      "proxyTLS": "sip60.ringcentral.com:5096"
+    },
+    {
+      "region": "EMEA",
+      "proxy": "sip30.ringcentral.com:5090",
+      "proxyTLS": "sip30.ringcentral.com:5096"
+    },
+    {
+      "region": "APAC",
+      "proxy": "sip70.ringcentral.com:5090",
+      "proxyTLS": "sip70.ringcentral.com:5096"
+    },
+    {
+      "region": "APAC",
+      "proxy": "sip50.ringcentral.com:5090",
+      "proxyTLS": "sip50.ringcentral.com:5096"
+    },
+    {
+      "region": "NA",
+      "proxy": "SIP10.ringcentral.com:5090",
+      "proxyTLS": "sip10.ringcentral.com:5096"
+    },
+    {
+      "region": "NA",
+      "proxy": "SIP20.ringcentral.com:5090",
+      "proxyTLS": "sip20.ringcentral.com:5096"
+    },
+    {
+      "region": "LATAM",
+      "proxy": "sip80.ringcentral.com:5090",
+      "proxyTLS": "sip80.ringcentral.com:5096"
+    }
+  ],
+  "userName": "16501234567",
+  "password": "password",
+  "authorizationId": "802512345678"
+}
+```
+
+You will need to choose a outboundProxy value based on your location.
+And please choose the `proxyTLS` value because this SDK uses TLS.
+For example if you leave in north America, choose `sip10.ringcentral.com:5096`.
 
 ## Usage
 
@@ -27,6 +102,7 @@ yarn install ringcentral-softphone
 import Softphone from 'ringcentral-softphone';
 
 const softphone = new Softphone({
+  domain: process.env.SIP_INFO_DOMAIN,
   outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY,
   username: process.env.SIP_INFO_USERNAME,
   password: process.env.SIP_INFO_PASSWORD,
@@ -35,20 +111,6 @@ const softphone = new Softphone({
 ```
 
 For complete examples, see [demos/](demos/)
-
-### domain
-
-For UK accounts you need to explicitly specify the `domain` parameter:
-
-```ts
-{
-  domain: 'sip.ringcentral.co.uk',
-}
-```
-
-US accounts use `sip.ringcentral.com` by default if you don't specify it.
-
-Please do not specify port number in domain.
 
 ## Supported features
 
@@ -93,6 +155,10 @@ callSession.once('busy', () => {
   console.log('cannot reach the callee number');
 });
 ```
+
+## Todo
+
+- Make codec configurable
 
 ---
 
