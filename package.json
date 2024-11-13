@@ -1,41 +1,35 @@
 {
   "name": "ringcentral-softphone",
-  "version": "0.11.5",
+  "version": "1.0.0-alpha.6",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
   "main": "dist/src/softphone.js",
   "types": "dist/src/softphone.d.ts",
   "scripts": {
-    "in": "rm -rf *.raw && tsx -r dotenv-override-true/config demos/inbound-call.ts",
-    "lint": "eslint --fix '**/*.{ts,tsx,js,jsx}' && prettier --write . && sort-package-json",
-    "out": "rm -rf *.raw && tsx -r dotenv-override-true/config demos/outbound-call.ts",
-    "prepublishOnly": "rm -rf *.raw && rm -rf dist && yarn tsc",
-    "build": "rm -rf dist && yarn tsc"
+    "build": "rm -rf dist && yarn tsc",
+    "in": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/inbound-call.ts",
+    "lint": "eslint --fix . && prettier --write . && sort-package-json",
+    "out": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/outbound-call.ts",
+    "prepublishOnly": "rm -rf *.wav && rm -rf dist && yarn tsc --skipLibCheck",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@rc-ex/core": "^1.4.0",
-    "wait-for-async": "^0.6.1",
-    "werift-rtp": "^0.8.1"
+    "@discordjs/opus": "^0.9.0",
+    "wait-for-async": "^0.7.0",
+    "werift-rtp": "^0.8.2"
   },
   "devDependencies": {
-    "@types/node": "^22.5.4",
     "@typescript-eslint/eslint-plugin": "^8.2.0",
     "@typescript-eslint/parser": "^8.2.0",
+    "@rc-ex/core": "^1.4.2",
+    "@types/node": "^22.9.0",
     "dotenv-override-true": "^6.2.2",
-    "eslint": "^8.57.0",
-    "eslint-config-alloy": "^5.1.2",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "prettier": "^3.3.3",
-    "sort-package-json": "^2.10.0",
-    "tsx": "^4.17.0",
-    "ttpt": "^0.11.1",
-    "typescript": "^5.5.4",
+    "eslint-config-tyler": "^0.2.1",
+    "sort-package-json": "^2.10.1",
+    "tsx": "^4.19.2",
+    "ttpt": "^0.13.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4",
     "yarn-upgrade-all": "^0.7.4"
-  },
-  "yarn-upgrade-all": {
-    "ignore": [
-      "eslint"
-    ]
   }
 }

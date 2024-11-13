@@ -3,3 +3,4 @@ node_modules/
 *.raw
 *.cap
 *.lock
+*.wav

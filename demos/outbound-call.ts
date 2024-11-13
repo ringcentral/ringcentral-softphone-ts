@@ -1,10 +1,11 @@
 import fs from 'node:fs';
+import waitFor from 'wait-for-async';
 import type { RtpPacket } from 'werift-rtp';
-// import waitFor from 'wait-for-async';
 
 import Softphone from '../src/softphone';
 
 const softphone = new Softphone({
+  outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY,
   username: process.env.SIP_INFO_USERNAME,
   password: process.env.SIP_INFO_PASSWORD,
   authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID,
@@ -18,13 +19,18 @@ const main = async () => {
   // callee format sample: 16506668888, country code is required, otherwise behavior is undefined
   const callSession = await softphone.call(
     parseInt(process.env.CALLEE_FOR_TESTING!, 10),
-    // parseInt(process.env.RINGCENTRAL_CALLER_ID!, 10), // Optionally, you can specify callerId as the second parameter
   );
+
+  callSession.on('busy', () => {
+    console.log('cannot reach the callee');
+  });
 
   // callee answers the call
   callSession.once('answered', async () => {
     // receive audio
-    const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, { flags: 'a' });
+    const writeStream = fs.createWriteStream(`${callSession.callId}.wav`, {
+      flags: 'a',
+    });
     callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
       writeStream.write(rtpPacket.payload);
     });
@@ -33,11 +39,18 @@ const main = async () => {
       writeStream.close();
     });
 
-    // // send audio to remote peer
-    // await waitFor({ interval: 2000 });
-    // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.raw'));
+    // call transfer
     // await waitFor({ interval: 3000 });
+    // callSession.transfer(parseInt(process.env.ANOTHER_CALLEE_FOR_TESTING!, 10));
+
+    // // send audio to remote peer
+    // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.wav'));
+    // // You may subscribe to the 'finished' event of the streamer to know when the audio sending is finished
+    // streamer.once('finished', () => {
+    //   console.log('audio sending finished');
+    // });
     // // you may pause/resume/stop audio sending at any time
+    // await waitFor({ interval: 3000 });
     // streamer.pause();
     // await waitFor({ interval: 3000 });
     // streamer.resume();
@@ -58,10 +71,6 @@ const main = async () => {
     // // hang up the call
     // await waitFor({ interval: 5000 });
     // callSession.hangup();
-
-    // // transfer the call
-    // await waitFor({ interval: 2000 });
-    // await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING);
   });
 
   // // cancel the call (before the peer answers)
