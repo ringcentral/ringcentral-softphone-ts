@@ -162,7 +162,7 @@ When you get audio from a call session, you may forward it to another call sessi
 
 ```ts
 callSession1.on('rtpPacket', (rtpPacket: RtpPacket) => {
-  if (rtpPacket.type === 109) {
+  if (rtpPacket.header.payloadType === 109) {
     // 109 is for opus audio packet
     callSession2.sendPacket(rtpPacket);
   }
