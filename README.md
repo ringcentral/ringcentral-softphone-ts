@@ -156,6 +156,16 @@ callSession.once('busy', () => {
 });
 ```
 
+## Pipe a call session to another
+
+When you get audio from a call session, you may forward it to another call session:
+
+```ts
+callSession1.on('audioPacket', (rtpPacket: RtpPacket) => {
+  callSession2.sendPacket(rtpPacket);
+});
+```
+
 ## Todo
 
 - Make codec configurable

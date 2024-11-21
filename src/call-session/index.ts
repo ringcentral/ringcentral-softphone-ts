@@ -108,6 +108,14 @@ abstract class CallSession extends EventEmitter {
     return streamer;
   }
 
+  // send a single rtp packet
+  public sendPacket(rtpPacket: RtpPacket) {
+    if (this.disposed) {
+      return;
+    }
+    this.send(this.srtpSession.encrypt(rtpPacket.payload, rtpPacket.header));
+  }
+
   protected async startLocalServices() {
     this.socket = dgram.createSocket('udp4');
     this.socket.on('message', (message) => {
