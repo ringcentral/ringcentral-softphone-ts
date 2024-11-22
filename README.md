@@ -94,7 +94,7 @@ The credentials data returned by that API is like this:
 
 You will need to choose a outboundProxy value based on your location.
 And please choose the `proxyTLS` value because this SDK uses TLS.
-For example if you leave in north America, choose `sip10.ringcentral.com:5096`.
+For example if you live in north America, choose `sip10.ringcentral.com:5096`.
 
 ## Usage
 
