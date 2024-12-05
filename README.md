@@ -142,6 +142,12 @@ You may play saved audio by the following command:
 play -t raw -b 16 -r 16000 -e signed-integer test.wav
 ```
 
+### Multiple instances with same credentials
+
+You can run multiple softphone instances with the same credentials without encountering any errors. However, only the most recent instance will receive inbound calls.
+
+In the future, we may consider supporting multiple active instances using the same credentials. For now, we believe there is no demand for this functionality.
+
 ### Invalid callee number
 
 If you call an invalid number. The sip server will return "SIP/2.0 486 Busy Here".
