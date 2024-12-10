@@ -13,7 +13,6 @@ class Streamer extends EventEmitter {
   private originalBuffer: Buffer;
   private sequenceNumber = randomInt();
   private timestamp = randomInt();
-  private ssrc = randomInt();
 
   public constructor(callSesstion: CallSession, buffer: Buffer) {
     super();
@@ -59,7 +58,7 @@ class Streamer extends EventEmitter {
           payloadType: 109,
           sequenceNumber: this.sequenceNumber,
           timestamp: this.timestamp,
-          ssrc: this.ssrc,
+          ssrc: this.callSession.ssrc,
           csrcLength: 0,
           csrc: [],
           extensionProfile: 48862,
