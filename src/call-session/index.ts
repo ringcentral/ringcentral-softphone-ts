@@ -24,7 +24,11 @@ abstract class CallSession extends EventEmitter {
   public remotePort: number;
   public disposed = false;
   public srtpSession: SrtpSession;
+
+  // for audio streaming
   public ssrc = randomInt();
+  public sequenceNumber = randomInt();
+  public timestamp = randomInt();
 
   public constructor(softphone: Softphone, sipMessage: InboundMessage) {
     super();

@@ -4,15 +4,12 @@ import { RtpHeader, RtpPacket } from 'werift-rtp';
 
 import type CallSession from '.';
 import { opus } from '../codec';
-import { randomInt } from '../utils';
 
 class Streamer extends EventEmitter {
   public paused = false;
   private callSession: CallSession;
   private buffer: Buffer;
   private originalBuffer: Buffer;
-  private sequenceNumber = randomInt();
-  private timestamp = randomInt();
 
   public constructor(callSesstion: CallSession, buffer: Buffer) {
     super();
@@ -56,8 +53,8 @@ class Streamer extends EventEmitter {
           marker: false,
           payloadOffset: 12,
           payloadType: 109,
-          sequenceNumber: this.sequenceNumber,
-          timestamp: this.timestamp,
+          sequenceNumber: this.callSession.sequenceNumber,
+          timestamp: this.callSession.timestamp,
           ssrc: this.callSession.ssrc,
           csrcLength: 0,
           csrc: [],
@@ -73,11 +70,11 @@ class Streamer extends EventEmitter {
           rtpPacket.header,
         ),
       );
-      this.sequenceNumber += 1;
-      if (this.sequenceNumber > 65535) {
-        this.sequenceNumber = 0;
+      this.callSession.sequenceNumber += 1;
+      if (this.callSession.sequenceNumber > 65535) {
+        this.callSession.sequenceNumber = 0;
       }
-      this.timestamp += 320;
+      this.callSession.timestamp += 320;
       this.buffer = this.buffer.subarray(640);
       if (this.finished) {
         this.emit('finished');
