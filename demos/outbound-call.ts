@@ -18,9 +18,7 @@ const main = async () => {
   await softphone.register();
   await waitFor({ interval: 1000 });
   // callee format sample: 16506668888, country code is required, otherwise behavior is undefined
-  const callSession = await softphone.call(
-    parseInt(process.env.CALLEE_FOR_TESTING!, 10),
-  );
+  const callSession = await softphone.call(process.env.CALLEE_FOR_TESTING!);
 
   callSession.on('busy', () => {
     console.log('cannot reach the callee');
@@ -42,7 +40,7 @@ const main = async () => {
 
     // call transfer
     // await waitFor({ interval: 3000 });
-    // callSession.transfer(parseInt(process.env.ANOTHER_CALLEE_FOR_TESTING!, 10));
+    // callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
 
     // // send audio to remote peer
     // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.wav'));
