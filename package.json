@@ -1,6 +1,6 @@
 {
   "name": "ringcentral-softphone",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
   "main": "dist/src/softphone.js",
@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@rc-ex/core": "^1.4.2",
-    "@types/node": "^22.10.1",
+    "@types/node": "^22.10.2",
     "dotenv-override-true": "^6.2.2",
     "eslint-config-tyler": "^0.2.2",
     "sort-package-json": "^2.12.0",

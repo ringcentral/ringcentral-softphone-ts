@@ -187,7 +187,7 @@ class Softphone extends EventEmitter {
     this.send(newMessage);
   }
 
-  public async call(callee: number) {
+  public async call(callee: string) {
     const offerSDP = `
 v=0
 o=- ${Date.now()} 0 IN IP4 ${this.client.localAddress}

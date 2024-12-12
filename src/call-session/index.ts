@@ -170,7 +170,7 @@ abstract class CallSession extends EventEmitter {
     this.socket?.close();
   }
 
-  public transfer(transferTo: number) {
+  public transfer(transferTo: string) {
     const requestMessage = new RequestMessage(
       `REFER sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.outboundProxy};transport=tls SIP/2.0`,
       {
