@@ -142,6 +142,8 @@ You may play saved audio by the following command:
 play -t raw -b 16 -r 16000 -e signed-integer test.wav
 ```
 
+To stream an audio file to remote peer, you need to make sure that the audio file is playable by the command above.
+
 ### Multiple instances with same credentials
 
 You can run multiple softphone instances with the same credentials without encountering any errors. However, only the most recent instance will receive inbound calls.
