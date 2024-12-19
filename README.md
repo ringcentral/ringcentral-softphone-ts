@@ -144,6 +144,14 @@ play -t raw -b 16 -r 16000 -e signed-integer test.wav
 
 To stream an audio file to remote peer, you need to make sure that the audio file is playable by the command above.
 
+#### ffmpeg
+
+If you prefer it, here is the command to play the file:
+
+```
+ffplay -autoexit -f s16le -ar 16000 test.wav
+```
+
 ### Multiple instances with same credentials
 
 You can run multiple softphone instances with the same credentials without encountering any errors. However, only the most recent instance will receive inbound calls.
