@@ -146,11 +146,21 @@ To stream an audio file to remote peer, you need to make sure that the audio fil
 
 #### ffmpeg
 
-If you prefer it, here is the command to play the file:
+If you prefer ffmpeg, here is the command to play the file:
 
 ```
 ffplay -autoexit -f s16le -ar 16000 test.wav
 ```
+
+#### how to generate audio file for testing
+
+On macOS:
+
+```
+say "Hello world" -o test.wav --data-format=LEI16@16000
+```
+
+For Linux and Windows, please do some investigation yourself. Audio file generation is out of scope of this SDK.
 
 ### Multiple instances with same credentials
 
