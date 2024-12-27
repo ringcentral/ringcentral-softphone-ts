@@ -12,7 +12,7 @@
     "prepublishOnly": "rm -rf *.wav && rm -rf dist && yarn tsc --skipLibCheck"
   },
   "dependencies": {
-    "@discordjs/opus": "^0.9.0",
+    "mediaplex": "^1.0.0",
     "wait-for-async": "^0.7.0",
     "werift-rtp": "^0.8.2"
   },
