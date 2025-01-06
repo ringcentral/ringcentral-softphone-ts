@@ -1,6 +1,6 @@
 {
   "name": "ringcentral-softphone",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
   "main": "dist/src/softphone.js",
@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@evan/opus": "^1.0.3",
-    "wait-for-async": "^0.7.2",
+    "wait-for-async": "^0.7.5",
     "werift-rtp": "^0.8.3"
   },
   "devDependencies": {
