@@ -1,3 +1,9 @@
-import { OpusEncoder } from '@discordjs/opus';
+import { Decoder, Encoder } from "@evan/opus";
 
-export const opus = new OpusEncoder(16000, 1);
+const encoder = new Encoder({ channels: 1, sample_rate: 16000 });
+const decoder = new Decoder({ channels: 1, sample_rate: 16000 });
+
+export const opus = {
+  encode: (pcm: Buffer) => encoder.encode(pcm),
+  decode: (opus: Buffer) => decoder.decode(opus),
+};
