@@ -443,10 +443,10 @@
   resolved "https://registry.yarnpkg.com/@types/json-schema/-/json-schema-7.0.15.tgz#596a1747233694d50f6ad8a7869fcb6f56cf5841"
   integrity sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==
 
-"@types/node@^22.10.2":
-  version "22.10.2"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-22.10.2.tgz#a485426e6d1fdafc7b0d4c7b24e2c78182ddabb9"
-  integrity sha512-Xxr6BBRCAOQixvonOye19wnzyDiUtTeqldOOmj3CkeblonbccA12PFwlufvRdrpjXxqnmUaeiU5EOA+7s5diUQ==
+"@types/node@^22.10.5":
+  version "22.10.5"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-22.10.5.tgz#95af89a3fb74a2bb41ef9927f206e6472026e48b"
+  integrity sha512-F8Q+SeGimwOo86fiovQh8qiXfFEh2/ocYv7tU5pJ3EXMSSxk1Joj5wefpFK2fHTf/N6HKGSxIDBT9f3gCxXPkQ==
   dependencies:
     undici-types "~6.20.0"
 
@@ -2438,15 +2438,15 @@ uri-js@^4.2.2:
   dependencies:
     punycode "^2.1.0"
 
-wait-for-async@^0.7.0:
-  version "0.7.0"
-  resolved "https://registry.yarnpkg.com/wait-for-async/-/wait-for-async-0.7.0.tgz#e2ccbe0875f4a60cbc395a519a608e955b0cbd69"
-  integrity sha512-Qrt/KCUIYuYew4EZJ6R24Lz0HTw10fFr8fgVgkK+qZNSFWRQAYKqub8OeRUUaP9JnlKX7QSwzKzgqZZkMuKEGw==
+wait-for-async@^0.7.2:
+  version "0.7.2"
+  resolved "https://registry.yarnpkg.com/wait-for-async/-/wait-for-async-0.7.2.tgz#584b6144cc8eac847da42505efff60aef4477c3c"
+  integrity sha512-9AVmeEEaR6TjcYOWWVJml7VkyYzXSLwBPbaQPOlNihtk2zNJ3KxGJ/nOLkjbnRALf5kac0SWffq4b/5LIwYTyA==
 
-werift-rtp@^0.8.2:
-  version "0.8.2"
-  resolved "https://registry.yarnpkg.com/werift-rtp/-/werift-rtp-0.8.2.tgz#53dd9b8bf078f05689f317c1965348d91f1c29fd"
-  integrity sha512-h+y6aipk+dddZpqXV+2x0VCA6sQ9lD9801A2lHw7xqBQel55ysw0NcCjZN3tiEVajvlq1BLKnn1+pCvLIKyvUQ==
+werift-rtp@^0.8.3:
+  version "0.8.3"
+  resolved "https://registry.yarnpkg.com/werift-rtp/-/werift-rtp-0.8.3.tgz#e882ba6424d0703ff21beb6b60b0b5db9f4f34f2"
+  integrity sha512-wigfyH7JcGcVh3DdsFRosmQ0S/bcRjo48mKL4epYifUWMxp7fxDcpB5eaQKAFW9aFP+cfDVslpEvbtuCJ+bqkQ==
   dependencies:
     "@minhducsun2002/leb128" "^1.0.0"
     "@shinyoshiaki/binary-data" "^0.6.1"
