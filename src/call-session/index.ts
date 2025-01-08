@@ -134,12 +134,25 @@ abstract class CallSession extends EventEmitter {
         if (char) {
           this.emit('dtmf', char);
         }
-      } else {
+      } else if (rtpPacket.header.payloadType === 109) {
+        if (
+          rtpPacket.payload.length === 4 &&
+          rtpPacket.payload[0] >= 0x00 &&
+          rtpPacket.payload[0] < 0x0c &&
+          rtpPacket.payload[1] === 0x8a &&
+          rtpPacket.payload[2] === 0x03 &&
+          rtpPacket.payload[3] === 0xc0
+        ) {
+          // special DTMF packet in OPUS audio format
+          // first byte 0x00 to 0x0c means DTMF 0 to 9, *, #
+          // we ignore it since DTMF is handled by `if (rtpPacket.header.payloadType === 101) {`
+          return; // ignore it
+        }
         try {
           rtpPacket.payload = opus.decode(rtpPacket.payload);
           this.emit('audioPacket', rtpPacket);
         } catch {
-          console.warn('opus decode failed');
+          console.error('opus decode failed', rtpPacket);
         }
       }
     });
