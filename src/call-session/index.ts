@@ -139,7 +139,7 @@ abstract class CallSession extends EventEmitter {
           rtpPacket.payload = opus.decode(rtpPacket.payload);
           this.emit('audioPacket', rtpPacket);
         } catch {
-          console.error('opus decode failed');
+          console.warn('opus decode failed');
         }
       }
     });
