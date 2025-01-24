@@ -1,8 +1,8 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
-import type SipInfoResponse from '@rc-ex/core/lib/definitions/SipInfoResponse';
+import type SipInfoResponse from "@rc-ex/core/lib/definitions/SipInfoResponse";
 
-const md5 = (s: string) => crypto.createHash('md5').update(s).digest('hex');
+const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 
 const generateResponse = (
   sipInfo: SipInfoResponse,
@@ -20,10 +20,10 @@ const generateResponse = (
 export const generateAuthorization = (
   sipInfo: SipInfoResponse,
   nonce: string,
-  method: 'REGISTER' | 'INVITE',
+  method: "REGISTER" | "INVITE",
 ) => {
   const authObj = {
-    'Digest algorithm': 'MD5',
+    "Digest algorithm": "MD5",
     username: sipInfo.authorizationId,
     realm: sipInfo.domain,
     nonce,
@@ -36,17 +36,17 @@ export const generateAuthorization = (
   };
   return Object.keys(authObj)
     .map((key) => `${key}="${authObj[key]}"`)
-    .join(', ');
+    .join(", ");
 };
 
 export const uuid = () => crypto.randomUUID();
-export const branch = () => 'z9hG4bK-' + uuid();
+export const branch = () => "z9hG4bK-" + uuid();
 
 export const randomInt = () =>
   Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
 
-export const withoutTag = (s: string) => s.replace(/;tag=.*$/, '');
+export const withoutTag = (s: string) => s.replace(/;tag=.*$/, "");
 export const extractAddress = (s: string) => s.match(/<(sip:.+?)>/)[1];
 
 const keyAndSalt = crypto.randomBytes(30);
-export const localKey = keyAndSalt.toString('base64').replace(/=+$/, '');
+export const localKey = keyAndSalt.toString("base64").replace(/=+$/, "");

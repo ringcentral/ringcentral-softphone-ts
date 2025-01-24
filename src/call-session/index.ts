@@ -1,18 +1,18 @@
-import dgram from 'dgram';
-import EventEmitter from 'events';
+import dgram from "dgram";
+import EventEmitter from "events";
 
-import { RtpHeader, RtpPacket, SrtpSession } from 'werift-rtp';
+import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
-import { createOpus } from '../codec';
-import DTMF from '../dtmf';
+import { createOpus } from "../codec";
+import DTMF from "../dtmf";
 import {
+  type InboundMessage,
   RequestMessage,
   ResponseMessage,
-  type InboundMessage,
-} from '../sip-message';
-import type Softphone from '../softphone';
-import { branch, localKey, randomInt } from '../utils';
-import Streamer from './streamer';
+} from "../sip-message";
+import type Softphone from "../softphone";
+import { branch, localKey, randomInt } from "../utils";
+import Streamer from "./streamer";
 
 abstract class CallSession extends EventEmitter {
   public softphone: Softphone;
@@ -43,8 +43,8 @@ abstract class CallSession extends EventEmitter {
   }
 
   public set remoteKey(key: string) {
-    const localKeyBuffer = Buffer.from(localKey, 'base64');
-    const remoteKeyBuffer = Buffer.from(key, 'base64');
+    const localKeyBuffer = Buffer.from(localKey, "base64");
+    const remoteKeyBuffer = Buffer.from(key, "base64");
     this.srtpSession = new SrtpSession({
       profile: 0x0001,
       keys: {
@@ -57,7 +57,7 @@ abstract class CallSession extends EventEmitter {
   }
 
   public get callId() {
-    return this.sipMessage.headers['Call-ID'];
+    return this.sipMessage.headers["Call-ID"];
   }
 
   public send(data: string | Buffer) {
@@ -68,7 +68,7 @@ abstract class CallSession extends EventEmitter {
     const requestMessage = new RequestMessage(
       `BYE sip:${this.softphone.sipInfo.domain} SIP/2.0`,
       {
-        'Call-ID': this.callId,
+        "Call-ID": this.callId,
         From: this.localPeer,
         To: this.remotePeer,
         Via: `SIP/2.0/TLS ${this.softphone.fakeDomain};branch=${branch()}`,
@@ -78,7 +78,7 @@ abstract class CallSession extends EventEmitter {
   }
 
   public async sendDTMF(
-    char: '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '*' | '#',
+    char: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "*" | "#",
   ) {
     const timestamp = Math.floor(Date.now() / 1000);
     let sequenceNumber = timestamp % 65536;
@@ -123,17 +123,17 @@ abstract class CallSession extends EventEmitter {
   }
 
   protected async startLocalServices() {
-    this.socket = dgram.createSocket('udp4');
-    this.socket.on('message', (message) => {
+    this.socket = dgram.createSocket("udp4");
+    this.socket.on("message", (message) => {
       const rtpPacket = RtpPacket.deSerialize(
         this.srtpSession.decrypt(message),
       );
-      this.emit('rtpPacket', rtpPacket);
+      this.emit("rtpPacket", rtpPacket);
       if (rtpPacket.header.payloadType === 101) {
-        this.emit('dtmfPacket', rtpPacket);
+        this.emit("dtmfPacket", rtpPacket);
         const char = DTMF.payloadToChar(rtpPacket.payload);
         if (char) {
-          this.emit('dtmf', char);
+          this.emit("dtmf", char);
         }
       } else if (rtpPacket.header.payloadType === 109) {
         if (
@@ -151,9 +151,9 @@ abstract class CallSession extends EventEmitter {
         }
         try {
           rtpPacket.payload = this.opus.decode(rtpPacket.payload);
-          this.emit('audioPacket', rtpPacket);
+          this.emit("audioPacket", rtpPacket);
         } catch {
-          console.error('opus decode failed', rtpPacket);
+          console.error("opus decode failed", rtpPacket);
         }
       }
     });
@@ -162,23 +162,23 @@ abstract class CallSession extends EventEmitter {
     // but it seems that in SDP we need to tell remote our local IP Address, not 127.0.0.1
     this.socket.bind(); // random port
     // send a message to remote server so that it knows where to reply
-    this.send('hello');
+    this.send("hello");
 
     const byeHandler = (inboundMessage: InboundMessage) => {
-      if (inboundMessage.headers['Call-ID'] !== this.callId) {
+      if (inboundMessage.headers["Call-ID"] !== this.callId) {
         return;
       }
-      if (inboundMessage.headers.CSeq.endsWith(' BYE')) {
-        this.softphone.off('message', byeHandler);
+      if (inboundMessage.headers.CSeq.endsWith(" BYE")) {
+        this.softphone.off("message", byeHandler);
         this.dispose();
       }
     };
-    this.softphone.on('message', byeHandler);
+    this.softphone.on("message", byeHandler);
   }
 
   protected dispose() {
     this.disposed = true;
-    this.emit('disposed');
+    this.emit("disposed");
     this.removeAllListeners();
     this.socket?.removeAllListeners();
     this.socket?.close();
@@ -188,34 +188,37 @@ abstract class CallSession extends EventEmitter {
     const requestMessage = new RequestMessage(
       `REFER sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.outboundProxy};transport=tls SIP/2.0`,
       {
-        Via: `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
-        'Max-Forwards': 70,
+        Via:
+          `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
+        "Max-Forwards": 70,
         From: this.localPeer,
         To: this.remotePeer,
-        Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
-        'Call-ID': this.callId,
-        Event: 'refer',
+        Contact:
+          `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+        "Call-ID": this.callId,
+        Event: "refer",
         Expires: 600,
-        Supported: 'replaces, 100rel, timer, norefersub',
-        Accept: 'message/sipfrag;version=2.0',
-        'Allow-Events': 'presence, message-summary, refer',
-        'Refer-To': `sip:${transferTo}@${this.softphone.sipInfo.domain}`,
-        'Referred-By': `<sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.domain}>`,
+        Supported: "replaces, 100rel, timer, norefersub",
+        Accept: "message/sipfrag;version=2.0",
+        "Allow-Events": "presence, message-summary, refer",
+        "Refer-To": `sip:${transferTo}@${this.softphone.sipInfo.domain}`,
+        "Referred-By":
+          `<sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.domain}>`,
       },
     );
     this.softphone.send(requestMessage);
     // reply to those NOTIFY messages
     const notifyHandler = (inboundMessage: InboundMessage) => {
-      if (!inboundMessage.subject.startsWith('NOTIFY ')) {
+      if (!inboundMessage.subject.startsWith("NOTIFY ")) {
         return;
       }
       const responseMessage = new ResponseMessage(inboundMessage, 200);
       this.softphone.send(responseMessage);
-      if (inboundMessage.body.trim() === 'SIP/2.0 200 OK') {
-        this.softphone.off('message', notifyHandler);
+      if (inboundMessage.body.trim() === "SIP/2.0 200 OK") {
+        this.softphone.off("message", notifyHandler);
       }
     };
-    this.softphone.on('message', notifyHandler);
+    this.softphone.on("message", notifyHandler);
   }
 }
 

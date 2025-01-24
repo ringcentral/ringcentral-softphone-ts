@@ -1,6 +1,8 @@
 # RingCentral Softphone SDK for TypeScript
 
-This is a TypeScript SDK for RingCentral Softphone. It is a complete rewrite of the [RingCentral Softphone SDK for JavaScript](https://github.com/ringcentral/ringcentral-softphone-js)
+This is a TypeScript SDK for RingCentral Softphone. It is a complete rewrite of
+the
+[RingCentral Softphone SDK for JavaScript](https://github.com/ringcentral/ringcentral-softphone-js)
 
 Users are recommended to use this SDK instead of the JavaScript SDK.
 
@@ -21,18 +23,23 @@ yarn install ringcentral-softphone
 5. if there is none, you need to create one. Check steps below for more details
 6. Click the "Set Up and Provision" button
 7. Click the link "Set up manually using SIP"
-8. You will find "SIP Domain", "Outbound Proxy", "User Name", "Password" and "Authorization ID"
+8. You will find "SIP Domain", "Outbound Proxy", "User Name", "Password" and
+   "Authorization ID"
 
-Please note that, "SIP Domain" name should come without port number. I don't know why it shows a port number on the page.
-This SDK requires a "domain" which is "SIP Domain" but without the port number.
+Please note that, "SIP Domain" name should come without port number. I don't
+know why it shows a port number on the page. This SDK requires a "domain" which
+is "SIP Domain" but without the port number.
 
 ### Programmatically
 
-Invoke this RESTful API: https://developers.ringcentral.com/api-reference/Devices/readDeviceSipInfo
+Invoke this RESTful API:
+https://developers.ringcentral.com/api-reference/Devices/readDeviceSipInfo
 
-Please note that, in order to invoke this API, you need to be familiar with RingCentral RESTful programmming.
+Please note that, in order to invoke this API, you need to be familiar with
+RingCentral RESTful programmming.
 
-Here is a demo: https://github.com/tylerlong/rc-get-device-info-demo/blob/main/src/demo.ts
+Here is a demo:
+https://github.com/tylerlong/rc-get-device-info-demo/blob/main/src/demo.ts
 
 The credentials data returned by that API is like this:
 
@@ -92,14 +99,14 @@ The credentials data returned by that API is like this:
 }
 ```
 
-You will need to choose a outboundProxy value based on your location.
-And please choose the `proxyTLS` value because this SDK uses TLS.
-For example if you live in north America, choose `sip10.ringcentral.com:5096`.
+You will need to choose a outboundProxy value based on your location. And please
+choose the `proxyTLS` value because this SDK uses TLS. For example if you live
+in north America, choose `sip10.ringcentral.com:5096`.
 
 ## Usage
 
 ```ts
-import Softphone from 'ringcentral-softphone';
+import Softphone from "ringcentral-softphone";
 
 const softphone = new Softphone({
   domain: process.env.SIP_INFO_DOMAIN,
@@ -129,12 +136,11 @@ For complete examples, see [demos/](demos/)
 
 ### Audio formats
 
-The codec used between server and client is "OPUS/16000".
-This SDK will auto decode/encode the codec to/from "uncompressed PCM".
+The codec used between server and client is "OPUS/16000". This SDK will auto
+decode/encode the codec to/from "uncompressed PCM".
 
-Bit rate is 16, which means 16 bits per sample.
-Sample rate is 16000, which means 16000 samples per second.
-Encoding is "signed-integer".
+Bit rate is 16, which means 16 bits per sample. Sample rate is 16000, which
+means 16000 samples per second. Encoding is "signed-integer".
 
 You may play saved audio by the following command:
 
@@ -142,7 +148,8 @@ You may play saved audio by the following command:
 play -t raw -b 16 -r 16000 -e signed-integer test.wav
 ```
 
-To stream an audio file to remote peer, you need to make sure that the audio file is playable by the command above.
+To stream an audio file to remote peer, you need to make sure that the audio
+file is playable by the command above.
 
 #### ffmpeg
 
@@ -160,34 +167,40 @@ On macOS:
 say "Hello world" -o test.wav --data-format=LEI16@16000
 ```
 
-For Linux and Windows, please do some investigation yourself. Audio file generation is out of scope of this SDK.
+For Linux and Windows, please do some investigation yourself. Audio file
+generation is out of scope of this SDK.
 
 ### Multiple instances with same credentials
 
-You can run multiple softphone instances with the same credentials without encountering any errors. However, only the most recent instance will receive inbound calls.
+You can run multiple softphone instances with the same credentials without
+encountering any errors. However, only the most recent instance will receive
+inbound calls.
 
-In the future, we may consider supporting multiple active instances using the same credentials. For now, we believe there is no demand for this functionality.
+In the future, we may consider supporting multiple active instances using the
+same credentials. For now, we believe there is no demand for this functionality.
 
 ### Invalid callee number
 
-If you call an invalid number. The sip server will return "SIP/2.0 486 Busy Here".
+If you call an invalid number. The sip server will return "SIP/2.0 486 Busy
+Here".
 
 This SDK will emit a "busy" event for the call session and dispose it.
 
 You can detect such an event by:
 
 ```ts
-callSession.once('busy', () => {
-  console.log('cannot reach the callee number');
+callSession.once("busy", () => {
+  console.log("cannot reach the callee number");
 });
 ```
 
 ## Pipe a call session to another
 
-When you get audio from a call session, you may forward it to another call session:
+When you get audio from a call session, you may forward it to another call
+session:
 
 ```ts
-callSession1.on('rtpPacket', (rtpPacket: RtpPacket) => {
+callSession1.on("rtpPacket", (rtpPacket: RtpPacket) => {
   if (rtpPacket.header.payloadType === 109) {
     // 109 is for opus audio packet
     callSession2.sendPacket(rtpPacket);
@@ -203,8 +216,16 @@ callSession1.on('rtpPacket', (rtpPacket: RtpPacket) => {
 
 ## Dev Notes
 
-Content below is for the maintainer of this SDK.
+Content below is for the maintainer/contributor of this SDK.
 
-- We don't need to explicitly tell remote server our local UDP port (for audio streaming) via SIP SDP message. We send a RTP message to the remote server first, so the remote server knows our IP and port. So, the port number in SDP message could be fake.
+- We don't need to explicitly tell remote server our local UDP port (for audio
+  streaming) via SIP SDP message. We send a RTP message to the remote server
+  first, so the remote server knows our IP and port. So, the port number in SDP
+  message could be fake.
 - Ref: https://www.ietf.org/rfc/rfc3261.txt
-- Caller Id feature is not supported. `P-Asserted-Identity` doesn't work. I think it is by design, since hardphone cannot support it.
+- Caller Id feature is not supported. `P-Asserted-Identity` doesn't work. I
+  think it is by design, since hardphone cannot support it.
+
+#### Code style
+
+We use `deno fmt` to format all code.

@@ -1,8 +1,8 @@
-import fs from 'fs';
+import fs from "fs";
 
-import type { RtpPacket } from 'werift-rtp';
+import type { RtpPacket } from "werift-rtp";
 
-import Softphone from '../src/softphone';
+import Softphone from "../src/softphone";
 
 // import waitFor from 'wait-for-async';
 
@@ -18,7 +18,7 @@ softphone.enableDebugMode(); // print all SIP messages
 const main = async () => {
   await softphone.register();
   // detect inbound call
-  softphone.on('invite', async (inviteMessage) => {
+  softphone.on("invite", async (inviteMessage) => {
     // decline the call
     // await waitFor({ interval: 1000 });
     // await softphone.decline(inviteMessage);
@@ -28,9 +28,9 @@ const main = async () => {
 
     // receive audio
     const writeStream = fs.createWriteStream(`${callSession.callId}.wav`, {
-      flags: 'a',
+      flags: "a",
     });
-    callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
+    callSession.on("audioPacket", (rtpPacket: RtpPacket) => {
       writeStream.write(rtpPacket.payload);
     });
 
@@ -53,13 +53,13 @@ const main = async () => {
     // streamer.stop();
 
     // either you or the peer hang up
-    callSession.once('disposed', () => {
+    callSession.once("disposed", () => {
       writeStream.close();
     });
 
     // receive DTMF
-    callSession.on('dtmf', (digit) => {
-      console.log('dtmf', digit);
+    callSession.on("dtmf", (digit) => {
+      console.log("dtmf", digit);
     });
 
     // // send DTMF

@@ -1,7 +1,7 @@
-import CallSession from '.';
-import { OutboundMessage, type InboundMessage } from '../sip-message';
-import type Softphone from '../softphone';
-import { localKey, randomInt } from '../utils';
+import CallSession from ".";
+import { type InboundMessage, OutboundMessage } from "../sip-message";
+import type Softphone from "../softphone";
+import { localKey, randomInt } from "../utils";
 
 class InboundCallSession extends CallSession {
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
@@ -29,20 +29,21 @@ a=sendrecv
 a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
 `.trim();
     const newMessage = new OutboundMessage(
-      'SIP/2.0 200 OK',
+      "SIP/2.0 200 OK",
       {
         Via: this.sipMessage.headers.Via,
-        'Call-ID': this.sipMessage.headers['Call-ID'],
+        "Call-ID": this.sipMessage.headers["Call-ID"],
         From: this.sipMessage.headers.From,
         To: this.sipMessage.headers.To,
         CSeq: this.sipMessage.headers.CSeq,
-        Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+        Contact:
+          `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
         Allow:
-          'PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS',
-        Supported: 'replaces, 100rel, timer, norefersub',
-        'Session-Expires': '14400;refresher=uac',
-        Require: 'timer',
-        'Content-Type': 'application/sdp',
+          "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",
+        Supported: "replaces, 100rel, timer, norefersub",
+        "Session-Expires": "14400;refresher=uac",
+        Require: "timer",
+        "Content-Type": "application/sdp",
       },
       answerSDP,
     );

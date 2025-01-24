@@ -1,8 +1,8 @@
-import EventEmitter from 'events';
+import EventEmitter from "events";
 
-import { RtpHeader, RtpPacket } from 'werift-rtp';
+import { RtpHeader, RtpPacket } from "werift-rtp";
 
-import type CallSession from '.';
+import type CallSession from ".";
 
 class Streamer extends EventEmitter {
   public paused = false;
@@ -76,7 +76,7 @@ class Streamer extends EventEmitter {
       this.callSession.timestamp += 320;
       this.buffer = this.buffer.subarray(640);
       if (this.finished) {
-        this.emit('finished');
+        this.emit("finished");
       } else {
         setTimeout(() => this.sendPacket(), 20);
       }

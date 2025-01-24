@@ -1,4 +1,4 @@
-import { Decoder, Encoder } from '@evan/opus';
+import { Decoder, Encoder } from "@evan/opus";
 
 export type Opus = {
   encode: (pcm: Buffer) => Buffer;

@@ -5,15 +5,15 @@ class SipMessage {
   };
   public body: string;
 
-  public constructor(subject = '', headers = {}, body = '') {
+  public constructor(subject = "", headers = {}, body = "") {
     this.subject = subject;
     this.headers = headers;
     this.body = body
       .trim()
       .split(/[\r\n]+/)
-      .join('\r\n');
+      .join("\r\n");
     if (this.body.length > 0) {
-      this.body += '\r\n';
+      this.body += "\r\n";
     }
   }
 
@@ -21,9 +21,9 @@ class SipMessage {
     const r = [
       this.subject,
       ...Object.keys(this.headers).map((key) => `${key}: ${this.headers[key]}`),
-      '',
+      "",
       this.body,
-    ].join('\r\n');
+    ].join("\r\n");
     return r;
   }
 }

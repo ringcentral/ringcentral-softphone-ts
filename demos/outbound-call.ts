@@ -1,9 +1,9 @@
-import fs from 'fs';
+import fs from "fs";
 
-import waitFor from 'wait-for-async';
-import type { RtpPacket } from 'werift-rtp';
+import waitFor from "wait-for-async";
+import type { RtpPacket } from "werift-rtp";
 
-import Softphone from '../src/softphone';
+import Softphone from "../src/softphone";
 
 const softphone = new Softphone({
   outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY,
@@ -20,21 +20,21 @@ const main = async () => {
   // callee format sample: 16506668888, country code is required, otherwise behavior is undefined
   const callSession = await softphone.call(process.env.CALLEE_FOR_TESTING!);
 
-  callSession.on('busy', () => {
-    console.log('cannot reach the callee');
+  callSession.on("busy", () => {
+    console.log("cannot reach the callee");
   });
 
   // callee answers the call
-  callSession.once('answered', async () => {
+  callSession.once("answered", async () => {
     // receive audio
     const writeStream = fs.createWriteStream(`${callSession.callId}.wav`, {
-      flags: 'a',
+      flags: "a",
     });
-    callSession.on('audioPacket', (rtpPacket: RtpPacket) => {
+    callSession.on("audioPacket", (rtpPacket: RtpPacket) => {
       writeStream.write(rtpPacket.payload);
     });
     // either you or the peer hang up
-    callSession.once('disposed', () => {
+    callSession.once("disposed", () => {
       writeStream.close();
     });
 
@@ -57,8 +57,8 @@ const main = async () => {
     // streamer.stop();
 
     // receive DTMF
-    callSession.on('dtmf', (digit) => {
-      console.log('dtmf', digit);
+    callSession.on("dtmf", (digit) => {
+      console.log("dtmf", digit);
     });
 
     // // send DTMF
