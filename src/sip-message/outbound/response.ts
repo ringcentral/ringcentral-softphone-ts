@@ -1,5 +1,5 @@
-import OutboundMessage from ".";
-import type InboundMessage from "../inbound";
+import OutboundMessage from "./index";
+import type InboundMessage from "../inbound/index";
 import responseCodes from "../response-codes";
 
 class ResponseMessage extends OutboundMessage {

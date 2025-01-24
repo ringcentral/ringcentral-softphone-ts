@@ -3,28 +3,42 @@
   "version": "1.0.7",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
-  "main": "dist/src/softphone.js",
-  "types": "dist/src/softphone.d.ts",
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/esm/index.d.ts",
+  "main": "./dist/cjs/index.cjs",
+  "module": "./dist/esm/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "require": "./dist/cjs/index.cjs",
+      "import": "./dist/esm/index.js"
+    }
+  },
   "scripts": {
     "in": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/inbound-call.ts",
-    "lint": "eslint --fix . && prettier --write . && sort-package-json",
     "out": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/outbound-call.ts",
-    "prepublishOnly": "rm -rf *.wav && rm -rf dist && yarn tsc --skipLibCheck"
+    "build:esm": "tsc --module ESNext --outDir dist/esm --declaration true --skipLibCheck",
+    "build:cjs": "tsc --module CommonJS --outDir dist/cjs --declaration false && find dist/cjs -type f -name \"*.js\" -exec sh -c 'mv \"$1\" \"${1%.js}.cjs\"' _ {} \\;",
+    "prepublishOnly": "yarn build:esm && yarn build:cjs",
+    "postpublish": "rm -rf dist"
   },
   "dependencies": {
     "@evan/opus": "^1.0.3",
-    "wait-for-async": "^0.7.5",
-    "werift-rtp": "^0.8.3"
+    "wait-for-async": "^0.7.9",
+    "werift-rtp": "^0.8.4"
   },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
-    "@rc-ex/core": "^1.4.2",
-    "@types/node": "^22.10.5",
+    "@rc-ex/core": "^1.5.0",
+    "@types/node": "^22.10.10",
     "dotenv-override-true": "^6.2.2",
-    "eslint-config-tyler": "^0.2.2",
-    "sort-package-json": "^2.12.0",
+    "sort-package-json": "^2.14.0",
     "tsx": "^4.19.2",
     "ttpt": "^0.13.0",
-    "typescript": "^5.7.2",
+    "typescript": "^5.7.3",
     "yarn-upgrade-all": "^0.7.4"
   }
 }

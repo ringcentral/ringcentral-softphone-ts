@@ -1,6 +1,6 @@
-import CallSession from ".";
-import { type InboundMessage, RequestMessage } from "../sip-message";
-import type Softphone from "../softphone";
+import CallSession from "./index";
+import { type InboundMessage, RequestMessage } from "../sip-message/index";
+import type Softphone from "../index";
 import { extractAddress, withoutTag } from "../utils";
 
 class OutboundCallSession extends CallSession {

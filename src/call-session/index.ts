@@ -9,8 +9,8 @@ import {
   type InboundMessage,
   RequestMessage,
   ResponseMessage,
-} from "../sip-message";
-import type Softphone from "../softphone";
+} from "../sip-message/index";
+import type Softphone from "../index";
 import { branch, localKey, randomInt } from "../utils";
 import Streamer from "./streamer";
 

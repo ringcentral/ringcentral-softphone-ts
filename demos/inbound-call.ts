@@ -2,7 +2,7 @@ import fs from "fs";
 
 import type { RtpPacket } from "werift-rtp";
 
-import Softphone from "../src/softphone";
+import Softphone from "../src/index";
 
 // import waitFor from 'wait-for-async';
 

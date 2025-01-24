@@ -1,10 +1,14 @@
 {
   "compilerOptions": {
-    "outDir": "dist",
     "esModuleInterop": true,
-    "sourceMap": true,
-    "declaration": true,
-    "module": "commonjs",
-    "target": "ES2015"
-  }
+    "paths": {
+      "werift-rtp": ["./node_modules/werift-rtp/lib/rtp/src/index.js"],
+      "@evan/opus": ["./node_modules/@evan/opus/lib.js"],
+      "@rc-ex/core/lib/definitions/SipInfoResponse": [
+        "./node_modules/@rc-ex/core/lib/definitions/SipInfoResponse.js"
+      ],
+      "wait-for-async": ["./node_modules/wait-for-async/dist/esm/index.js"]
+    }
+  },
+  "include": ["src/index.ts"]
 }

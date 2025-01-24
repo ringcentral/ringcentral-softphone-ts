@@ -1,4 +1,4 @@
-import OutboundMessage from ".";
+import OutboundMessage from "./index";
 import { branch } from "../../utils";
 
 let cseq = Math.floor(Math.random() * 10000);

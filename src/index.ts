@@ -11,7 +11,7 @@ import {
   OutboundMessage,
   RequestMessage,
   ResponseMessage,
-} from "./sip-message";
+} from "./sip-message/index";
 import {
   branch,
   generateAuthorization,

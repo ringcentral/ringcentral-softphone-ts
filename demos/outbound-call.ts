@@ -3,7 +3,7 @@ import fs from "fs";
 import waitFor from "wait-for-async";
 import type { RtpPacket } from "werift-rtp";
 
-import Softphone from "../src/softphone";
+import Softphone from "../src/index";
 
 const softphone = new Softphone({
   outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY,

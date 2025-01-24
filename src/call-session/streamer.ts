@@ -2,7 +2,7 @@ import EventEmitter from "events";
 
 import { RtpHeader, RtpPacket } from "werift-rtp";
 
-import type CallSession from ".";
+import type CallSession from "./index";
 
 class Streamer extends EventEmitter {
   public paused = false;
