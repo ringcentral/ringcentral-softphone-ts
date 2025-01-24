@@ -3,7 +3,7 @@ import EventEmitter from 'events';
 
 import { RtpHeader, RtpPacket, SrtpSession } from 'werift-rtp';
 
-import { opus } from '../codec';
+import { createOpus } from '../codec';
 import DTMF from '../dtmf';
 import {
   RequestMessage,
@@ -24,6 +24,7 @@ abstract class CallSession extends EventEmitter {
   public remotePort: number;
   public disposed = false;
   public srtpSession: SrtpSession;
+  public opus = createOpus(1, 16000);
 
   // for audio streaming
   public ssrc = randomInt();
@@ -149,7 +150,7 @@ abstract class CallSession extends EventEmitter {
           return; // ignore it
         }
         try {
-          rtpPacket.payload = opus.decode(rtpPacket.payload);
+          rtpPacket.payload = this.opus.decode(rtpPacket.payload);
           this.emit('audioPacket', rtpPacket);
         } catch {
           console.error('opus decode failed', rtpPacket);

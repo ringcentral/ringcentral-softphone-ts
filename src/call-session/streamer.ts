@@ -3,7 +3,6 @@ import EventEmitter from 'events';
 import { RtpHeader, RtpPacket } from 'werift-rtp';
 
 import type CallSession from '.';
-import { opus } from '../codec';
 
 class Streamer extends EventEmitter {
   public paused = false;
@@ -43,7 +42,7 @@ class Streamer extends EventEmitter {
 
   private sendPacket() {
     if (!this.callSession.disposed && !this.paused && !this.finished) {
-      const temp = opus.encode(this.buffer.subarray(0, 640));
+      const temp = this.callSession.opus.encode(this.buffer.subarray(0, 640));
       const rtpPacket = new RtpPacket(
         new RtpHeader({
           version: 2,
