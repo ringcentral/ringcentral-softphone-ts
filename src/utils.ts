@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 import type SipInfoResponse from "@rc-ex/core/lib/definitions/SipInfoResponse";
 

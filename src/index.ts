@@ -1,5 +1,5 @@
-import EventEmitter from "events";
-import tls, { TLSSocket } from "tls";
+import EventEmitter from "node:events";
+import tls, { TLSSocket } from "node:tls";
 
 import type SipInfoResponse from "@rc-ex/core/lib/definitions/SipInfoResponse";
 import waitFor from "wait-for-async";
