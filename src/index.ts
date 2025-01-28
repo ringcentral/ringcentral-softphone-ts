@@ -1,24 +1,24 @@
 import EventEmitter from "node:events";
 import tls, { TLSSocket } from "node:tls";
 
-import type SipInfoResponse from "@rc-ex/core/lib/definitions/SipInfoResponse";
+import type SipInfoResponse from "@rc-ex/core/lib/definitions/SipInfoResponse.js";
 import waitFor from "wait-for-async";
 
-import InboundCallSession from "./call-session/inbound";
-import OutboundCallSession from "./call-session/outbound";
+import InboundCallSession from "./call-session/inbound.js";
+import OutboundCallSession from "./call-session/outbound.js";
 import {
   InboundMessage,
   OutboundMessage,
   RequestMessage,
   ResponseMessage,
-} from "./sip-message/index";
+} from "./sip-message/index.js";
 import {
   branch,
   generateAuthorization,
   localKey,
   randomInt,
   uuid,
-} from "./utils";
+} from "./utils.js";
 
 class Softphone extends EventEmitter {
   public sipInfo: SipInfoResponse;

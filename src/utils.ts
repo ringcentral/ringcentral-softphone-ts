@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import type SipInfoResponse from "@rc-ex/core/lib/definitions/SipInfoResponse";
+import type SipInfoResponse from "@rc-ex/core/lib/definitions/SipInfoResponse.js";
 
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 

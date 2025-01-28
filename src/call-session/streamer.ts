@@ -2,7 +2,7 @@ import EventEmitter from "node:events";
 
 import { RtpHeader, RtpPacket } from "werift-rtp";
 
-import type CallSession from "./index";
+import type CallSession from "./index.js";
 
 class Streamer extends EventEmitter {
   public paused = false;

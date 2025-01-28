@@ -3,16 +3,16 @@ import EventEmitter from "node:events";
 
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
-import { createOpus } from "../codec";
-import DTMF from "../dtmf";
+import { createOpus } from "../codec.js";
+import DTMF from "../dtmf.js";
 import {
   type InboundMessage,
   RequestMessage,
   ResponseMessage,
-} from "../sip-message/index";
-import type Softphone from "../index";
-import { branch, localKey, randomInt } from "../utils";
-import Streamer from "./streamer";
+} from "../sip-message/index.js";
+import type Softphone from "../index.js";
+import { branch, localKey, randomInt } from "../utils.js";
+import Streamer from "./streamer.js";
 
 abstract class CallSession extends EventEmitter {
   public softphone: Softphone;
