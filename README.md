@@ -132,7 +132,7 @@ For complete examples, see [demos/](demos/)
 - stream local audio to remote peer
 - call transfer
 
-### Audio codec
+## Audio codec
 
 ### By default it is `OPUS/16000`
 
