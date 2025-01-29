@@ -148,7 +148,7 @@ import Softphone from "ringcentral-softphone";
 
 const softphone = new Softphone({
   // ...
-  codec: "PCMU/8000", // or "OPUS/48000/2"
+  codec: "PCMU/8000", // or "OPUS/48000/2" or "OPUS/16000"
   // ...
 });
 ```
@@ -219,9 +219,8 @@ commands:
 play -t raw -b 16 -r 48000 -e signed-integer -c 2 test.wav
 ```
 
-```
-ffplay -f s16le -ar 48000 -ac 2 -i test.wav
-```
+I don't know how to use `ffplay` to play such an audio file. Please create a PR
+if you know, thanks.
 
 ## Multiple instances with same credentials
 

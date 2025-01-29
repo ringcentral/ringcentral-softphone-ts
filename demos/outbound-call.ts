@@ -11,7 +11,7 @@ const softphone = new Softphone({
   password: process.env.SIP_INFO_PASSWORD!,
   authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID!,
   domain: process.env.SIP_INFO_DOMAIN!,
-  codec: "PCMU/8000", // optional, default is "OPUS/16000", you may specify "PCMU/8000", "OPUS/48000/2"
+  codec: "OPUS/48000/2", // optional, default is "OPUS/16000", you may specify "PCMU/8000", "OPUS/48000/2"
 });
 softphone.enableDebugMode(); // print all SIP messages
 
@@ -45,7 +45,7 @@ const main = async () => {
 
     // // send audio to remote peer
     // const streamer = callSession.streamAudio(
-    //   fs.readFileSync("demos/pcmu-8000.wav"),
+    //   fs.readFileSync("demos/opus-48000-2.wav"),
     // );
     // // You may subscribe to the 'finished' event of the streamer to know when the audio sending is finished
     // streamer.once("finished", () => {
