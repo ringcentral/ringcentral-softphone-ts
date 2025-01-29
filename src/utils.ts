@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
 
-import type SipInfoResponse from "@rc-ex/core/lib/definitions/SipInfoResponse.js";
+import { SoftPhoneOptions } from "./types";
 
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 
 const generateResponse = (
-  sipInfo: SipInfoResponse,
+  sipInfo: SoftPhoneOptions,
   endpoint: string,
   nonce: string,
 ) => {
@@ -18,7 +18,7 @@ const generateResponse = (
 };
 
 export const generateAuthorization = (
-  sipInfo: SipInfoResponse,
+  sipInfo: SoftPhoneOptions,
   nonce: string,
   method: "REGISTER" | "INVITE",
 ) => {
@@ -46,7 +46,7 @@ export const randomInt = () =>
   Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
 
 export const withoutTag = (s: string) => s.replace(/;tag=.*$/, "");
-export const extractAddress = (s: string) => s.match(/<(sip:.+?)>/)[1];
+export const extractAddress = (s: string) => s.match(/<(sip:.+?)>/)?.[1];
 
 const keyAndSalt = crypto.randomBytes(30);
 export const localKey = keyAndSalt.toString("base64").replace(/=+$/, "");

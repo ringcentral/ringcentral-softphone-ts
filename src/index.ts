@@ -1,7 +1,6 @@
 import EventEmitter from "node:events";
 import tls, { TLSSocket } from "node:tls";
 
-import type SipInfoResponse from "@rc-ex/core/lib/definitions/SipInfoResponse.js";
 import waitFor from "wait-for-async";
 
 import InboundCallSession from "./call-session/inbound.js";
@@ -19,9 +18,10 @@ import {
   randomInt,
   uuid,
 } from "./utils.js";
+import { SoftPhoneOptions } from "./types.js";
 
 class Softphone extends EventEmitter {
-  public sipInfo: SipInfoResponse;
+  public sipInfo: SoftPhoneOptions;
   public client: TLSSocket;
 
   public fakeDomain = uuid() + ".invalid";
@@ -30,7 +30,7 @@ class Softphone extends EventEmitter {
   private intervalHandle: NodeJS.Timeout;
   private connected = false;
 
-  public constructor(sipInfo: SipInfoResponse) {
+  public constructor(sipInfo: SoftPhoneOptions) {
     super();
     this.sipInfo = sipInfo;
     if (this.sipInfo.domain === undefined) {
@@ -157,6 +157,14 @@ class Softphone extends EventEmitter {
     this.client.destroy();
   }
 
+  public send(
+    message: OutboundMessage,
+    waitForReply?: true,
+  ): Promise<InboundMessage>;
+  public send(
+    message: OutboundMessage,
+    waitForReply?: false,
+  ): Promise<undefined>;
   public send(message: OutboundMessage, waitForReply = false) {
     this.client.write(message.toString());
     if (!waitForReply) {
