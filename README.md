@@ -189,6 +189,40 @@ say "Hello world" -o test.wav --data-format=LEI16@16000
 For Linux and Windows, please do some investigation yourself. Audio file
 generation is out of scope of this SDK.
 
+### PCMU/8000
+
+If you choose this codec, make sure audio is playable using the following
+commands:
+
+```
+play -b 8 -r 8000 -e mu-law test.raw
+```
+
+Please note that, if I name the file as *.wav, `play` will complain:
+
+```
+play FAIL formats: can't open input file `6fdbbf2f-74fe-437a-b5a7-80c0c546baf0.wav': WAVE: RIFF header not found
+```
+
+Either you rename it to *.raw or use `ffplay` instead
+
+```
+ffplay -autoexit -f mulaw -ar 8000 test.wav
+```
+
+### OPUS/48000/2
+
+If you choose this codec, make sure audio is playable using the following
+commands:
+
+```
+play -t raw -b 16 -r 48000 -e signed-integer -c 2 test.wav
+```
+
+```
+ffplay -f s16le -ar 48000 -ac 2 -i test.wav
+```
+
 ## Multiple instances with same credentials
 
 You can run multiple softphone instances with the same credentials without

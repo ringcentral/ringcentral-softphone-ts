@@ -7,11 +7,12 @@ import Softphone from "../src/index";
 // import waitFor from 'wait-for-async';
 
 const softphone = new Softphone({
-  outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY,
-  username: process.env.SIP_INFO_USERNAME,
-  password: process.env.SIP_INFO_PASSWORD,
-  authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID,
-  domain: process.env.SIP_INFO_DOMAIN,
+  outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY!,
+  username: process.env.SIP_INFO_USERNAME!,
+  password: process.env.SIP_INFO_PASSWORD!,
+  authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID!,
+  domain: process.env.SIP_INFO_DOMAIN!,
+  codec: "OPUS/16000", // optional, default is "OPUS/16000", you may specify "PCMU/8000", "OPUS/48000/2"
 });
 softphone.enableDebugMode(); // print all SIP messages
 
@@ -51,6 +52,8 @@ const main = async () => {
     // streamer.resume();
     // await waitFor({ interval: 2000 });
     // streamer.stop();
+    // // you may start/restart the streaming:
+    // streamer.start();
 
     // either you or the peer hang up
     callSession.once("disposed", () => {

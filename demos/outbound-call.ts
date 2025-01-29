@@ -6,11 +6,12 @@ import type { RtpPacket } from "werift-rtp";
 import Softphone from "../src/index";
 
 const softphone = new Softphone({
-  outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY,
-  username: process.env.SIP_INFO_USERNAME,
-  password: process.env.SIP_INFO_PASSWORD,
-  authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID,
-  domain: process.env.SIP_INFO_DOMAIN,
+  outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY!,
+  username: process.env.SIP_INFO_USERNAME!,
+  password: process.env.SIP_INFO_PASSWORD!,
+  authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID!,
+  domain: process.env.SIP_INFO_DOMAIN!,
+  codec: "PCMU/8000", // optional, default is "OPUS/16000", you may specify "PCMU/8000", "OPUS/48000/2"
 });
 softphone.enableDebugMode(); // print all SIP messages
 
@@ -43,10 +44,12 @@ const main = async () => {
     // callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
 
     // // send audio to remote peer
-    // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.wav'));
+    // const streamer = callSession.streamAudio(
+    //   fs.readFileSync("demos/pcmu-8000.wav"),
+    // );
     // // You may subscribe to the 'finished' event of the streamer to know when the audio sending is finished
-    // streamer.once('finished', () => {
-    //   console.log('audio sending finished');
+    // streamer.once("finished", () => {
+    //   console.log("audio sending finished");
     // });
     // // you may pause/resume/stop audio sending at any time
     // await waitFor({ interval: 3000 });
@@ -55,6 +58,8 @@ const main = async () => {
     // streamer.resume();
     // await waitFor({ interval: 2000 });
     // streamer.stop();
+    // // you may start/restart the streaming:
+    // streamer.start();
 
     // receive DTMF
     callSession.on("dtmf", (digit) => {
