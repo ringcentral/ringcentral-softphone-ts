@@ -37,12 +37,14 @@ class Streamer extends EventEmitter {
   }
 
   public get finished() {
-    return this.buffer.length < 640;
+    return this.buffer.length < this.callSession.softphone.codec.packetSize;
   }
 
   private sendPacket() {
     if (!this.callSession.disposed && !this.paused && !this.finished) {
-      const temp = this.callSession.opus.encode(this.buffer.subarray(0, 640));
+      const temp = this.callSession.encoder.encode(
+        this.buffer.subarray(0, this.callSession.softphone.codec.packetSize),
+      );
       const rtpPacket = new RtpPacket(
         new RtpHeader({
           version: 2,
@@ -51,7 +53,7 @@ class Streamer extends EventEmitter {
           extension: false,
           marker: false,
           payloadOffset: 12,
-          payloadType: 109,
+          payloadType: this.callSession.softphone.codec.id,
           sequenceNumber: this.callSession.sequenceNumber,
           timestamp: this.callSession.timestamp,
           ssrc: this.callSession.ssrc,
@@ -73,8 +75,11 @@ class Streamer extends EventEmitter {
       if (this.callSession.sequenceNumber > 65535) {
         this.callSession.sequenceNumber = 0;
       }
-      this.callSession.timestamp += 320;
-      this.buffer = this.buffer.subarray(640);
+      this.callSession.timestamp +=
+        this.callSession.softphone.codec.timestampInterval;
+      this.buffer = this.buffer.subarray(
+        this.callSession.softphone.codec.packetSize,
+      );
       if (this.finished) {
         this.emit("finished");
       } else {

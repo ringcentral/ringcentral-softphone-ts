@@ -3,7 +3,6 @@ import EventEmitter from "node:events";
 
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
-import { createOpus } from "../codec.js";
 import DTMF from "../dtmf.js";
 import {
   type InboundMessage,
@@ -24,7 +23,8 @@ abstract class CallSession extends EventEmitter {
   public remotePort: number;
   public disposed = false;
   public srtpSession: SrtpSession;
-  public opus = createOpus(1, 16000);
+  public encoder: { encode: (pcm: Buffer) => Buffer };
+  public decoder: { decode: (audio: Buffer) => Buffer };
 
   // for audio streaming
   public ssrc = randomInt();
@@ -34,6 +34,8 @@ abstract class CallSession extends EventEmitter {
   public constructor(softphone: Softphone, sipMessage: InboundMessage) {
     super();
     this.softphone = softphone;
+    this.encoder = softphone.codec.createEncoder();
+    this.decoder = softphone.codec.createDecoder();
     this.sipMessage = sipMessage;
     this.remoteIP = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
     this.remotePort = parseInt(
@@ -135,7 +137,7 @@ abstract class CallSession extends EventEmitter {
         if (char) {
           this.emit("dtmf", char);
         }
-      } else if (rtpPacket.header.payloadType === 109) {
+      } else if (rtpPacket.header.payloadType === this.softphone.codec.id) {
         if (
           rtpPacket.payload.length === 4 &&
           rtpPacket.payload[0] >= 0x00 &&
@@ -144,13 +146,13 @@ abstract class CallSession extends EventEmitter {
           rtpPacket.payload[2] === 0x03 &&
           rtpPacket.payload[3] === 0xc0
         ) {
-          // special DTMF packet in OPUS audio format
+          // special DTMF packet in audio format
           // first byte 0x00 to 0x0c means DTMF 0 to 9, *, #
           // we ignore it since DTMF is handled by `if (rtpPacket.header.payloadType === 101) {`
           return; // ignore it
         }
         try {
-          rtpPacket.payload = this.opus.decode(rtpPacket.payload);
+          rtpPacket.payload = this.decoder.decode(rtpPacket.payload);
           this.emit("audioPacket", rtpPacket);
         } catch {
           console.error("opus decode failed", rtpPacket);

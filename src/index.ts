@@ -19,10 +19,12 @@ import {
   uuid,
 } from "./utils.js";
 import { SoftPhoneOptions } from "./types.js";
+import Codec from "./codec.js";
 
 class Softphone extends EventEmitter {
   public sipInfo: SoftPhoneOptions;
   public client: TLSSocket;
+  public codec: Codec;
 
   public fakeDomain = uuid() + ".invalid";
   public fakeEmail = uuid() + "@" + this.fakeDomain;
@@ -32,6 +34,10 @@ class Softphone extends EventEmitter {
 
   public constructor(sipInfo: SoftPhoneOptions) {
     super();
+    if (sipInfo.codec === undefined) {
+      sipInfo.codec = "OPUS/16000";
+    }
+    this.codec = new Codec(sipInfo.codec);
     this.sipInfo = sipInfo;
     if (this.sipInfo.domain === undefined) {
       this.sipInfo.domain = "sip.ringcentral.com";
@@ -206,8 +212,8 @@ o=- ${Date.now()} 0 IN IP4 ${this.client.localAddress}
 s=rc-softphone-ts
 c=IN IP4 ${this.client.localAddress}
 t=0 0
-m=audio ${randomInt()} RTP/SAVP 109 101
-a=rtpmap:109 OPUS/16000
+m=audio ${randomInt()} RTP/SAVP ${this.codec.id} 101
+a=rtpmap:${this.codec.id} ${this.codec.name}
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
 a=sendrecv

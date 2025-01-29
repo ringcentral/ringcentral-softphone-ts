@@ -132,9 +132,28 @@ For complete examples, see [demos/](demos/)
 - stream local audio to remote peer
 - call transfer
 
-## Notes
+### Audio codec
 
-### Audio formats
+### By default it is `OPUS/16000`
+
+### Other codecs
+
+There are two more codecs supported: `OPUS/48000/2` and `PCMU/8000`.
+
+To use them, you will need to explicitly set them when creating the softphone
+instance:
+
+```ts
+import Softphone from "ringcentral-softphone";
+
+const softphone = new Softphone({
+  // ...
+  codec: "PCMU/8000", // or "OPUS/48000/2"
+  // ...
+});
+```
+
+### OPUS/16000
 
 The codec used between server and client is "OPUS/16000". This SDK will auto
 decode/encode the codec to/from "uncompressed PCM".
@@ -170,7 +189,7 @@ say "Hello world" -o test.wav --data-format=LEI16@16000
 For Linux and Windows, please do some investigation yourself. Audio file
 generation is out of scope of this SDK.
 
-### Multiple instances with same credentials
+## Multiple instances with same credentials
 
 You can run multiple softphone instances with the same credentials without
 encountering any errors. However, only the most recent instance will receive
@@ -179,7 +198,7 @@ inbound calls.
 In the future, we may consider supporting multiple active instances using the
 same credentials. For now, we believe there is no demand for this functionality.
 
-### Invalid callee number
+## Invalid callee number
 
 If you call an invalid number. The sip server will return "SIP/2.0 486 Busy
 Here".
@@ -201,8 +220,8 @@ session:
 
 ```ts
 callSession1.on("rtpPacket", (rtpPacket: RtpPacket) => {
-  if (rtpPacket.header.payloadType === 109) {
-    // 109 is for opus audio packet
+  // if statement is to make sure that it is an audio packet
+  if (rtpPacket.header.payloadType === softphone.codec.id) {
     callSession2.sendPacket(rtpPacket);
   }
 });
