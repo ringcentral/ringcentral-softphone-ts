@@ -22,7 +22,6 @@ c=IN IP4 ${this.softphone.client.localAddress}
 t=0 0
 m=audio ${randomInt()} RTP/SAVP 109 101
 a=rtpmap:109 OPUS/16000
-a=fmtp:109 useinbandfec=1;usedtx=0
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
 a=sendrecv
