@@ -1,4 +1,4 @@
-import fs from "fs";
+import fs from "node:fs";
 import process from "node:process";
 
 import waitFor from "wait-for-async";
@@ -27,7 +27,7 @@ const main = async () => {
   });
 
   // callee answers the call
-  callSession.once("answered", async () => {
+  callSession.once("answered", /*async */ () => {
     // receive audio
     const writeStream = fs.createWriteStream(`${callSession.callId}.wav`, {
       flags: "a",

@@ -46,7 +46,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
       },
       answerSDP,
     );
-    this.softphone.send(newMessage);
+    await this.softphone.send(newMessage);
 
     this.startLocalServices();
   }

@@ -14,7 +14,7 @@ class OutboundCallSession extends CallSession {
     this.init();
   }
 
-  public async init() {
+  public init() {
     // wait for user to answer the call
     const answerHandler = (message: InboundMessage) => {
       if (message.headers.CSeq !== this.sipMessage.headers.CSeq) {
@@ -44,7 +44,7 @@ class OutboundCallSession extends CallSession {
       }
     };
     this.softphone.on("message", answerHandler);
-    this.once("answered", async () => this.startLocalServices());
+    this.once("answered", () => this.startLocalServices());
   }
 
   public async cancel() {
@@ -58,7 +58,7 @@ class OutboundCallSession extends CallSession {
         CSeq: this.sipMessage.headers.CSeq.replace(" INVITE", " CANCEL"),
       },
     );
-    this.softphone.send(requestMessage);
+    await this.softphone.send(requestMessage);
   }
 }
 

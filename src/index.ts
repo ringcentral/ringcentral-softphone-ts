@@ -143,7 +143,7 @@ class Softphone extends EventEmitter {
     });
   }
 
-  public async enableDebugMode() {
+  public enableDebugMode() {
     this.on(
       "message",
       (message) =>
@@ -156,7 +156,7 @@ class Softphone extends EventEmitter {
     };
   }
 
-  public async revoke() {
+  public revoke() {
     clearInterval(this.intervalHandle);
     this.removeAllListeners();
     this.client.removeAllListeners();
@@ -202,7 +202,7 @@ class Softphone extends EventEmitter {
   // decline an inbound call
   public async decline(inviteMessage: InboundMessage) {
     const newMessage = new ResponseMessage(inviteMessage, 603);
-    this.send(newMessage);
+    await this.send(newMessage);
   }
 
   public async call(callee: string) {

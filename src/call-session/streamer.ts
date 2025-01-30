@@ -18,21 +18,21 @@ class Streamer extends EventEmitter {
     this.originalBuffer = buffer;
   }
 
-  public async start() {
+  public start() {
     this.buffer = this.originalBuffer;
     this.paused = false;
     this.sendPacket();
   }
 
-  public async stop() {
+  public stop() {
     this.buffer = Buffer.alloc(0);
   }
 
-  public async pause() {
+  public pause() {
     this.paused = true;
   }
 
-  public async resume() {
+  public resume() {
     this.paused = false;
     this.sendPacket();
   }

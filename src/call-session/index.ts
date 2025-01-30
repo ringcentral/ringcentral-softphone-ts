@@ -77,10 +77,10 @@ abstract class CallSession extends EventEmitter {
         Via: `SIP/2.0/TLS ${this.softphone.fakeDomain};branch=${branch()}`,
       },
     );
-    this.softphone.send(requestMessage);
+    await this.softphone.send(requestMessage);
   }
 
-  public async sendDTMF(
+  public sendDTMF(
     char: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "*" | "#",
   ) {
     const timestamp = Math.floor(Date.now() / 1000);
@@ -125,7 +125,7 @@ abstract class CallSession extends EventEmitter {
     this.send(this.srtpSession.encrypt(rtpPacket.payload, rtpPacket.header));
   }
 
-  protected async startLocalServices() {
+  protected startLocalServices() {
     this.socket = dgram.createSocket("udp4");
     this.socket.on("message", (message) => {
       const rtpPacket = RtpPacket.deSerialize(
