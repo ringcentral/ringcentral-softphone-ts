@@ -4,26 +4,26 @@ import { Buffer } from "node:buffer";
 
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
-import DTMF from "../dtmf.js";
+import DTMF from "../dtmf";
 import {
   type InboundMessage,
   RequestMessage,
   ResponseMessage,
-} from "../sip-message/index.js";
-import type Softphone from "../index.js";
-import { branch, localKey, randomInt } from "../utils.js";
-import Streamer from "./streamer.js";
+} from "../sip-message/index";
+import type Softphone from "../index";
+import { branch, localKey, randomInt } from "../utils";
+import Streamer from "./streamer";
 
 abstract class CallSession extends EventEmitter {
   public softphone: Softphone;
   public sipMessage: InboundMessage;
-  public socket: dgram.Socket;
-  public localPeer: string;
-  public remotePeer: string;
+  public socket!: dgram.Socket;
+  public localPeer!: string;
+  public remotePeer!: string;
   public remoteIP: string;
   public remotePort: number;
   public disposed = false;
-  public srtpSession: SrtpSession;
+  public srtpSession!: SrtpSession;
   public encoder: { encode: (pcm: Buffer) => Buffer };
   public decoder: { decode: (audio: Buffer) => Buffer };
 
