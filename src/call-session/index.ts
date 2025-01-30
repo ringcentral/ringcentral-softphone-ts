@@ -1,5 +1,6 @@
 import dgram from "node:dgram";
 import EventEmitter from "node:events";
+import { Buffer } from "node:buffer";
 
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 

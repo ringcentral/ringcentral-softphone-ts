@@ -260,10 +260,6 @@ callSession1.on("rtpPacket", (rtpPacket: RtpPacket) => {
 });
 ```
 
-## Todo
-
-- Make codec configurable
-
 ---
 
 ## Dev Notes

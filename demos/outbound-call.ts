@@ -1,4 +1,5 @@
 import fs from "fs";
+import process from "node:process";
 
 import waitFor from "wait-for-async";
 import type { RtpPacket } from "werift-rtp";
@@ -11,7 +12,7 @@ const softphone = new Softphone({
   password: process.env.SIP_INFO_PASSWORD!,
   authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID!,
   domain: process.env.SIP_INFO_DOMAIN!,
-  codec: "OPUS/48000/2", // optional, default is "OPUS/16000", you may specify "PCMU/8000", "OPUS/48000/2"
+  // codec: "OPUS/48000/2", // optional, default is "OPUS/16000", you may also specify "PCMU/8000", "OPUS/48000/2"
 });
 softphone.enableDebugMode(); // print all SIP messages
 

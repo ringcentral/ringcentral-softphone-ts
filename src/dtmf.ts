@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 class DTMF {
   public static readonly phoneChars = [
     "0",

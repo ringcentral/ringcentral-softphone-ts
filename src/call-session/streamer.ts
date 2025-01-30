@@ -1,4 +1,5 @@
 import EventEmitter from "node:events";
+import { Buffer } from "node:buffer";
 
 import { RtpHeader, RtpPacket } from "werift-rtp";
 
