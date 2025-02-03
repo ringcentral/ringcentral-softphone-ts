@@ -5,8 +5,7 @@
     "moduleResolution": "node",
     "declaration": true,
     "outDir": "./dist/esm",
-    "skipLibCheck": true,
-    "sourceMap": true
+    "skipLibCheck": true
   },
   "include": ["src/**/*.ts"]
 }
