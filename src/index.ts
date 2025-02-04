@@ -3,23 +3,23 @@ import tls, { TLSSocket } from "node:tls";
 
 import waitFor from "wait-for-async";
 
-import InboundCallSession from "./call-session/inbound";
-import OutboundCallSession from "./call-session/outbound";
+import InboundCallSession from "./call-session/inbound.js";
+import OutboundCallSession from "./call-session/outbound.js";
 import {
   InboundMessage,
   OutboundMessage,
   RequestMessage,
   ResponseMessage,
-} from "./sip-message/index";
+} from "./sip-message/index.js";
 import {
   branch,
   generateAuthorization,
   localKey,
   randomInt,
   uuid,
-} from "./utils";
-import { SoftPhoneOptions } from "./types";
-import Codec from "./codec";
+} from "./utils.js";
+import { SoftPhoneOptions } from "./types.js";
+import Codec from "./codec.js";
 
 class Softphone extends EventEmitter {
   public sipInfo: SoftPhoneOptions;

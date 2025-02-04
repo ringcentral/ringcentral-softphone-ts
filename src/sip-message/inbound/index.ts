@@ -1,5 +1,5 @@
-import { uuid } from "../../utils";
-import SipMessage from "../sip-message";
+import { uuid } from "../../utils.js";
+import SipMessage from "../sip-message.js";
 
 class InboundMessage extends SipMessage {
   public static fromString(str: string) {

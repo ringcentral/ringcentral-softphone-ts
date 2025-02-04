@@ -1,4 +1,4 @@
-import SipMessage from "../sip-message";
+import SipMessage from "../sip-message.js";
 
 class OutboundMessage extends SipMessage {
   public constructor(subject = "", headers = {}, body = "") {

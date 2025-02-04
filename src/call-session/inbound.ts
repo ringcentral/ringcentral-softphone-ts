@@ -1,7 +1,7 @@
-import CallSession from "./index";
-import { type InboundMessage, OutboundMessage } from "../sip-message/index";
-import type Softphone from "../index";
-import { localKey, randomInt } from "../utils";
+import CallSession from "./index.js";
+import { type InboundMessage, OutboundMessage } from "../sip-message/index.js";
+import type Softphone from "../index.js";
+import { localKey, randomInt } from "../utils.js";
 
 class InboundCallSession extends CallSession {
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {

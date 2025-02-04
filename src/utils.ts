@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import { SoftPhoneOptions } from "./types";
+import { SoftPhoneOptions } from "./types.js";
 
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 

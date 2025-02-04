@@ -1,10 +1,9 @@
 import fs from "node:fs";
 import process from "node:process";
-
 import waitFor from "wait-for-async";
 import type { RtpPacket } from "werift-rtp";
 
-import Softphone from "../src/index";
+import Softphone from "../src/index.js";
 
 const softphone = new Softphone({
   outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY!,
@@ -27,7 +26,7 @@ const main = async () => {
   });
 
   // callee answers the call
-  callSession.once("answered", /*async */ () => {
+  callSession.once("answered", () => {
     // receive audio
     const writeStream = fs.createWriteStream(`${callSession.callId}.wav`, {
       flags: "a",

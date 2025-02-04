@@ -4,15 +4,15 @@ import { Buffer } from "node:buffer";
 
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
-import DTMF from "../dtmf";
+import DTMF from "../dtmf.js";
 import {
   type InboundMessage,
   RequestMessage,
   ResponseMessage,
-} from "../sip-message/index";
-import type Softphone from "../index";
-import { branch, localKey, randomInt } from "../utils";
-import Streamer from "./streamer";
+} from "../sip-message/index.js";
+import type Softphone from "../index.js";
+import { branch, localKey, randomInt } from "../utils.js";
+import Streamer from "./streamer.js";
 
 abstract class CallSession extends EventEmitter {
   public softphone: Softphone;
