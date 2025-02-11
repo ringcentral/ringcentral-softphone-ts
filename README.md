@@ -276,4 +276,4 @@ Content below is for the maintainer/contributor of this SDK.
 
 #### Code style
 
-We use `deno fmt` to format all code.
+We use `deno fmt && deno lint --fix` to format and lint all code.
