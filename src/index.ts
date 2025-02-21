@@ -89,16 +89,14 @@ class Softphone extends EventEmitter {
         {
           Via:
             `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
-          Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
           "Max-Forwards": "70",
           From:
             `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${fromTag}`,
           To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
           "Call-ID": this.registerCallId,
-          Supported: "outbound, path",
           Contact:
             `<sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
-          Expires: 300,
+          Expires: 3600,
           Allow:
             "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",
         },
