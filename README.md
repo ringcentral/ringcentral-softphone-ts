@@ -260,6 +260,12 @@ callSession1.on("rtpPacket", (rtpPacket: RtpPacket) => {
 });
 ```
 
+## Telephony Session ID
+
+For outbound calls, you will be able to find header like this `p-rc-api-ids: party-id=p-a0d17e323f0fez1953f50f90dz296e3440000-1;session-id=s-a0d17e323f0fez1953f50f90dz296e3440000` from SIP messages.
+
+However, for inbound calls, the server doesn't tell us anything about the Telephony Session ID.
+
 ---
 
 ## Dev Notes
