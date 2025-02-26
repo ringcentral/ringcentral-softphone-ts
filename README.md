@@ -58,31 +58,6 @@ The credentials data returned by that API is like this:
       "proxyTLS": "sip71.ringcentral.com:5096"
     },
     {
-      "region": "APAC",
-      "proxy": "sip60.ringcentral.com:5090",
-      "proxyTLS": "sip60.ringcentral.com:5096"
-    },
-    {
-      "region": "EMEA",
-      "proxy": "sip30.ringcentral.com:5090",
-      "proxyTLS": "sip30.ringcentral.com:5096"
-    },
-    {
-      "region": "APAC",
-      "proxy": "sip70.ringcentral.com:5090",
-      "proxyTLS": "sip70.ringcentral.com:5096"
-    },
-    {
-      "region": "APAC",
-      "proxy": "sip50.ringcentral.com:5090",
-      "proxyTLS": "sip50.ringcentral.com:5096"
-    },
-    {
-      "region": "NA",
-      "proxy": "SIP10.ringcentral.com:5090",
-      "proxyTLS": "sip10.ringcentral.com:5096"
-    },
-    {
       "region": "NA",
       "proxy": "SIP20.ringcentral.com:5090",
       "proxyTLS": "sip20.ringcentral.com:5096"
@@ -92,6 +67,7 @@ The credentials data returned by that API is like this:
       "proxy": "sip80.ringcentral.com:5090",
       "proxyTLS": "sip80.ringcentral.com:5096"
     }
+    ...
   ],
   "userName": "16501234567",
   "password": "password",
