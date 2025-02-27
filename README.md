@@ -243,7 +243,8 @@ For outbound calls, you will be able to find header like this
 from `callSession.sipMessage.headers`.
 
 However, for inbound calls, the server doesn't tell us anything about the
-Telephony Session ID.
+Telephony Session ID. Here is a workaround solution:
+https://github.com/tylerlong/rc-softphone-call-id-test
 
 ---
 
