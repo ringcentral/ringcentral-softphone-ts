@@ -218,7 +218,7 @@ a=sendrecv
 a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
   `.trim();
     const inviteMessage = new RequestMessage(
-      `INVITE sip:${callee} SIP/2.0`,
+      `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
       {
         Via:
           `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
