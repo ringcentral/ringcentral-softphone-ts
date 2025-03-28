@@ -17,7 +17,6 @@ softphone.enableDebugMode(); // print all SIP messages
 
 const main = async () => {
   await softphone.register();
-  await waitFor({ interval: 1000 });
   // callee format sample: 16506668888, country code is required, otherwise behavior is undefined
   const callSession = await softphone.call(process.env.CALLEE_FOR_TESTING!);
 

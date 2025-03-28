@@ -115,9 +115,9 @@ class Softphone extends EventEmitter {
         nonce,
         "REGISTER",
       );
-      this.send(newMessage);
+      await this.send(newMessage, true);
     };
-    sipRegister();
+    await sipRegister();
     this.intervalHandle = setInterval(
       () => {
         sipRegister();
