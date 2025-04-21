@@ -6,6 +6,9 @@ the
 
 Users are recommended to use this SDK instead of the JavaScript SDK.
 
+This SDK allows you to create a softphone without GUI that runs on server-side
+without a web browser.
+
 ## Installation
 
 ```
@@ -30,7 +33,27 @@ Please note that, "SIP Domain" name should come without port number. I don't
 know why it shows a port number on the page. This SDK requires a "domain" which
 is "SIP Domain" but without the port number.
 
+Please also note that, not every device/phone can be used with the softphone
+SDK. Some phones/devices with type "RingCentral Phone app" cannot be used with
+the softphone SDK. You will need to have a device/phone with type **"Exsting
+Phone"**.
+
 ### Programmatically
+
+Invoke this API to list all devices under an extension:
+https://developers.ringcentral.com/api-reference/Devices/listExtensionDevices
+
+Please note that, not every device can be used for this softphone SDK. You will
+need to find an device with **`type: 'OtherPhone'`**. Devices with
+`type: 'SoftPhone'` can **NOT** be used for this softphone SDK.
+
+I know this is confusing. `type: 'SoftPhone'` in API response is the same as
+`type = "RingCentral Phone app"` in the GUI (mentioned in the Manually section
+above). `type: 'OtherPhone'` in API response is the same as
+`type = "Exiting Phone"` in the GUI.
+
+If you cannot find an appropriate device, you will need to create a device
+manually. Please refer to the previous section.
 
 Invoke this RESTful API:
 https://developers.ringcentral.com/api-reference/Devices/readDeviceSipInfo
@@ -245,6 +268,18 @@ from `callSession.sipMessage.headers`.
 However, for inbound calls, the server doesn't tell us anything about the
 Telephony Session ID. Here is a workaround solution:
 https://github.com/tylerlong/rc-softphone-call-id-test
+
+## Troubleshooting (Common issues)
+
+### `SIP/2.0 486 Busy Here` for outbound call
+
+First of all, make sure that the target number is valid. If the target number is
+invalid, you will get `SIP/2.0 486 Busy Here`.
+
+Secondly, make sure that the device has a "Emergency Address" configured and
+there is no complains about Emergency address by checking the details of the
+device on https://service.ringcentral.com. It is an known issue that, if the
+Emergency Address is not configured properly, outbound call will not work.
 
 ---
 
