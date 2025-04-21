@@ -19,11 +19,11 @@ yarn install ringcentral-softphone
 1. Login to https://service.ringcentral.com
 2. Find the user/extension you want to use
 3. Check the user's "Devices & Numbers"
-4. Find a phone/device that you want to use
-5. if there is none, you need to create one. Check steps below for more details
-6. Click the "Set Up and Provision" button
-7. Click the link "Set up manually using SIP"
-8. You will find "SIP Domain", "Outbound Proxy", "User Name", "Password" and
+4. Find a phone/device that you want to use (Phone type **must** be "Existing
+   Phone"), if there is none, you need to create one.
+5. Click the "Set Up and Provision" button
+6. Click the link "Set up manually using SIP"
+7. You will find "SIP Domain", "Outbound Proxy", "User Name", "Password" and
    "Authorization ID"
 
 Please note that, "SIP Domain" name should come without port number. I don't
