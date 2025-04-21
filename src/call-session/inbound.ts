@@ -31,7 +31,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
       "SIP/2.0 200 OK",
       {
         Via: this.sipMessage.headers.Via,
-        "Call-ID": this.sipMessage.headers["Call-ID"],
+        "Call-ID": this.sipMessage.getHeader("Call-ID"),
         From: this.sipMessage.headers.From,
         To: this.sipMessage.headers.To,
         CSeq: this.sipMessage.headers.CSeq,

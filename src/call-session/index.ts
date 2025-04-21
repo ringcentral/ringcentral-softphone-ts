@@ -60,7 +60,7 @@ abstract class CallSession extends EventEmitter {
   }
 
   public get callId() {
-    return this.sipMessage.headers["Call-ID"];
+    return this.sipMessage.getHeader("Call-ID");
   }
 
   public send(data: string | Buffer) {
@@ -168,7 +168,7 @@ abstract class CallSession extends EventEmitter {
     this.send("hello");
 
     const byeHandler = (inboundMessage: InboundMessage) => {
-      if (inboundMessage.headers["Call-ID"] !== this.callId) {
+      if (inboundMessage.getHeader("Call-ID") !== this.callId) {
         return;
       }
       if (inboundMessage.headers.CSeq.endsWith(" BYE")) {

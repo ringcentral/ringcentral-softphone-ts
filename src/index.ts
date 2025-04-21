@@ -130,7 +130,7 @@ class Softphone extends EventEmitter {
       }
       const outboundMessage = new OutboundMessage("SIP/2.0 100 Trying", {
         Via: inboundMessage.headers.Via,
-        "Call-ID": inboundMessage.headers["Call-ID"],
+        "Call-ID": inboundMessage.getHeader("Call-ID"),
         From: inboundMessage.headers.From,
         To: inboundMessage.headers.To,
         CSeq: inboundMessage.headers.CSeq,

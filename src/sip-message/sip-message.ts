@@ -26,6 +26,15 @@ class SipMessage {
     ].join("\r\n");
     return r;
   }
+
+  public getHeader(key: string): string | undefined {
+    const foundKey = Object.keys(this.headers).find((k) =>
+      k.toLowerCase() === key.toLowerCase()
+    );
+    if (foundKey) {
+      return this.headers[foundKey];
+    }
+  }
 }
 
 export default SipMessage;
