@@ -106,8 +106,7 @@ class Softphone extends EventEmitter {
         // sometimes the server will return 200 OK directly
         return;
       }
-      const wwwAuth = inboundMessage.headers["Www-Authenticate"] ||
-        inboundMessage!.headers["WWW-Authenticate"];
+      const wwwAuth = inboundMessage.getHeader("Www-Authenticate")!;
       const nonce = wwwAuth.match(/, nonce="(.+?)"/)![1];
       const newMessage = requestMessage.fork();
       newMessage.headers.Authorization = generateAuthorization(
@@ -240,7 +239,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
       offerSDP,
     );
     const inboundMessage = await this.send(inviteMessage, true);
-    const proxyAuthenticate = inboundMessage.headers["Proxy-Authenticate"];
+    const proxyAuthenticate = inboundMessage.getHeader("Proxy-Authenticate")!;
     const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];
     const newMessage = inviteMessage.fork();
     newMessage.headers["Proxy-Authorization"] = generateAuthorization(
