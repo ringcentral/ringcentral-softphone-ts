@@ -281,15 +281,6 @@ there is no complains about Emergency address by checking the details of the
 device on https://service.ringcentral.com. It is an known issue that, if the
 Emergency Address is not configured properly, outbound call will not work.
 
-### Call auto hang up after about 5 minutes
-
-If your app doesn't send anything to remote peer for 5 minutes, the server may
-send you a "BYE" message to end the call.
-
-This is the silence detection feature from the server. To prevent it from
-happening. You may send some audio or DTMF every minute. Just to tell the server
-that you are still with the call.
-
 ---
 
 ## Dev Notes
