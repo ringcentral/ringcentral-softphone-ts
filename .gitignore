@@ -4,3 +4,4 @@ node_modules/
 dist/
 *.cap
 *.wav
+.DS_Store
