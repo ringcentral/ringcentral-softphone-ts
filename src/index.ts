@@ -121,7 +121,7 @@ class Softphone extends EventEmitter {
       () => {
         sipRegister();
       },
-      3 * 60 * 1000, // refresh registration every 3 minutes
+      30 * 1000, // refresh registration every 30 seconds
     );
     this.on("message", (inboundMessage) => {
       if (!inboundMessage.subject.startsWith("INVITE sip:")) {
