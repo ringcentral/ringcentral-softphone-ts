@@ -187,7 +187,8 @@ await softphone.register();
 // at this point the phone is ready
 ```
 
-!!! info "Creating multiple instances with the same credentials" One can run
-multiple instances of a cloud phone using the same credentials without causing
-an error. However, only the most recently created instance will receive inbound
-calls.
+!!! info "Creating multiple instances with the same credentials"
+
+One can run multiple instances of a cloud phone using the same credentials
+without causing an error. However, only the most recently created instance will
+receive inbound calls.
