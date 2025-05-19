@@ -100,7 +100,6 @@ nav:
               - "rtpPacket": reference/rtpPacket.md
           - "Methods":
               - "callId()": reference/callId.md
-              - "dispose()": reference/dispose.md
               - "hangup()": reference/hangup.md
               - "send()": reference/send.md
               - "sendDTMF()": reference/sendDtmf.md
