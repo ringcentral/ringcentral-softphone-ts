@@ -21,8 +21,8 @@ const main = async () => {
   softphone.on("invite", async (inviteMessage) => {
     // answer the call
     const callSession = await softphone.answer(inviteMessage);
-	// call transfer
-    callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
+    // call transfer
+    await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
   });
 };
 main();
