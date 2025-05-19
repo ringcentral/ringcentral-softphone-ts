@@ -5,25 +5,25 @@ site_url: https://ringcentral.github.io/ringcentral-softphone-ts
 # Repository
 repo_url: https://github.com/ringcentral/ringcentral-softphone-ts
 repo_name: ringcentral/ringcentral-softphone-ts
-edit_uri: tree/main/docs
-docs_dir: docs
+edit_uri: tree/main/mkdocs/docs
+docs_dir: mkdocs/docs
 
 theme:
   name: material
-  custom_dir: overrides
+  custom_dir: mkdocs/overrides
   features:
-      - navigation.path
-#      - navigation.sections
-      - navigation.tabs
-      - navigation.top
-      - navigation.expand
-      - navigation.sections
-      - search.sharing
-      - search.highlight
-      - content.code.copy
-      - content.action.edit
-      - content.action.view
-      - content.code.annotate
+    - navigation.path
+    #      - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - navigation.expand
+    - navigation.sections
+    - search.sharing
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
   palette:
     - scheme: default
       primary: custom
@@ -45,7 +45,7 @@ plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
   - badges
-#  - with-pdf
+  #  - with-pdf
   - exclude:
       regex:
         - '^\.#.*'
@@ -75,44 +75,43 @@ markdown_extensions:
 copyright: "2024-2025 RingCentral, Inc. All rights reserved."
 
 nav:
-- 'Home': index.md
-- 'Getting stated': get-started.md
-- 'Audio': audio.md
-- 'Reference':
-  - 'Cloud Phone':
-     - 'Events':
-       - 'invite': reference/invite.md
-       - 'message': reference/message.md
-     - 'Methods':
-       - 'answer()': reference/answer.md
-       - 'call()': reference/call.md
-       - 'decline()': reference/decline.md
-       - 'enableDebugMode()': reference/enableDebugMode.md
-  - 'Call Session':
-     - 'Events':
-       - 'answered': reference/answered.md
-       - 'audioPacket': reference/audioPacket.md
-       - 'busy': reference/busy.md
-       - 'disposed': reference/disposed.md
-       - 'dtmf': reference/dtmf.md
-       - 'dtmfPacket': reference/dtmfPacket.md
-       - 'finished': reference/finished.md
-       - 'rtpPacket': reference/rtpPacket.md
-     - 'Methods':
-       - 'callId()': reference/callId.md
-       - 'dispose()': reference/dispose.md
-       - 'hangup()': reference/hangup.md
-       - 'send()': reference/send.md
-       - 'sendDTMF()': reference/sendDtmf.md
-       - 'sendPacket()': reference/sendPacket.md
-       - 'streamAudio()': reference/streamAudio.md
-       - 'transfer()': reference/transfer.md
-- 'Examples':
-  - 'Audio streams': 
-    - 'Record audio': examples/record-audio.md
-    - 'Stream audio': examples/stream-audio.md
-  - 'Call control': 
-    - 'Answer call': examples/answer-call.md
-    - 'Transfer call': examples/transfer-call.md
-- 'Support': support.md  
-
+  - "Home": index.md
+  - "Getting stated": get-started.md
+  - "Audio": audio.md
+  - "Reference":
+      - "Cloud Phone":
+          - "Events":
+              - "invite": reference/invite.md
+              - "message": reference/message.md
+          - "Methods":
+              - "answer()": reference/answer.md
+              - "call()": reference/call.md
+              - "decline()": reference/decline.md
+              - "enableDebugMode()": reference/enableDebugMode.md
+      - "Call Session":
+          - "Events":
+              - "answered": reference/answered.md
+              - "audioPacket": reference/audioPacket.md
+              - "busy": reference/busy.md
+              - "disposed": reference/disposed.md
+              - "dtmf": reference/dtmf.md
+              - "dtmfPacket": reference/dtmfPacket.md
+              - "finished": reference/finished.md
+              - "rtpPacket": reference/rtpPacket.md
+          - "Methods":
+              - "callId()": reference/callId.md
+              - "dispose()": reference/dispose.md
+              - "hangup()": reference/hangup.md
+              - "send()": reference/send.md
+              - "sendDTMF()": reference/sendDtmf.md
+              - "sendPacket()": reference/sendPacket.md
+              - "streamAudio()": reference/streamAudio.md
+              - "transfer()": reference/transfer.md
+  - "Examples":
+      - "Audio streams":
+          - "Record audio": examples/record-audio.md
+          - "Stream audio": examples/stream-audio.md
+      - "Call control":
+          - "Answer call": examples/answer-call.md
+          - "Transfer call": examples/transfer-call.md
+  - "Support": support.md
