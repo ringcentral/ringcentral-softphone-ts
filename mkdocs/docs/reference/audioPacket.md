@@ -3,14 +3,13 @@
 ## Callback inputs
 
 | Parameter   | Description |
-|-------------|-------------|
+| ----------- | ----------- |
 | `rtpPacket` |             |
 
 ## Sample
 
 ```ts
-callSession.on("rtpPacket", (rtpPacket: RtpPacket) => {
-	// do something
+callSession.on("audioPacket", (rtpPacket: RtpPacket) => {
+	// received a rtpPacket which is audio data
 });
 ```
-

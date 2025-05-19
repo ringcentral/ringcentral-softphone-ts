@@ -3,8 +3,8 @@
 ## Sample
 
 ```ts
-callSession.on("answered", () => {
-  // do something with the call
+callSession.once("answered", () => {
+  // outbound callSession is answered
+  // there is no such event for inbound call. Because for inbound call it is YOU who answer it
 });
 ```
-

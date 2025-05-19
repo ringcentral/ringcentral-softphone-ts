@@ -1,10 +1,9 @@
-# callSession.on('finished', callback)
+# streamer.on('finished', callback)
 
 ## Sample
 
 ```ts
-callSession.on("finished", () => {
-  // do something with the call
+streamer.on("finished", () => {
+  // when you stream an audio file, this event tells you that the streaming has finished
 });
 ```
-

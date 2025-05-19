@@ -4,7 +4,7 @@
 
 ```ts
 callSession.on("disposed", () => {
-  // do something with the call
+  // call session disposed
+  // this means either you or remote peer hang up
 });
 ```
-

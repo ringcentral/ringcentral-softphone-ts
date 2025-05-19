@@ -1,4 +1,5 @@
 --ignore-dir=node_modules
 --ignore-dir=dist
 --ignore-dir=site
+--ignore-dir=.venv
 --ignore-file=match:/^yarn\.lock$/

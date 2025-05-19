@@ -1,6 +1,6 @@
 # softPhone.answer()
 
-Answers an incoming call so that you can attach yourself to it. 
+Answers an incoming call so that you can attach yourself to it.
 
 ## Sample
 
@@ -13,11 +13,11 @@ softphone.on("invite", async (inviteMessage) => {
 ## Inputs
 
 | Parameter       | Description                            |
-|-----------------|----------------------------------------|
-| `inviteMessage` | A SIP invite message to answer a call. |
+| --------------- | -------------------------------------- |
+| `inviteMessage` | A SIP invite message from remote peer. |
 
 ## Outputs
 
 | Parameter     | Description           |
-|---------------|-----------------------|
+| ------------- | --------------------- |
 | `callSession` | A callSession object. |

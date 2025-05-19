@@ -2,15 +2,14 @@
 
 ## Callback inputs
 
-| Parameter   | Description |
-|-------------|-------------|
-| `message` |             |
+| Parameter | Description          |
+| --------- | -------------------- |
+| `message` | A SIP invite message |
 
 ## Sample
 
 ```ts
 cloudPhone.on("invite", (message) => {
-	// do something
+	// received a SIP invige message, which means some one is calling you
 });
 ```
-

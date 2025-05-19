@@ -2,15 +2,14 @@
 
 ## Callback inputs
 
-| Parameter   | Description |
-|-------------|-------------|
-| `message` |             |
+| Parameter | Description           |
+| --------- | --------------------- |
+| `message` | SIP messasge received |
 
 ## Sample
 
 ```ts
 cloudPhone.on("message", (message) => {
-	// do something
+	// received SIP message from server
 });
 ```
-

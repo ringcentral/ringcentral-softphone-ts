@@ -2,15 +2,14 @@
 
 ## Callback inputs
 
-| Parameter   | Description |
-|-------------|-------------|
+| Parameter    | Description |
+| ------------ | ----------- |
 | `dtmfPacket` |             |
 
 ## Sample
 
 ```ts
 callSession.on("dtmfPacket", (dtmfPacket: DtmfPacket) => {
-	// do something
+	// received a packet which is about DTMF
 });
 ```
-
