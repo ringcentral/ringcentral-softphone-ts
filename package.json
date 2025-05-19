@@ -34,7 +34,7 @@
     "werift-rtp": "^0.8.4"
   },
   "devDependencies": {
-    "@types/node": "^22.15.18",
+    "@types/node": "^22.15.19",
     "dotenv-override-true": "^6.2.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
