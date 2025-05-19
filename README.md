@@ -298,3 +298,14 @@ Content below is for the maintainer/contributor of this SDK.
 #### Code style
 
 We use `deno fmt && deno lint --fix` to format and lint all code.
+
+#### Docs
+
+All docs related files are located in `mkdocs` folder.
+
+You will need to setup Python environment and install everything in
+`mkdocs/requirements.txt`.
+
+Serve the docs locally: `mkdocs serve -f mkdocs/mkdocs.yml`.
+
+Deploy the docs: `mkdocs gh-deploy -f mkdocs/mkdocs.yml`

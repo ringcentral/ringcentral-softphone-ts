@@ -1,0 +1,17 @@
+name: Publish documentation
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+      - run: pip install -r mkdocs/requirements.txt
+      - run: mkdocs gh-deploy --force -f mkdocs/mkdocs.yml
