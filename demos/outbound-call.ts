@@ -25,7 +25,7 @@ const main = async () => {
   });
 
   // callee answers the call
-  callSession.once("answered", () => {
+  callSession.once("answered", async () => {
     // receive audio
     const writeStream = fs.createWriteStream(`${callSession.callId}.wav`, {
       flags: "a",
@@ -39,8 +39,8 @@ const main = async () => {
     });
 
     // call transfer
-    // await waitFor({ interval: 3000 });
-    // callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
+    await waitFor({ interval: 3000 });
+    await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
 
     // // send audio to remote peer
     // const streamer = callSession.streamAudio(

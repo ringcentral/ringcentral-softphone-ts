@@ -37,7 +37,7 @@ const main = async () => {
 
     // call transfer
     // await waitFor({ interval: 3000 });
-    // callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
+    // await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
 
     // // send audio to remote peer
     // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.wav'));

@@ -187,7 +187,7 @@ abstract class CallSession extends EventEmitter {
     this.socket?.close();
   }
 
-  public transfer(transferTo: string) {
+  public async transfer(transferTo: string) {
     const requestMessage = new RequestMessage(
       `REFER sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.outboundProxy};transport=tls SIP/2.0`,
       {
@@ -209,19 +209,22 @@ abstract class CallSession extends EventEmitter {
           `<sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.domain}>`,
       },
     );
-    this.softphone.send(requestMessage);
-    // reply to those NOTIFY messages
-    const notifyHandler = (inboundMessage: InboundMessage) => {
-      if (!inboundMessage.subject.startsWith("NOTIFY ")) {
-        return;
-      }
-      const responseMessage = new ResponseMessage(inboundMessage, 200);
-      this.softphone.send(responseMessage);
-      if (inboundMessage.body.trim() === "SIP/2.0 200 OK") {
-        this.softphone.off("message", notifyHandler);
-      }
-    };
-    this.softphone.on("message", notifyHandler);
+    await this.softphone.send(requestMessage);
+
+    return new Promise<void>((resolve) => {
+      const notifyHandler = (inboundMessage: InboundMessage) => {
+        if (!inboundMessage.subject.startsWith("NOTIFY ")) {
+          return;
+        }
+        const responseMessage = new ResponseMessage(inboundMessage, 200);
+        this.softphone.send(responseMessage);
+        if (inboundMessage.body.trim() === "SIP/2.0 200 OK") {
+          this.softphone.off("message", notifyHandler);
+          resolve();
+        }
+      };
+      this.softphone.on("message", notifyHandler);
+    });
   }
 }
 
