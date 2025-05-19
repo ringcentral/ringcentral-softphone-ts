@@ -303,4 +303,6 @@ We use `deno fmt && deno lint --fix` to format and lint all code.
 
 All docs related files are located in `mkdocs` folder.
 
-Serve the docs locally: `mkdocs -f mkdocs/mkdocs.yml`
+Serve the docs locally: `mkdocs serve -f mkdocs/mkdocs.yml`.
+
+Deploy the docs: `mkdocs gh-deploy -f mkdocs/mkdocs.yml`
