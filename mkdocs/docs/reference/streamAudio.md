@@ -5,26 +5,26 @@ Streams an audio buffer into a phone call's audio stream.
 ## Sample
 
 ```ts
-const streamer = callSession.streamAudio( fs.readFileSync('demos/test.wav') )
+const streamer = callSession.streamAudio(fs.readFileSync("demos/test.wav"));
 ```
 
 ## Inputs
 
 | Parameter | Description                                               |
-|-----------|-----------------------------------------------------------|
+| --------- | --------------------------------------------------------- |
 | `audio`   | A [Buffer](https://nodejs.org/api/buffer.html) to stream. |
 
 ## Outputs
 
-| Parameter | Description                                               |
-|-----------|-----------------------------------------------------------|
-| `streamer`   | A [Streamer](#streamer) object. |
+| Parameter  | Description                                                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| `streamer` | A [Streamer](https://github.com/ringcentral/ringcentral-softphone-ts/blob/main/src/call-session/streamer.ts) object. |
 
 ## Streamer object
 
 The streamer object supports four methods, that do exactly as their names imply:
 
-* `start()`
-* `stop()`
-* `pause()`
-* `resume()`
+- `start()`
+- `stop()`
+- `pause()`
+- `resume()`
