@@ -1,6 +1,6 @@
 # cloudPhone.enableDebugMode()
 
-Turn on debugging output. 
+Turn on debugging output. This will print all SIP messages.
 
 ## Sample
 
@@ -11,7 +11,6 @@ await cloudPhone.enableDebugMode();
 ## Sample debugging output
 
 ```
-
 ```
 
 ## Inputs

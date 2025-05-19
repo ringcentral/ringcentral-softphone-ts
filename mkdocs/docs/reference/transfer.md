@@ -1,4 +1,4 @@
-# callSession.transfer()
+# callSession.transfer(phoneNumber)
 
 Tranfers a call to another phone number.
 
