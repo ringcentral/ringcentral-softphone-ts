@@ -298,3 +298,9 @@ Content below is for the maintainer/contributor of this SDK.
 #### Code style
 
 We use `deno fmt && deno lint --fix` to format and lint all code.
+
+#### Docs
+
+All docs related files are located in `mkdocs` folder.
+
+Serve the docs locally: `mkdocs -f mkdocs/mkdocs.yml`

@@ -5,12 +5,12 @@ site_url: https://ringcentral.github.io/ringcentral-softphone-ts
 # Repository
 repo_url: https://github.com/ringcentral/ringcentral-softphone-ts
 repo_name: ringcentral/ringcentral-softphone-ts
-edit_uri: tree/main/mkdocs/docs
-docs_dir: mkdocs/docs
+edit_uri: tree/main/docs
+docs_dir: docs
 
 theme:
   name: material
-  custom_dir: mkdocs/overrides
+  custom_dir: overrides
   features:
     - navigation.path
     #      - navigation.sections
