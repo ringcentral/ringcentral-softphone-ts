@@ -38,9 +38,9 @@ const main = async () => {
       writeStream.close();
     });
 
-    // call transfer
-    await waitFor({ interval: 3000 });
-    await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
+    // // call transfer
+    // await waitFor({ interval: 3000 });
+    // await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
 
     // // send audio to remote peer
     // const streamer = callSession.streamAudio(
