@@ -12,8 +12,8 @@ Two of the Cloud Phone SDK's most popular uses is to gain direct access to the a
 
     ---
 
-	Tap into the audio stream of a phone call and pipe the stream to a file, or translator, or transcription engine.
-	
+    Tap into the audio stream of a phone call and pipe the stream to a file, or translator, or transcription engine.
+    
     [:octicons-arrow-right-24: See example code](examples/record-audio.md)
 
 -   :octicons-play-16:{ .lg .middle } __Stream local audio to remote peer__
@@ -21,7 +21,7 @@ Two of the Cloud Phone SDK's most popular uses is to gain direct access to the a
     ---
 
 	Tap into the audio stream of a phone call and inject your own custom audio. Play audio from a file, or stream audio from a speech synthesizer.
-	
+
     [:octicons-arrow-right-24: See example code](examples/stream-audio.md)
 
 </div>
