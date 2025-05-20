@@ -11,24 +11,22 @@ consult the links below.
 
 <div class="grid cards" markdown>
 
-- :material-record-circle-outline:{ .lg .middle } **Receive audio stream from
+-    :material-record-circle-outline:{ .lg .middle } **Receive audio stream from
   peer**
+     
+     ---
+     
+     Tap into the audio stream of a phone call and pipe the stream to a file, or translator, or transcription engine.
+     
+     [:octicons-arrow-right-24: See example code](examples/record-audio.md)
 
-  ---
-
-  Tap into the audio stream of a phone call and pipe the stream to a file, or
-  translator, or transcription engine.
-
-  [:octicons-arrow-right-24: See example code](examples/record-audio.md)
-
-- :octicons-play-16:{ .lg .middle } **Stream local audio to remote peer**
-
-  ---
-
-  Tap into the audio stream of a phone call and inject your own custom audio.
-  Play audio from a file, or stream audio from a speech synthesizer.
-
-  [:octicons-arrow-right-24: See example code](examples/stream-audio.md)
+-    :octicons-play-16:{ .lg .middle } **Stream local audio to remote peer**
+     
+     ---
+     
+     Tap into the audio stream of a phone call and inject your own custom audio. Play audio from a file, or stream audio from a speech synthesizer.
+     
+     [:octicons-arrow-right-24: See example code](examples/stream-audio.md)
 
 </div>
 
