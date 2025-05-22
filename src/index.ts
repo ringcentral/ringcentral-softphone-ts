@@ -2,6 +2,7 @@ import EventEmitter from "node:events";
 import tls, { TLSSocket } from "node:tls";
 
 import waitFor from "wait-for-async";
+import Mixpanel from "mixpanel";
 
 import InboundCallSession from "./call-session/inbound.js";
 import OutboundCallSession from "./call-session/outbound.js";
@@ -21,6 +22,8 @@ import {
 import { SoftPhoneOptions } from "./types.js";
 import Codec from "./codec.js";
 
+const mp = Mixpanel.init("0a22181a3a5f16b7938e5d3277b7f96a");
+
 class Softphone extends EventEmitter {
   public sipInfo: SoftPhoneOptions;
   public client: TLSSocket;
@@ -33,6 +36,10 @@ class Softphone extends EventEmitter {
   private connected = false;
 
   public constructor(sipInfo: SoftPhoneOptions) {
+    mp.track("init", {
+      distinct_id: sipInfo.username,
+      version: "1.1.11",
+    });
     super();
     if (sipInfo.codec === undefined) {
       sipInfo.codec = "OPUS/16000";
