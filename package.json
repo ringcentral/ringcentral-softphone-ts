@@ -1,6 +1,6 @@
 {
   "name": "ringcentral-softphone",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
   "types": "dist/esm/index.d.ts",
@@ -35,7 +35,7 @@
     "werift-rtp": "^0.8.4"
   },
   "devDependencies": {
-    "@types/node": "^22.15.21",
+    "@types/node": "^22.15.29",
     "dotenv-override-true": "^6.2.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
