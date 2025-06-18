@@ -9,7 +9,8 @@
     "paths": {
       "wait-for-async": ["./node_modules/wait-for-async/dist/esm/index.js"],
       "werift-rtp": ["./node_modules/werift-rtp/lib/rtp/src/index.js"],
-      "@evan/opus": ["./node_modules/@evan/opus/lib.js"]
+      "@evan/opus": ["./node_modules/@evan/opus/lib.js"],
+      "mixpanel": ["./node_modules/mixpanel/lib/mixpanel-node.js"]
     }
   },
   "include": ["src/**/*.ts"]
