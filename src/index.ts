@@ -121,7 +121,10 @@ class Softphone extends EventEmitter {
         nonce,
         "REGISTER",
       );
-      await this.send(newMessage, true);
+      const message = await this.send(newMessage, true);
+      if (!message.subject.startsWith("SIP/2.0 200 ")) {
+        throw new Error("Failed to register: " + message.subject);
+      }
     };
     await sipRegister();
     this.intervalHandle = setInterval(
