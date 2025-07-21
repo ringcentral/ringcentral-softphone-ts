@@ -54,7 +54,11 @@ class Softphone extends EventEmitter {
     }
     const tokens = this.sipInfo.outboundProxy!.split(":");
     this.client = tls.connect(
-      { host: tokens[0], port: parseInt(tokens[1], 10) },
+      {
+        host: tokens[0],
+        port: parseInt(tokens[1], 10),
+        rejectUnauthorized: !this.sipInfo.ignoreTlsCertErrors,
+      },
       () => {
         this.connected = true;
       },

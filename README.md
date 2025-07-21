@@ -277,6 +277,27 @@ However, for inbound calls, the server doesn't tell us anything about the
 Telephony Session ID. Here is a workaround solution:
 https://github.com/tylerlong/rc-softphone-call-id-test
 
+## 🔧 `ignoreTlsCertErrors` (optional)
+
+Most developers **do not need this option**.
+
+However, in rare cases — such as testing in a **lab or development environment**
+with self-signed or improperly configured TLS certificates — you may encounter
+certificate validation errors when establishing a TLS connection.
+
+To bypass these errors, you can set the `ignoreTlsCertErrors` flag to `true`:
+
+```ts
+const phone = new SoftPhone({
+  ...
+  ignoreTlsCertErrors: true
+});
+```
+
+> ⚠️ Warning: Enabling this option disables certificate verification and makes
+> the TLS connection vulnerable to man-in-the-middle (MITM) attacks. Use only in
+> trusted, controlled environments — never in production.
+
 ## Troubleshooting (Common issues)
 
 ### `SIP/2.0 486 Busy Here` for outbound call
