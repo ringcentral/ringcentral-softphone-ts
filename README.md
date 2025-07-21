@@ -288,7 +288,7 @@ certificate validation errors when establishing a TLS connection.
 To bypass these errors, you can set the `ignoreTlsCertErrors` flag to `true`:
 
 ```ts
-const phone = new SoftPhone({
+const softphone = new Softphone({
   ...
   ignoreTlsCertErrors: true
 });
