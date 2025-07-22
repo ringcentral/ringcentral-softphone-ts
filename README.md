@@ -324,6 +324,14 @@ Content below is for the maintainer/contributor of this SDK.
 - Caller Id feature is not supported. `P-Asserted-Identity` doesn't work. I
   think it is by design, since hardphone cannot support it.
 
+## Conferences
+
+Conference involves RESTful API which is out of scope of this SDK. With this
+being said, this SDK works well with conferences. Here is a
+[demo project for this SDK work with conferences](https://github.com/tylerlong/softphone-invite-agent-to-conference-demo).
+The demo is about making a call to a call queue number, it would be even simpler
+if there is no call queue.
+
 #### Code style
 
 We use `deno fmt && deno lint --fix` to format and lint all code.
