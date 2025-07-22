@@ -60,6 +60,17 @@ class OutboundCallSession extends CallSession {
     );
     await this.softphone.send(requestMessage);
   }
+
+  public get sessionId() {
+    const header = this.sipMessage.headers["p-rc-api-ids"];
+    let match = header.match(/party-id=([^;]+);session-id=([^;]+)/)!;
+    return match[2];
+  }
+  public get partyId() {
+    const header = this.sipMessage.headers["p-rc-api-ids"];
+    let match = header.match(/party-id=([^;]+);session-id=([^;]+)/)!;
+    return match[1];
+  }
 }
 
 export default OutboundCallSession;
