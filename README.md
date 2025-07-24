@@ -122,9 +122,16 @@ const softphone = new Softphone({
   password: process.env.SIP_INFO_PASSWORD,
   authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID,
 });
+await softphone.register();
 ```
 
 For complete examples, see [demos/](demos/)
+
+## Debug mode
+
+```ts
+softphone.enableDebugMode(); // print all SIP messages
+```
 
 ## Supported features
 
@@ -132,13 +139,108 @@ For complete examples, see [demos/](demos/)
 - outbound call
 - inbound DTMF
 - outbound DTMF
-- reject inbound call
+- decline inbound call
 - cancel outbound call
 - hang up ongoing call
 - receive audio stream from peer
 - stream local audio to remote peer
 - call transfer
 - hold / unhold
+
+## inbound call
+
+```ts
+softphone.on("invite", async (inviteMessage) => {
+});
+```
+
+## outbound call
+
+```ts
+const callSession = await softphone.call("12345678987");
+```
+
+## outbound DTMF
+
+```ts
+callSession.sendDTMF("1");
+```
+
+## inbound DTMF
+
+```ts
+callSession.on("dtmf", (digit) => {
+  console.log("dtmf", digit);
+});
+```
+
+## decline inbound call
+
+```ts
+softphone.on("invite", async (inviteMessage) => {
+  // decline the call
+  // await waitFor({ interval: 1000 });
+  await softphone.decline(inviteMessage);
+}
+```
+
+## cancel outbound call
+
+```ts
+callSession.cancel();
+```
+
+This should be invoked BEFORE the call is answered
+
+## hang up ongoing call
+
+```ts
+callSession.hangup();
+```
+
+## receive audio stream from peer
+
+```ts
+const writeStream = fs.createWriteStream(`${callSession.callId}.wav`, {
+  flags: "a",
+});
+callSession.on("audioPacket", (rtpPacket: RtpPacket) => {
+  writeStream.write(rtpPacket.payload);
+});
+// either you or the peer hang up
+callSession.once("disposed", () => {
+  writeStream.close();
+});
+```
+
+## stream local audio to remote peer
+
+```ts
+// send audio to remote peer
+const streamer = callSession.streamAudio(
+  fs.readFileSync("demos/opus-48000-2.wav"),
+);
+// You may subscribe to the 'finished' event of the streamer to know when the audio sending is finished
+streamer.once("finished", () => {
+  console.log("audio sending finished");
+});
+
+// // You may loop the streaming:
+// streamer.on("finished", () => {
+//   streamer.start();
+// })
+
+// // you may pause/resume/stop audio sending at any time
+// await waitFor({ interval: 3000 });
+// streamer.pause();
+// await waitFor({ interval: 3000 });
+// streamer.resume();
+// await waitFor({ interval: 2000 });
+// streamer.stop();
+
+// // you may start/restart the streaming:
+// streamer.start();
+```
 
 ## call transfer
 
@@ -152,6 +254,9 @@ await callSession.transfer("12345678987");
 await callSession.hold();
 await callSession.unhold();
 ```
+
+Please note that, if you are streaming audio to remote peer, you may want to
+pause the streaming when the call is on hold.
 
 ## Audio codec
 
