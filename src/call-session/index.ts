@@ -11,7 +11,7 @@ import {
   ResponseMessage,
 } from "../sip-message/index.js";
 import type Softphone from "../index.js";
-import { branch, localKey, randomInt } from "../utils.js";
+import { branch, extractAddress, localKey, randomInt } from "../utils.js";
 import Streamer from "./streamer.js";
 
 abstract class CallSession extends EventEmitter {
@@ -26,6 +26,7 @@ abstract class CallSession extends EventEmitter {
   public srtpSession!: SrtpSession;
   public encoder: { encode: (pcm: Buffer) => Buffer };
   public decoder: { decode: (audio: Buffer) => Buffer };
+  public sdp!: string;
 
   // for audio streaming
   public ssrc = randomInt();
@@ -225,6 +226,36 @@ abstract class CallSession extends EventEmitter {
       };
       this.softphone.on("message", notifyHandler);
     });
+  }
+
+  public async toggleReceive(toReceive: boolean) {
+    let newSDP = this.sdp;
+    if (!toReceive) {
+      newSDP = newSDP.replace(/a=sendrecv/, "a=sendonly");
+    }
+    const requestMessage = new RequestMessage(
+      `INVITE ${extractAddress(this.remotePeer)} SIP/2.0`,
+      {
+        "Call-Id": this.callId,
+        From: this.localPeer,
+        To: this.remotePeer,
+        Via:
+          `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
+        "Content-Type": "application/sdp",
+        Contact:
+          ` <sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+      },
+      newSDP,
+    );
+    const inboundMessage = await this.softphone.send(requestMessage, true);
+  }
+
+  public async hold() {
+    return this.toggleReceive(false);
+  }
+
+  public async unhold() {
+    return this.toggleReceive(true);
   }
 }
 

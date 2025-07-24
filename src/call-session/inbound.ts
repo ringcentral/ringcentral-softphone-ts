@@ -27,6 +27,7 @@ a=fmtp:101 0-15
 a=sendrecv
 a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
 `.trim();
+    this.sdp = answerSDP;
     const newMessage = new OutboundMessage(
       "SIP/2.0 200 OK",
       {

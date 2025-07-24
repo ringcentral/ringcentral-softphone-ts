@@ -139,6 +139,13 @@ For complete examples, see [demos/](demos/)
 - stream local audio to remote peer
 - call transfer
 
+## hold/unhold
+
+```
+callSession.hold();
+callSession.unhold();
+```
+
 ## Audio codec
 
 ### By default it is `OPUS/16000`
