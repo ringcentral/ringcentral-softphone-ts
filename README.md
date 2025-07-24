@@ -138,12 +138,19 @@ For complete examples, see [demos/](demos/)
 - receive audio stream from peer
 - stream local audio to remote peer
 - call transfer
+- hold / unhold
 
-## hold/unhold
+## call transfer
 
+```ts
+await callSession.transfer("12345678987");
 ```
-callSession.hold();
-callSession.unhold();
+
+## hold / unhold
+
+```ts
+await callSession.hold();
+await callSession.unhold();
 ```
 
 ## Audio codec

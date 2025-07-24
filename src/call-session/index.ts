@@ -247,7 +247,18 @@ abstract class CallSession extends EventEmitter {
       },
       newSDP,
     );
-    const inboundMessage = await this.softphone.send(requestMessage, true);
+    const replyMessage = await this.softphone.send(requestMessage, true);
+    const ackMessage = new RequestMessage(
+      `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
+      {
+        "Call-Id": this.callId,
+        From: this.localPeer,
+        To: this.remotePeer,
+        Via: replyMessage.headers.Via,
+        CSeq: replyMessage.headers.CSeq.replace(" INVITE", " ACK"),
+      },
+    );
+    await this.softphone.send(ackMessage);
   }
 
   public async hold() {
