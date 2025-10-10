@@ -166,6 +166,15 @@ const callSession = await softphone.call("12345678987");
 callSession.sendDTMF("1");
 ```
 
+### A sugar method to send DTMFs
+
+```ts
+await callSession.sendDTMFs("101#", 500);
+```
+
+It will send four chars (1,0,1,#) one by one. After sending each one, it will
+pause for 500ms.
+
 ## inbound DTMF
 
 ```ts

@@ -13,6 +13,7 @@ import {
 import type Softphone from "../index.js";
 import { branch, extractAddress, localKey, randomInt } from "../utils.js";
 import Streamer from "./streamer.js";
+import waitFor from "wait-for-async";
 
 abstract class CallSession extends EventEmitter {
   public softphone: Softphone;
@@ -107,6 +108,13 @@ abstract class CallSession extends EventEmitter {
       rtpHeader.sequenceNumber = sequenceNumber++;
       const rtpPacket = new RtpPacket(rtpHeader, payload);
       this.send(this.srtpSession.encrypt(rtpPacket.payload, rtpPacket.header));
+    }
+  }
+
+  public async sendDTMFs(s: string, delay = 500) {
+    for (const c of s) {
+      this.sendDTMF(c as any);
+      await waitFor({ interval: delay });
     }
   }
 
