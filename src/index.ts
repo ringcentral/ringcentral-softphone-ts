@@ -91,7 +91,11 @@ class Softphone extends EventEmitter {
 
   public async register() {
     if (!this.connected) {
-      await waitFor({ interval: 100, condition: () => this.connected });
+      const isConnected = await waitFor({ interval: 100, times: 100, condition: () => this.connected });
+
+      if (!isConnected) {
+        throw new Error('Failed to register: timeout')
+      }
     }
     const sipRegister = async () => {
       const fromTag = uuid();
