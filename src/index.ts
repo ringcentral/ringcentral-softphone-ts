@@ -32,7 +32,7 @@ class Softphone extends EventEmitter {
   public fakeDomain = uuid() + ".invalid";
   public fakeEmail = uuid() + "@" + this.fakeDomain;
 
-  private intervalHandle: NodeJS.Timeout;
+  private intervalHandle?: NodeJS.Timeout;
   private connected = false;
 
   public constructor(sipInfo: SoftPhoneOptions) {
@@ -91,10 +91,13 @@ class Softphone extends EventEmitter {
 
   public async register() {
     if (!this.connected) {
-      const isConnected = await waitFor({ interval: 100, times: 100, condition: () => this.connected });
-
-      if (!isConnected) {
-        throw new Error('Failed to register: timeout')
+      await waitFor({
+        interval: 100,
+        times: 100,
+        condition: () => this.connected,
+      });
+      if (!this.connected) {
+        throw new Error("Failed to register: connect to TLS timeout");
       }
     }
     const sipRegister = async () => {
