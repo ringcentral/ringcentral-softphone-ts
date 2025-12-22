@@ -85,30 +85,33 @@ abstract class CallSession extends EventEmitter {
   public sendDTMF(
     char: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "*" | "#",
   ) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    let sequenceNumber = timestamp % 65536;
-    const rtpHeader = new RtpHeader({
-      version: 2,
-      padding: false,
-      paddingSize: 0,
-      extension: false,
-      marker: false,
-      payloadOffset: 12,
-      payloadType: 101,
-      sequenceNumber,
-      timestamp,
-      ssrc: randomInt(),
-      csrcLength: 0,
-      csrc: [],
-      extensionProfile: 48862,
-      extensionLength: undefined,
-      extensions: [],
-    });
-    for (const payload of DTMF.charToPayloads(char)) {
-      rtpHeader.sequenceNumber = sequenceNumber++;
+    const payloads = DTMF.charToPayloads(char);
+    const timestamp = this.timestamp;
+    let first = true;
+    for (const payload of payloads) {
+      const rtpHeader = new RtpHeader({
+        version: 2,
+        padding: false,
+        paddingSize: 0,
+        extension: false,
+        marker: first,
+        payloadOffset: 12,
+        payloadType: 101,
+        sequenceNumber: this.sequenceNumber,
+        timestamp,
+        ssrc: this.ssrc,
+        csrcLength: 0,
+        csrc: [],
+        extensionProfile: 48862,
+        extensionLength: undefined,
+        extensions: [],
+      });
       const rtpPacket = new RtpPacket(rtpHeader, payload);
       this.send(this.srtpSession.encrypt(rtpPacket.payload, rtpPacket.header));
+      this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
+      first = false;
     }
+    this.timestamp += 800;
   }
 
   public async sendDTMFs(s: string, delay = 500) {
