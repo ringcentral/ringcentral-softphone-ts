@@ -30,14 +30,14 @@
   },
   "dependencies": {
     "@evan/opus": "^1.0.3",
-    "mixpanel": "^0.18.1",
-    "wait-for-async": "^0.7.13",
+    "mixpanel": "^0.19.1",
+    "wait-for-async": "^0.8.0",
     "werift-rtp": "^0.8.8"
   },
   "devDependencies": {
-    "@types/node": "^24.7.1",
+    "@types/node": "^25.0.3",
     "dotenv-override-true": "^6.2.2",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "yarn-upgrade-all": "^0.7.5"
   },
