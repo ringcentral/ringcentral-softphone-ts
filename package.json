@@ -24,6 +24,7 @@
   "scripts": {
     "in": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/inbound-call.ts",
     "out": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/outbound-call.ts",
+    "join": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/join-rcv-meeting.ts",
     "build": "tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json",
     "prepublishOnly": "yarn build",
     "postpublish": "rm -rf dist"
