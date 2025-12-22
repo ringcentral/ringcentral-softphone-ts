@@ -16,7 +16,9 @@ softphone.enableDebugMode(); // print all SIP messages
 
 const main = async () => {
   await softphone.register();
-  const callSession = await softphone.call(process.env.CALLEE_FOR_TESTING!);
+  const callSession = await softphone.call(
+    process.env.MEETING_NUMBER_FOR_TESTING!,
+  );
 
   // callee answers the call
   callSession.once("answered", async () => {
@@ -34,7 +36,9 @@ const main = async () => {
 
     // enter meeting access code
     await waitFor({ interval: 6000 });
-    await callSession.sendDTMFs("157471852#"); // meeting access code followed by #
+    await callSession.sendDTMFs(
+      `${process.env.MEETING_ACCESS_CODE_FOR_TESTING}#`,
+    ); // meeting access code followed by #
 
     // enter participant ID
     await waitFor({ interval: 6000 });
