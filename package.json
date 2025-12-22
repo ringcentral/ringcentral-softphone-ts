@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@evan/opus": "^1.0.3",
-    "mixpanel": "^0.19.1",
+    "debug": "^4.4.3",
     "wait-for-async": "^0.8.0",
     "werift-rtp": "^0.8.8"
   },
