@@ -191,7 +191,11 @@ class Softphone extends EventEmitter {
     }
     return new Promise<InboundMessage>((resolve) => {
       const messageListerner = (inboundMessage: InboundMessage) => {
-        if (inboundMessage.headers.CSeq !== message.headers.CSeq) {
+        // "12563 INVITE" vs "12563 ACK"
+        if (
+          inboundMessage.headers.CSeq.trim().split(/\s+/)[0] !==
+            message.headers.CSeq.trim().split(/\s+/)[0]
+        ) {
           return;
         }
         if (inboundMessage.subject.startsWith("SIP/2.0 100 ")) {
