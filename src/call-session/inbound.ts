@@ -8,9 +8,12 @@ class InboundCallSession extends CallSession {
     super(softphone, inviteMessage);
     this.localPeer = inviteMessage.headers.To;
     this.remotePeer = inviteMessage.headers.From;
-    this.remoteKey = inviteMessage.body.match(
-      /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
-    )![1];
+    // inbound call from call queue, invite message may not have body
+    if (inviteMessage.body.length > 0) {
+      this.remoteKey = inviteMessage.body.match(
+        /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
+      )![1];
+    }
   }
 
   public async answer() {

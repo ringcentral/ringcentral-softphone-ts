@@ -21,8 +21,8 @@ abstract class CallSession extends EventEmitter {
   public socket!: dgram.Socket;
   public localPeer!: string;
   public remotePeer!: string;
-  public remoteIP: string;
-  public remotePort: number;
+  public remoteIP!: string;
+  public remotePort!: number;
   public disposed = false;
   public srtpSession!: SrtpSession;
   public encoder: { encode: (pcm: Buffer) => Buffer };
@@ -40,11 +40,14 @@ abstract class CallSession extends EventEmitter {
     this.encoder = softphone.codec.createEncoder();
     this.decoder = softphone.codec.createDecoder();
     this.sipMessage = sipMessage;
-    this.remoteIP = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-    this.remotePort = parseInt(
-      this.sipMessage.body.match(/m=audio (\d+) /)![1],
-      10,
-    );
+    // inbound call from call queue, invite message may not have body
+    if (this.sipMessage.body.length > 0) {
+      this.remoteIP = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
+      this.remotePort = parseInt(
+        this.sipMessage.body.match(/m=audio (\d+) /)![1],
+        10,
+      );
+    }
   }
 
   public set remoteKey(key: string) {
