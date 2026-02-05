@@ -117,8 +117,19 @@ class Softphone extends EventEmitter {
         // sometimes the server will return 200 OK directly
         return;
       }
-      const wwwAuth = inboundMessage.getHeader("Www-Authenticate")!;
-      const nonce = wwwAuth.match(/, nonce="(.+?)"/)![1];
+      const wwwAuth = inboundMessage.getHeader("Www-Authenticate");
+      if (!wwwAuth) {
+        throw new Error(
+          "SIP registration failed: missing Www-Authenticate header in 401 response",
+        );
+      }
+      const nonceMatch = wwwAuth.match(/, nonce="(.+?)"/);
+      if (!nonceMatch) {
+        throw new Error(
+          `SIP registration failed: malformed Www-Authenticate header, missing nonce: ${wwwAuth}`,
+        );
+      }
+      const nonce = nonceMatch[1];
       const newMessage = requestMessage.fork();
       newMessage.headers.Authorization = generateAuthorization(
         this.sipInfo,
@@ -257,8 +268,19 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
       offerSDP,
     );
     const inboundMessage = await this.send(inviteMessage, true);
-    const proxyAuthenticate = inboundMessage.getHeader("Proxy-Authenticate")!;
-    const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];
+    const proxyAuthenticate = inboundMessage.getHeader("Proxy-Authenticate");
+    if (!proxyAuthenticate) {
+      throw new Error(
+        "Outbound call failed: missing Proxy-Authenticate header in response",
+      );
+    }
+    const nonceMatch = proxyAuthenticate.match(/, nonce="(.+?)"/);
+    if (!nonceMatch) {
+      throw new Error(
+        `Outbound call failed: malformed Proxy-Authenticate header, missing nonce: ${proxyAuthenticate}`,
+      );
+    }
+    const nonce = nonceMatch[1];
     const newMessage = inviteMessage.fork();
     newMessage.headers["Proxy-Authorization"] = generateAuthorization(
       this.sipInfo,

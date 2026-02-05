@@ -10,9 +10,15 @@ class InboundCallSession extends CallSession {
     this.remotePeer = inviteMessage.headers.From;
     // inbound call from call queue, invite message may not have body
     if (inviteMessage.body.length > 0) {
-      this.remoteKey = inviteMessage.body.match(
+      const keyMatch = inviteMessage.body.match(
         /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
-      )![1];
+      );
+      if (!keyMatch) {
+        throw new Error(
+          "Inbound call failed: missing SRTP key (AES_CM_128_HMAC_SHA1_80) in INVITE SDP body",
+        );
+      }
+      this.remoteKey = keyMatch[1];
     }
   }
 
@@ -54,14 +60,29 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
 
     // for inbound call from call queue, ack message may HAVE body (while invite message has no body)
     if (ackMessage.body.length > 0) {
-      this.remoteIP = ackMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-      this.remotePort = parseInt(
-        ackMessage.body.match(/m=audio (\d+) /)![1],
-        10,
-      );
-      this.remoteKey = ackMessage.body.match(
+      const ipMatch = ackMessage.body.match(/c=IN IP4 ([\d.]+)/);
+      if (!ipMatch) {
+        throw new Error(
+          "Inbound call failed: missing connection line (c=IN IP4) in ACK SDP body",
+        );
+      }
+      this.remoteIP = ipMatch[1];
+      const portMatch = ackMessage.body.match(/m=audio (\d+) /);
+      if (!portMatch) {
+        throw new Error(
+          "Inbound call failed: missing media line (m=audio) in ACK SDP body",
+        );
+      }
+      this.remotePort = parseInt(portMatch[1], 10);
+      const keyMatch = ackMessage.body.match(
         /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
-      )![1];
+      );
+      if (!keyMatch) {
+        throw new Error(
+          "Inbound call failed: missing SRTP key (AES_CM_128_HMAC_SHA1_80) in ACK SDP body",
+        );
+      }
+      this.remoteKey = keyMatch[1];
     }
 
     this.startLocalServices();

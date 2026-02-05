@@ -42,11 +42,20 @@ abstract class CallSession extends EventEmitter {
     this.sipMessage = sipMessage;
     // inbound call from call queue, invite message may not have body
     if (this.sipMessage.body.length > 0) {
-      this.remoteIP = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-      this.remotePort = parseInt(
-        this.sipMessage.body.match(/m=audio (\d+) /)![1],
-        10,
-      );
+      const ipMatch = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/);
+      if (!ipMatch) {
+        throw new Error(
+          "SIP message error: missing connection line (c=IN IP4) in SDP body",
+        );
+      }
+      this.remoteIP = ipMatch[1];
+      const portMatch = this.sipMessage.body.match(/m=audio (\d+) /);
+      if (!portMatch) {
+        throw new Error(
+          "SIP message error: missing media line (m=audio) in SDP body",
+        );
+      }
+      this.remotePort = parseInt(portMatch[1], 10);
     }
   }
 

@@ -8,9 +8,15 @@ class OutboundCallSession extends CallSession {
     super(softphone, answerMessage);
     this.localPeer = answerMessage.headers.From;
     this.remotePeer = answerMessage.headers.To;
-    this.remoteKey = answerMessage.body.match(
+    const keyMatch = answerMessage.body.match(
       /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
-    )![1];
+    );
+    if (!keyMatch) {
+      throw new Error(
+        "Outbound call failed: missing SRTP key (AES_CM_128_HMAC_SHA1_80) in answer SDP body",
+      );
+    }
+    this.remoteKey = keyMatch[1];
     this.init();
   }
 
@@ -63,12 +69,32 @@ class OutboundCallSession extends CallSession {
 
   public get sessionId() {
     const header = this.sipMessage.headers["p-rc-api-ids"];
-    let match = header.match(/party-id=([^;]+);session-id=([^;]+)/)!;
+    if (!header) {
+      throw new Error(
+        "Session ID unavailable: missing p-rc-api-ids header in SIP message",
+      );
+    }
+    const match = header.match(/party-id=([^;]+);session-id=([^;]+)/);
+    if (!match) {
+      throw new Error(
+        `Session ID unavailable: malformed p-rc-api-ids header: ${header}`,
+      );
+    }
     return match[2];
   }
   public get partyId() {
     const header = this.sipMessage.headers["p-rc-api-ids"];
-    let match = header.match(/party-id=([^;]+);session-id=([^;]+)/)!;
+    if (!header) {
+      throw new Error(
+        "Party ID unavailable: missing p-rc-api-ids header in SIP message",
+      );
+    }
+    const match = header.match(/party-id=([^;]+);session-id=([^;]+)/);
+    if (!match) {
+      throw new Error(
+        `Party ID unavailable: malformed p-rc-api-ids header: ${header}`,
+      );
+    }
     return match[1];
   }
 }
