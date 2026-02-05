@@ -144,7 +144,9 @@ class Softphone extends EventEmitter {
     await sipRegister();
     this.intervalHandle = setInterval(
       () => {
-        sipRegister();
+        sipRegister().catch((error) => {
+          this.emit("registrationError", error);
+        });
       },
       30 * 1000, // refresh registration every 30 seconds
     );
