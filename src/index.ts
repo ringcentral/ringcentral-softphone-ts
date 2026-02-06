@@ -31,6 +31,8 @@ class Softphone extends EventEmitter {
 
   private intervalHandle?: NodeJS.Timeout;
   private connected = false;
+  private inviteHandler?: (inboundMessage: InboundMessage) => void;
+  private debugHandler?: (message: InboundMessage) => void;
 
   public constructor(sipInfo: SoftPhoneOptions) {
     super();
@@ -150,7 +152,7 @@ class Softphone extends EventEmitter {
       },
       30 * 1000, // refresh registration every 30 seconds
     );
-    this.on("message", (inboundMessage) => {
+    this.inviteHandler = (inboundMessage) => {
       if (!inboundMessage.subject.startsWith("INVITE sip:")) {
         return;
       }
@@ -164,15 +166,14 @@ class Softphone extends EventEmitter {
       });
       this.send(outboundMessage);
       this.emit("invite", inboundMessage);
-    });
+    };
+    this.on("message", this.inviteHandler);
   }
 
   public enableDebugMode() {
-    this.on(
-      "message",
-      (message) =>
-        console.log(`Receiving...(${new Date()})\n` + message.toString()),
-    );
+    this.debugHandler = (message) =>
+      console.log(`Receiving...(${new Date()})\n` + message.toString());
+    this.on("message", this.debugHandler);
     const tlsWrite = this.client.write.bind(this.client);
     this.client.write = (message) => {
       console.log(`Sending...(${new Date()})\n` + message);
@@ -182,7 +183,17 @@ class Softphone extends EventEmitter {
 
   public revoke() {
     clearInterval(this.intervalHandle);
-    this.removeAllListeners();
+    // Notify active call sessions to clean up before we remove listeners
+    this.emit("revoked");
+    // Remove only the listeners that Softphone itself registered
+    if (this.inviteHandler) {
+      this.off("message", this.inviteHandler);
+      this.inviteHandler = undefined;
+    }
+    if (this.debugHandler) {
+      this.off("message", this.debugHandler);
+      this.debugHandler = undefined;
+    }
     this.client.removeAllListeners();
     this.client.destroy();
   }

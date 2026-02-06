@@ -196,11 +196,22 @@ abstract class CallSession extends EventEmitter {
         return;
       }
       if (inboundMessage.headers.CSeq.endsWith(" BYE")) {
-        this.softphone.off("message", byeHandler);
-        this.dispose();
+        cleanup();
       }
     };
+
+    const revokedHandler = () => {
+      cleanup();
+    };
+
+    const cleanup = () => {
+      this.softphone.off("message", byeHandler);
+      this.softphone.off("revoked", revokedHandler);
+      this.dispose();
+    };
+
     this.softphone.on("message", byeHandler);
+    this.softphone.on("revoked", revokedHandler);
   }
 
   protected dispose() {
