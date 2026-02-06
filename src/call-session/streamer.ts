@@ -3,6 +3,10 @@ import { Buffer } from "node:buffer";
 
 import { RtpHeader, RtpPacket } from "werift-rtp";
 
+import {
+  AUDIO_PACKET_INTERVAL_MS,
+  RTP_EXTENSION_PROFILE,
+} from "../constants.js";
 import type CallSession from "./index.js";
 
 class Streamer extends EventEmitter {
@@ -60,7 +64,7 @@ class Streamer extends EventEmitter {
           ssrc: this.callSession.ssrc,
           csrcLength: 0,
           csrc: [],
-          extensionProfile: 48862,
+          extensionProfile: RTP_EXTENSION_PROFILE,
           extensionLength: undefined,
           extensions: [],
         }),
@@ -77,7 +81,7 @@ class Streamer extends EventEmitter {
       if (this.finished) {
         this.emit("finished");
       } else {
-        setTimeout(() => this.sendPacket(), 20);
+        setTimeout(() => this.sendPacket(), AUDIO_PACKET_INTERVAL_MS);
       }
     }
   }

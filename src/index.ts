@@ -6,6 +6,11 @@ import waitFor from "wait-for-async";
 import InboundCallSession from "./call-session/inbound.js";
 import OutboundCallSession from "./call-session/outbound.js";
 import {
+  SIP_REGISTRATION_EXPIRES_SECONDS,
+  SIP_SESSION_EXPIRES_SECONDS,
+  DTMF_PAYLOAD_TYPE,
+} from "./constants.js";
+import {
   InboundMessage,
   OutboundMessage,
   RequestMessage,
@@ -109,7 +114,7 @@ class Softphone extends EventEmitter {
           "Call-ID": this.registerCallId,
           Contact:
             `<sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
-          Expires: 3600,
+          Expires: SIP_REGISTRATION_EXPIRES_SECONDS,
           Allow:
             "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",
         },
@@ -265,10 +270,10 @@ o=- ${Date.now()} 0 IN IP4 ${this.client.localAddress}
 s=rc-softphone-ts
 c=IN IP4 ${this.client.localAddress}
 t=0 0
-m=audio ${randomInt()} RTP/SAVP ${this.codec.id} 101
+m=audio ${randomInt()} RTP/SAVP ${this.codec.id} ${DTMF_PAYLOAD_TYPE}
 a=rtpmap:${this.codec.id} ${this.codec.name}
-a=rtpmap:101 telephone-event/8000
-a=fmtp:101 0-15
+a=rtpmap:${DTMF_PAYLOAD_TYPE} telephone-event/8000
+a=fmtp:${DTMF_PAYLOAD_TYPE} 0-15
 a=sendrecv
 a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
   `.trim();
@@ -288,7 +293,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
         Allow:
           `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
         Supported: `replaces, 100rel, timer, norefersub`,
-        "Session-Expires": 1800,
+        "Session-Expires": SIP_SESSION_EXPIRES_SECONDS,
         "Min-SE": 90,
         "Content-Type": "application/sdp",
       },

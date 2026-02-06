@@ -6,6 +6,14 @@ import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
 import DTMF, { type DTMFChar, isDTMFChar } from "../dtmf.js";
 import {
+  DTMF_DEFAULT_DELAY_MS,
+  DTMF_PAYLOAD_TYPE,
+  DTMF_TIMESTAMP_INCREMENT,
+  RTP_EXTENSION_PROFILE,
+  RTP_SEQUENCE_NUMBER_MAX,
+  SRTP_PROFILE_AES_CM_128_HMAC_SHA1_80,
+} from "../constants.js";
+import {
   type InboundMessage,
   RequestMessage,
   ResponseMessage,
@@ -50,7 +58,7 @@ abstract class CallSession extends EventEmitter {
   }
 
   public incrementSequenceNumber() {
-    this._sequenceNumber = (this._sequenceNumber + 1) % 65536;
+    this._sequenceNumber = (this._sequenceNumber + 1) % RTP_SEQUENCE_NUMBER_MAX;
     return this._sequenceNumber;
   }
 
@@ -88,7 +96,7 @@ abstract class CallSession extends EventEmitter {
     const localKeyBuffer = Buffer.from(localKey, "base64");
     const remoteKeyBuffer = Buffer.from(key, "base64");
     this.srtpSession = new SrtpSession({
-      profile: 0x0001,
+      profile: SRTP_PROFILE_AES_CM_128_HMAC_SHA1_80,
       keys: {
         localMasterKey: localKeyBuffer.subarray(0, 16),
         localMasterSalt: localKeyBuffer.subarray(16, 30),
@@ -131,13 +139,13 @@ abstract class CallSession extends EventEmitter {
         extension: false,
         marker: first,
         payloadOffset: 12,
-        payloadType: 101,
+        payloadType: DTMF_PAYLOAD_TYPE,
         sequenceNumber: this.sequenceNumber,
         timestamp,
         ssrc: this.ssrc,
         csrcLength: 0,
         csrc: [],
-        extensionProfile: 48862,
+        extensionProfile: RTP_EXTENSION_PROFILE,
         extensionLength: undefined,
         extensions: [],
       });
@@ -146,10 +154,10 @@ abstract class CallSession extends EventEmitter {
       this.incrementSequenceNumber();
       first = false;
     }
-    this.incrementTimestamp(800);
+    this.incrementTimestamp(DTMF_TIMESTAMP_INCREMENT);
   }
 
-  public async sendDTMFs(s: string, delay = 500) {
+  public async sendDTMFs(s: string, delay = DTMF_DEFAULT_DELAY_MS) {
     for (const c of s) {
       if (!isDTMFChar(c)) {
         throw new Error(
@@ -184,7 +192,7 @@ abstract class CallSession extends EventEmitter {
         this.srtpSession.decrypt(message),
       );
       this.emit("rtpPacket", rtpPacket);
-      if (rtpPacket.header.payloadType === 101) {
+      if (rtpPacket.header.payloadType === DTMF_PAYLOAD_TYPE) {
         this.emit("dtmfPacket", rtpPacket);
         const char = DTMF.payloadToChar(rtpPacket.payload);
         if (char) {
@@ -201,7 +209,7 @@ abstract class CallSession extends EventEmitter {
         ) {
           // special DTMF packet in audio format
           // first byte 0x00 to 0x0c means DTMF 0 to 9, *, #
-          // we ignore it since DTMF is handled by `if (rtpPacket.header.payloadType === 101) {`
+          // we ignore it since DTMF is handled by the DTMF_PAYLOAD_TYPE check above
           return; // ignore it
         }
         try {

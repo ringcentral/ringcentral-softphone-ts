@@ -1,4 +1,5 @@
 import CallSession from "./index.js";
+import { DTMF_PAYLOAD_TYPE } from "../constants.js";
 import { type InboundMessage, OutboundMessage } from "../sip-message/index.js";
 import type Softphone from "../index.js";
 import { localKey, randomInt } from "../utils.js";
@@ -29,10 +30,10 @@ o=- ${Date.now()} 0 IN IP4 ${this.softphone.client.localAddress}
 s=rc-softphone-ts
 c=IN IP4 ${this.softphone.client.localAddress}
 t=0 0
-m=audio ${randomInt()} RTP/SAVP ${this.softphone.codec.id} 101
+m=audio ${randomInt()} RTP/SAVP ${this.softphone.codec.id} ${DTMF_PAYLOAD_TYPE}
 a=rtpmap:${this.softphone.codec.id} ${this.softphone.codec.name}
-a=rtpmap:101 telephone-event/8000
-a=fmtp:101 0-15
+a=rtpmap:${DTMF_PAYLOAD_TYPE} telephone-event/8000
+a=fmtp:${DTMF_PAYLOAD_TYPE} 0-15
 a=sendrecv
 a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
 `.trim();
