@@ -6,9 +6,9 @@ import waitFor from "wait-for-async";
 import InboundCallSession from "./call-session/inbound.js";
 import OutboundCallSession from "./call-session/outbound.js";
 import {
+  DTMF_PAYLOAD_TYPE,
   SIP_REGISTRATION_EXPIRES_SECONDS,
   SIP_SESSION_EXPIRES_SECONDS,
-  DTMF_PAYLOAD_TYPE,
 } from "./constants.js";
 import {
   InboundMessage,
@@ -228,9 +228,7 @@ class Softphone extends EventEmitter {
   public send(message: OutboundMessage, waitForReply = false) {
     this.client.write(message.toString());
     if (!waitForReply) {
-      return new Promise<undefined>((resolve) => {
-        resolve(undefined);
-      });
+      return Promise.resolve(undefined);
     }
     return new Promise<InboundMessage>((resolve) => {
       const messageListerner = (inboundMessage: InboundMessage) => {
