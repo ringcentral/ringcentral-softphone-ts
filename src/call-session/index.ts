@@ -215,8 +215,9 @@ abstract class CallSession extends EventEmitter {
         try {
           rtpPacket.payload = this.decoder.decode(rtpPacket.payload);
           this.emit("audioPacket", rtpPacket);
-        } catch {
-          console.error("Audio packet decode failed", rtpPacket);
+        } catch (error) {
+          console.error("Audio packet decode failed", error, rtpPacket);
+          this.emit("audioDecodeError", error, rtpPacket);
         }
       }
     });
