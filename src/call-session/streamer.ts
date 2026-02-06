@@ -66,18 +66,11 @@ class Streamer extends EventEmitter {
         }),
         temp,
       );
-      this.callSession.send(
-        this.callSession.srtpSession.encrypt(
-          rtpPacket.payload,
-          rtpPacket.header,
-        ),
+      this.callSession.sendPacket(rtpPacket);
+      this.callSession.incrementSequenceNumber();
+      this.callSession.incrementTimestamp(
+        this.callSession.softphone.codec.timestampInterval,
       );
-      this.callSession.sequenceNumber += 1;
-      if (this.callSession.sequenceNumber > 65535) {
-        this.callSession.sequenceNumber = 0;
-      }
-      this.callSession.timestamp +=
-        this.callSession.softphone.codec.timestampInterval;
       this.buffer = this.buffer.subarray(
         this.callSession.softphone.codec.packetSize,
       );

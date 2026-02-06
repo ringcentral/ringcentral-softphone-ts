@@ -16,23 +16,48 @@ import Streamer from "./streamer.js";
 import waitFor from "wait-for-async";
 
 abstract class CallSession extends EventEmitter {
-  public softphone: Softphone;
-  public sipMessage: InboundMessage;
-  public socket!: dgram.Socket;
-  public localPeer!: string;
-  public remotePeer!: string;
-  public remoteIP!: string;
-  public remotePort!: number;
-  public disposed = false;
-  public srtpSession!: SrtpSession;
-  public encoder: { encode: (pcm: Buffer) => Buffer };
-  public decoder: { decode: (audio: Buffer) => Buffer };
-  public sdp!: string;
+  public readonly softphone: Softphone;
+  public readonly sipMessage: InboundMessage;
+  public readonly encoder: { encode: (pcm: Buffer) => Buffer };
+  public readonly decoder: { decode: (audio: Buffer) => Buffer };
 
   // for audio streaming
-  public ssrc = randomInt();
-  public sequenceNumber = randomInt();
-  public timestamp = randomInt();
+  public readonly ssrc = randomInt();
+
+  public sdp!: string;
+
+  protected socket!: dgram.Socket;
+  protected localPeer!: string;
+  protected remotePeer!: string;
+  protected remoteIP!: string;
+  protected remotePort!: number;
+  protected srtpSession!: SrtpSession;
+
+  private _disposed = false;
+  private _sequenceNumber = randomInt();
+  private _timestamp = randomInt();
+
+  public get disposed() {
+    return this._disposed;
+  }
+
+  public get sequenceNumber() {
+    return this._sequenceNumber;
+  }
+
+  public get timestamp() {
+    return this._timestamp;
+  }
+
+  public incrementSequenceNumber() {
+    this._sequenceNumber = (this._sequenceNumber + 1) % 65536;
+    return this._sequenceNumber;
+  }
+
+  public incrementTimestamp(interval: number) {
+    this._timestamp += interval;
+    return this._timestamp;
+  }
 
   public constructor(softphone: Softphone, sipMessage: InboundMessage) {
     super();
@@ -117,11 +142,11 @@ abstract class CallSession extends EventEmitter {
         extensions: [],
       });
       const rtpPacket = new RtpPacket(rtpHeader, payload);
-      this.send(this.srtpSession.encrypt(rtpPacket.payload, rtpPacket.header));
-      this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
+      this.sendPacket(rtpPacket);
+      this.incrementSequenceNumber();
       first = false;
     }
-    this.timestamp += 800;
+    this.incrementTimestamp(800);
   }
 
   public async sendDTMFs(s: string, delay = 500) {
@@ -218,7 +243,7 @@ abstract class CallSession extends EventEmitter {
   }
 
   protected dispose() {
-    this.disposed = true;
+    this._disposed = true;
     this.emit("disposed");
     this.removeAllListeners();
     this.socket?.removeAllListeners();
