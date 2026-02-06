@@ -15,9 +15,9 @@ class Streamer extends EventEmitter {
   private buffer: Buffer;
   private originalBuffer: Buffer;
 
-  public constructor(callSesstion: CallSession, buffer: Buffer) {
+  public constructor(callSession: CallSession, buffer: Buffer) {
     super();
-    this.callSession = callSesstion;
+    this.callSession = callSession;
     this.buffer = buffer;
     this.originalBuffer = buffer;
   }
