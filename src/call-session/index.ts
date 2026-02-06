@@ -4,7 +4,7 @@ import { Buffer } from "node:buffer";
 
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
-import DTMF from "../dtmf.js";
+import DTMF, { type DTMFChar, isDTMFChar } from "../dtmf.js";
 import {
   type InboundMessage,
   RequestMessage,
@@ -94,9 +94,7 @@ abstract class CallSession extends EventEmitter {
     await this.softphone.send(requestMessage);
   }
 
-  public sendDTMF(
-    char: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "*" | "#",
-  ) {
+  public sendDTMF(char: DTMFChar) {
     const payloads = DTMF.charToPayloads(char);
     const timestamp = this.timestamp;
     let first = true;
@@ -128,7 +126,12 @@ abstract class CallSession extends EventEmitter {
 
   public async sendDTMFs(s: string, delay = 500) {
     for (const c of s) {
-      this.sendDTMF(c as any);
+      if (!isDTMFChar(c)) {
+        throw new Error(
+          `Invalid DTMF character: "${c}". Valid characters are 0-9, *, #`,
+        );
+      }
+      this.sendDTMF(c);
       await waitFor({ interval: delay });
     }
   }
