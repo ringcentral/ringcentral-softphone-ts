@@ -30,6 +30,8 @@ class DTMF {
     0x00060000,
     0x000600a0,
     0x00060140,
+
+    // it is by design that the last 3 payloads are the same
     0x00860320,
     0x00860320,
     0x00860320,
