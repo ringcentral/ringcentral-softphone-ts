@@ -144,6 +144,11 @@ class Softphone extends EventEmitter {
       }
     };
     await sipRegister();
+
+    // Clear any existing interval to prevent duplicates if register() is called multiple times
+    if (this.intervalHandle) {
+      clearInterval(this.intervalHandle);
+    }
     this.intervalHandle = setInterval(
       () => {
         sipRegister().catch((error) => {
@@ -152,6 +157,11 @@ class Softphone extends EventEmitter {
       },
       30 * 1000, // refresh registration every 30 seconds
     );
+
+    // Remove existing invite handler to prevent duplicates if register() is called multiple times
+    if (this.inviteHandler) {
+      this.off("message", this.inviteHandler);
+    }
     this.inviteHandler = (inboundMessage) => {
       if (!inboundMessage.subject.startsWith("INVITE sip:")) {
         return;
@@ -171,6 +181,10 @@ class Softphone extends EventEmitter {
   }
 
   public enableDebugMode() {
+    // Prevent duplicate debug handlers if called multiple times
+    if (this.debugHandler) {
+      return;
+    }
     this.debugHandler = (message) =>
       console.log(`Receiving...(${new Date()})\n` + message.toString());
     this.on("message", this.debugHandler);

@@ -246,7 +246,7 @@ abstract class CallSession extends EventEmitter {
     );
     await this.softphone.send(requestMessage);
 
-    return new Promise<void>((resolve) => {
+    return new Promise<void>((resolve, reject) => {
       const notifyHandler = (inboundMessage: InboundMessage) => {
         if (!inboundMessage.subject.startsWith("NOTIFY ")) {
           return;
@@ -254,11 +254,23 @@ abstract class CallSession extends EventEmitter {
         const responseMessage = new ResponseMessage(inboundMessage, 200);
         this.softphone.send(responseMessage);
         if (inboundMessage.body.trim() === "SIP/2.0 200 OK") {
-          this.softphone.off("message", notifyHandler);
+          cleanupNotifyHandler();
           resolve();
         }
       };
+
+      const revokedHandler = () => {
+        cleanupNotifyHandler();
+        reject(new Error("Transfer failed: softphone was revoked"));
+      };
+
+      const cleanupNotifyHandler = () => {
+        this.softphone.off("message", notifyHandler);
+        this.softphone.off("revoked", revokedHandler);
+      };
+
       this.softphone.on("message", notifyHandler);
+      this.softphone.on("revoked", revokedHandler);
     });
   }
 

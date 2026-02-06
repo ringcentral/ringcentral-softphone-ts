@@ -27,13 +27,13 @@ class OutboundCallSession extends CallSession {
         return;
       }
       if (message.subject.startsWith("SIP/2.0 486")) {
-        this.softphone.off("message", answerHandler);
+        cleanupAnswerHandler();
         this.emit("busy");
         this.dispose();
         return;
       }
       if (message.subject.startsWith("SIP/2.0 200")) {
-        this.softphone.off("message", answerHandler);
+        cleanupAnswerHandler();
         this.emit("answered");
 
         const ackMessage = new RequestMessage(
@@ -49,7 +49,19 @@ class OutboundCallSession extends CallSession {
         this.softphone.send(ackMessage);
       }
     };
+
+    const revokedHandler = () => {
+      cleanupAnswerHandler();
+      this.dispose();
+    };
+
+    const cleanupAnswerHandler = () => {
+      this.softphone.off("message", answerHandler);
+      this.softphone.off("revoked", revokedHandler);
+    };
+
     this.softphone.on("message", answerHandler);
+    this.softphone.on("revoked", revokedHandler);
     this.once("answered", () => this.startLocalServices());
   }
 
