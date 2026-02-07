@@ -13,6 +13,7 @@ import {
   RTP_SEQUENCE_NUMBER_MAX,
   SRTP_PROFILE_AES_CM_128_HMAC_SHA1_80,
 } from "../constants.js";
+import { SdpParser } from "../sdp.js";
 import {
   type InboundMessage,
   RequestMessage,
@@ -75,20 +76,14 @@ abstract class CallSession extends EventEmitter {
     this.sipMessage = sipMessage;
     // inbound call from call queue, invite message may not have body
     if (this.sipMessage.body.length > 0) {
-      const ipMatch = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/);
-      if (!ipMatch) {
-        throw new Error(
-          "SIP message error: missing connection line (c=IN IP4) in SDP body",
-        );
-      }
-      this.remoteIP = ipMatch[1];
-      const portMatch = this.sipMessage.body.match(/m=audio (\d+) /);
-      if (!portMatch) {
-        throw new Error(
-          "SIP message error: missing media line (m=audio) in SDP body",
-        );
-      }
-      this.remotePort = parseInt(portMatch[1], 10);
+      this.remoteIP = SdpParser.extractIP(
+        this.sipMessage.body,
+        "SIP message error",
+      );
+      this.remotePort = SdpParser.extractPort(
+        this.sipMessage.body,
+        "SIP message error",
+      );
     }
   }
 

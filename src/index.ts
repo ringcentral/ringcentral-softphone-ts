@@ -6,23 +6,17 @@ import waitFor from "wait-for-async";
 import InboundCallSession from "./call-session/inbound.js";
 import OutboundCallSession from "./call-session/outbound.js";
 import {
-  DTMF_PAYLOAD_TYPE,
   SIP_REGISTRATION_EXPIRES_SECONDS,
   SIP_SESSION_EXPIRES_SECONDS,
 } from "./constants.js";
+import { SdpBuilder } from "./sdp.js";
 import {
   InboundMessage,
   OutboundMessage,
   RequestMessage,
   ResponseMessage,
 } from "./sip-message/index.js";
-import {
-  branch,
-  generateAuthorization,
-  localKey,
-  randomInt,
-  uuid,
-} from "./utils.js";
+import { branch, generateAuthorization, uuid } from "./utils.js";
 import { SoftPhoneOptions } from "./types.js";
 import Codec from "./codec.js";
 
@@ -262,19 +256,11 @@ class Softphone extends EventEmitter {
   }
 
   public async call(callee: string) {
-    const offerSDP = `
-v=0
-o=- ${Date.now()} 0 IN IP4 ${this.client.localAddress}
-s=rc-softphone-ts
-c=IN IP4 ${this.client.localAddress}
-t=0 0
-m=audio ${randomInt()} RTP/SAVP ${this.codec.id} ${DTMF_PAYLOAD_TYPE}
-a=rtpmap:${this.codec.id} ${this.codec.name}
-a=rtpmap:${DTMF_PAYLOAD_TYPE} telephone-event/8000
-a=fmtp:${DTMF_PAYLOAD_TYPE} 0-15
-a=sendrecv
-a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
-  `.trim();
+    const offerSDP = SdpBuilder.create({
+      localAddress: this.client.localAddress!,
+      codecId: this.codec.id,
+      codecName: this.codec.name,
+    });
     const inviteMessage = new RequestMessage(
       `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
       {

@@ -1,8 +1,7 @@
 import CallSession from "./index.js";
-import { DTMF_PAYLOAD_TYPE } from "../constants.js";
 import { type InboundMessage, OutboundMessage } from "../sip-message/index.js";
 import type Softphone from "../index.js";
-import { localKey, randomInt } from "../utils.js";
+import { SdpBuilder, SdpParser } from "../sdp.js";
 
 class InboundCallSession extends CallSession {
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
@@ -11,32 +10,19 @@ class InboundCallSession extends CallSession {
     this.remotePeer = inviteMessage.headers.From;
     // inbound call from call queue, invite message may not have body
     if (inviteMessage.body.length > 0) {
-      const keyMatch = inviteMessage.body.match(
-        /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
+      this.remoteKey = SdpParser.extractSrtpKey(
+        inviteMessage.body,
+        "Inbound call failed",
       );
-      if (!keyMatch) {
-        throw new Error(
-          "Inbound call failed: missing SRTP key (AES_CM_128_HMAC_SHA1_80) in INVITE SDP body",
-        );
-      }
-      this.remoteKey = keyMatch[1];
     }
   }
 
   public async answer() {
-    const answerSDP = `
-v=0
-o=- ${Date.now()} 0 IN IP4 ${this.softphone.client.localAddress}
-s=rc-softphone-ts
-c=IN IP4 ${this.softphone.client.localAddress}
-t=0 0
-m=audio ${randomInt()} RTP/SAVP ${this.softphone.codec.id} ${DTMF_PAYLOAD_TYPE}
-a=rtpmap:${this.softphone.codec.id} ${this.softphone.codec.name}
-a=rtpmap:${DTMF_PAYLOAD_TYPE} telephone-event/8000
-a=fmtp:${DTMF_PAYLOAD_TYPE} 0-15
-a=sendrecv
-a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
-`.trim();
+    const answerSDP = SdpBuilder.create({
+      localAddress: this.softphone.client.localAddress!,
+      codecId: this.softphone.codec.id,
+      codecName: this.softphone.codec.name,
+    });
     this.sdp = answerSDP;
     const newMessage = new OutboundMessage(
       "SIP/2.0 200 OK",
@@ -61,29 +47,10 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
 
     // for inbound call from call queue, ack message may HAVE body (while invite message has no body)
     if (ackMessage.body.length > 0) {
-      const ipMatch = ackMessage.body.match(/c=IN IP4 ([\d.]+)/);
-      if (!ipMatch) {
-        throw new Error(
-          "Inbound call failed: missing connection line (c=IN IP4) in ACK SDP body",
-        );
-      }
-      this.remoteIP = ipMatch[1];
-      const portMatch = ackMessage.body.match(/m=audio (\d+) /);
-      if (!portMatch) {
-        throw new Error(
-          "Inbound call failed: missing media line (m=audio) in ACK SDP body",
-        );
-      }
-      this.remotePort = parseInt(portMatch[1], 10);
-      const keyMatch = ackMessage.body.match(
-        /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
-      );
-      if (!keyMatch) {
-        throw new Error(
-          "Inbound call failed: missing SRTP key (AES_CM_128_HMAC_SHA1_80) in ACK SDP body",
-        );
-      }
-      this.remoteKey = keyMatch[1];
+      const parsed = SdpParser.parse(ackMessage.body, "Inbound call failed");
+      this.remoteIP = parsed.ip;
+      this.remotePort = parsed.port;
+      this.remoteKey = parsed.srtpKey;
     }
 
     this.startLocalServices();
