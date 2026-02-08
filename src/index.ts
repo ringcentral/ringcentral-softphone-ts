@@ -1,15 +1,10 @@
 import EventEmitter from "node:events";
-import tls, { TLSSocket } from "node:tls";
-
-import waitFor from "wait-for-async";
 
 import InboundCallSession from "./call-session/inbound.js";
 import OutboundCallSession from "./call-session/outbound.js";
-import {
-  SIP_REGISTRATION_EXPIRES_SECONDS,
-  SIP_SESSION_EXPIRES_SECONDS,
-} from "./constants.js";
-import { SdpBuilder } from "./sdp.js";
+import { SIP_SESSION_EXPIRES_SECONDS } from "./constants.js";
+import { CallError, SipAuthError } from "./errors/index.js";
+import { SdpBuilder, SipRegistrar, SipTransport } from "./sip/index.js";
 import {
   InboundMessage,
   OutboundMessage,
@@ -20,152 +15,98 @@ import { branch, generateAuthorization, uuid } from "./utils.js";
 import { SoftPhoneOptions } from "./types.js";
 import Codec from "./codec.js";
 
+/**
+ * RingCentral Softphone client.
+ *
+ * This is the main entry point for making and receiving calls.
+ * It orchestrates the SIP transport, registration, and call control.
+ */
 class Softphone extends EventEmitter {
-  public sipInfo: SoftPhoneOptions;
-  public client: TLSSocket;
-  public codec: Codec;
+  public readonly sipInfo: SoftPhoneOptions;
+  public readonly codec: Codec;
 
-  public fakeDomain = uuid() + ".invalid";
-  public fakeEmail = uuid() + "@" + this.fakeDomain;
+  private readonly transport: SipTransport;
+  private readonly registrar: SipRegistrar;
 
-  private intervalHandle?: NodeJS.Timeout;
-  private connected = false;
+  public readonly fakeDomain = uuid() + ".invalid";
+  public readonly fakeEmail = uuid() + "@" + this.fakeDomain;
+
   private inviteHandler?: (inboundMessage: InboundMessage) => void;
-  private debugHandler?: (message: InboundMessage) => void;
 
   public constructor(sipInfo: SoftPhoneOptions) {
     super();
+
+    // Apply defaults
     if (sipInfo.codec === undefined) {
       sipInfo.codec = "OPUS/16000";
     }
-    this.codec = new Codec(sipInfo.codec);
-    this.sipInfo = sipInfo;
-    if (this.sipInfo.domain === undefined) {
-      this.sipInfo.domain = "sip.ringcentral.com";
+    if (sipInfo.domain === undefined) {
+      sipInfo.domain = "sip.ringcentral.com";
     }
-    if (this.sipInfo.outboundProxy === undefined) {
-      this.sipInfo.outboundProxy = "sip10.ringcentral.com:5096";
+    if (sipInfo.outboundProxy === undefined) {
+      sipInfo.outboundProxy = "sip10.ringcentral.com:5096";
     }
-    const tokens = this.sipInfo.outboundProxy!.split(":");
-    this.client = tls.connect(
-      {
-        host: tokens[0],
-        port: parseInt(tokens[1], 10),
-        rejectUnauthorized: !this.sipInfo.ignoreTlsCertErrors,
-      },
-      () => {
-        this.connected = true;
-      },
-    );
 
-    let cache = "";
-    this.client.on("data", (data) => {
-      cache += data.toString("utf-8");
-      if (!cache.endsWith("\r\n")) {
-        return; // haven't received a complete message yet
-      }
-      // received two empty body messages
-      const tempMessages = cache
-        .split("\r\nContent-Length: 0\r\n\r\n")
-        .filter((message) => message.trim() !== "");
-      cache = "";
-      for (let i = 0; i < tempMessages.length; i++) {
-        if (!tempMessages[i].includes("Content-Length: ")) {
-          tempMessages[i] = tempMessages[i] + "\r\nContent-Length: 0";
-        }
-      }
-      for (const message of tempMessages) {
-        this.emit("message", InboundMessage.fromString(message));
-      }
+    this.sipInfo = sipInfo;
+    this.codec = new Codec(sipInfo.codec);
+
+    // Parse outbound proxy
+    const tokens = sipInfo.outboundProxy.split(":");
+
+    // Create transport
+    this.transport = new SipTransport({
+      host: tokens[0],
+      port: parseInt(tokens[1], 10),
+      rejectUnauthorized: !sipInfo.ignoreTlsCertErrors,
+    });
+
+    // Forward message events from transport
+    this.transport.on("message", (message: InboundMessage) => {
+      this.emit("message", message);
+    });
+
+    // Create registrar
+    this.registrar = new SipRegistrar(this.transport, {
+      domain: sipInfo.domain,
+      username: sipInfo.username,
+      password: sipInfo.password,
+      authorizationId: sipInfo.authorizationId,
+    });
+
+    // Forward registration errors
+    this.registrar.setErrorHandler((error) => {
+      this.emit("registrationError", error);
     });
   }
 
-  private instanceId = uuid();
-  private registerCallId = uuid();
+  /**
+   * Access to the underlying TLS socket (for backward compatibility).
+   */
+  public get client() {
+    return this.transport.socket;
+  }
 
-  public async register() {
-    if (!this.connected) {
-      await waitFor({
-        interval: 100,
-        times: 100,
-        condition: () => this.connected,
-      });
-      if (!this.connected) {
-        throw new Error("Failed to register: connect to TLS timeout");
-      }
-    }
-    const sipRegister = async () => {
-      const fromTag = uuid();
-      const requestMessage = new RequestMessage(
-        `REGISTER sip:${this.sipInfo.domain} SIP/2.0`,
-        {
-          Via:
-            `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
-          "Max-Forwards": "70",
-          From:
-            `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${fromTag}`,
-          To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
-          "Call-ID": this.registerCallId,
-          Contact:
-            `<sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
-          Expires: SIP_REGISTRATION_EXPIRES_SECONDS,
-          Allow:
-            "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",
-        },
-      );
-      const inboundMessage = await this.send(requestMessage, true);
-      if (inboundMessage.subject.startsWith("SIP/2.0 200 ")) {
-        // sometimes the server will return 200 OK directly
-        return;
-      }
-      const wwwAuth = inboundMessage.getHeader("Www-Authenticate");
-      if (!wwwAuth) {
-        throw new Error(
-          "SIP registration failed: missing Www-Authenticate header in 401 response",
-        );
-      }
-      const nonceMatch = wwwAuth.match(/, nonce="(.+?)"/);
-      if (!nonceMatch) {
-        throw new Error(
-          `SIP registration failed: malformed Www-Authenticate header, missing nonce: ${wwwAuth}`,
-        );
-      }
-      const nonce = nonceMatch[1];
-      const newMessage = requestMessage.fork();
-      newMessage.headers.Authorization = generateAuthorization(
-        this.sipInfo,
-        nonce,
-        "REGISTER",
-      );
-      const message = await this.send(newMessage, true);
-      if (!message.subject.startsWith("SIP/2.0 200 ")) {
-        throw new Error("Failed to register: " + message.subject);
-      }
-    };
-    await sipRegister();
+  /**
+   * Registers with the SIP server and starts listening for incoming calls.
+   */
+  public async register(): Promise<void> {
+    await this.transport.waitForConnection();
+    await this.registrar.register();
+    this.setupInviteHandler();
+  }
 
-    // Clear any existing interval to prevent duplicates if register() is called multiple times
-    if (this.intervalHandle) {
-      clearInterval(this.intervalHandle);
-    }
-    this.intervalHandle = setInterval(
-      () => {
-        sipRegister().catch((error) => {
-          this.emit("registrationError", error);
-        });
-      },
-      30 * 1000, // refresh registration every 30 seconds
-    );
-
-    // Remove existing invite handler to prevent duplicates if register() is called multiple times
+  private setupInviteHandler(): void {
+    // Remove existing handler to prevent duplicates
     if (this.inviteHandler) {
       this.off("message", this.inviteHandler);
     }
-    this.inviteHandler = (inboundMessage) => {
+
+    this.inviteHandler = (inboundMessage: InboundMessage) => {
       if (!inboundMessage.subject.startsWith("INVITE sip:")) {
         return;
       }
-      const outboundMessage = new OutboundMessage("SIP/2.0 100 Trying", {
+      // Send 100 Trying
+      const tryingMessage = new OutboundMessage("SIP/2.0 100 Trying", {
         Via: inboundMessage.headers.Via,
         "Call-ID": inboundMessage.getHeader("Call-ID"),
         From: inboundMessage.headers.From,
@@ -173,44 +114,41 @@ class Softphone extends EventEmitter {
         CSeq: inboundMessage.headers.CSeq,
         "Content-Length": "0",
       });
-      this.send(outboundMessage);
+      this.send(tryingMessage);
       this.emit("invite", inboundMessage);
     };
+
     this.on("message", this.inviteHandler);
   }
 
-  public enableDebugMode() {
-    // Prevent duplicate debug handlers if called multiple times
-    if (this.debugHandler) {
-      return;
-    }
-    this.debugHandler = (message) =>
-      console.log(`Receiving...(${new Date()})\n` + message.toString());
-    this.on("message", this.debugHandler);
-    const tlsWrite = this.client.write.bind(this.client);
-    this.client.write = (message) => {
-      console.log(`Sending...(${new Date()})\n` + message);
-      return tlsWrite(message);
-    };
+  /**
+   * Enables debug mode - logs all sent and received SIP messages.
+   */
+  public enableDebugMode(): void {
+    this.transport.enableDebugMode();
   }
 
-  public revoke() {
-    clearInterval(this.intervalHandle);
-    // Notify active call sessions to clean up before we remove listeners
+  /**
+   * Unregisters and cleans up all resources.
+   */
+  public revoke(): void {
+    this.registrar.stop();
+
+    // Notify active call sessions to clean up
     this.emit("revoked");
-    // Remove only the listeners that Softphone itself registered
+
+    // Remove invite handler
     if (this.inviteHandler) {
       this.off("message", this.inviteHandler);
       this.inviteHandler = undefined;
     }
-    if (this.debugHandler) {
-      this.off("message", this.debugHandler);
-      this.debugHandler = undefined;
-    }
-    this.client.removeAllListeners();
-    this.client.destroy();
+
+    this.transport.destroy();
   }
 
+  /**
+   * Sends a SIP message.
+   */
   public send(
     message: OutboundMessage,
     waitForReply?: true,
@@ -219,63 +157,55 @@ class Softphone extends EventEmitter {
     message: OutboundMessage,
     waitForReply?: false,
   ): Promise<undefined>;
-  public send(message: OutboundMessage, waitForReply = false) {
-    this.client.write(message.toString());
-    if (!waitForReply) {
-      return Promise.resolve(undefined);
+  public send(
+    message: OutboundMessage,
+    waitForReply = false,
+  ): Promise<InboundMessage | undefined> {
+    if (waitForReply) {
+      return this.transport.sendAndWaitForReply(message);
     }
-    return new Promise<InboundMessage>((resolve) => {
-      const messageListerner = (inboundMessage: InboundMessage) => {
-        // "12563 INVITE" vs "12563 ACK"
-        if (
-          inboundMessage.headers.CSeq.trim().split(/\s+/)[0] !==
-            message.headers.CSeq.trim().split(/\s+/)[0]
-        ) {
-          return;
-        }
-        if (inboundMessage.subject.startsWith("SIP/2.0 100 ")) {
-          return; // ignore
-        }
-        this.off("message", messageListerner);
-        resolve(inboundMessage);
-      };
-      this.on("message", messageListerner);
-    });
+    this.transport.sendMessage(message);
+    return Promise.resolve(undefined);
   }
 
-  public async answer(inviteMessage: InboundMessage) {
-    const inboundCallSession = new InboundCallSession(this, inviteMessage);
-    await inboundCallSession.answer();
-    return inboundCallSession;
+  /**
+   * Answers an incoming call.
+   */
+  public async answer(inviteMessage: InboundMessage): Promise<InboundCallSession> {
+    const session = new InboundCallSession(this, inviteMessage);
+    await session.answer();
+    return session;
   }
 
-  // decline an inbound call
-  public async decline(inviteMessage: InboundMessage) {
-    const newMessage = new ResponseMessage(inviteMessage, 603);
-    await this.send(newMessage);
+  /**
+   * Declines an incoming call.
+   */
+  public async decline(inviteMessage: InboundMessage): Promise<void> {
+    const response = new ResponseMessage(inviteMessage, 603);
+    await this.send(response);
   }
 
-  public async call(callee: string) {
+  /**
+   * Initiates an outbound call.
+   */
+  public async call(callee: string): Promise<OutboundCallSession> {
     const offerSDP = SdpBuilder.create({
       localAddress: this.client.localAddress!,
       codecId: this.codec.id,
       codecName: this.codec.name,
     });
+
     const inviteMessage = new RequestMessage(
       `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
       {
-        Via:
-          `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
+        Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
         "Max-Forwards": 70,
-        From:
-          `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
+        From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
         To: `<sip:${callee}@sip.ringcentral.com>`,
-        Contact:
-          ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
+        Contact: ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
         "Call-ID": uuid(),
         Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
-        Allow:
-          `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
+        Allow: `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
         Supported: `replaces, 100rel, timer, norefersub`,
         "Session-Expires": SIP_SESSION_EXPIRES_SECONDS,
         "Min-SE": 90,
@@ -283,31 +213,40 @@ class Softphone extends EventEmitter {
       },
       offerSDP,
     );
-    const inboundMessage = await this.send(inviteMessage, true);
-    const proxyAuthenticate = inboundMessage.getHeader("Proxy-Authenticate");
-    if (!proxyAuthenticate) {
-      throw new Error(
+
+    const response = await this.send(inviteMessage, true);
+
+    // Handle authentication
+    const proxyAuth = response.getHeader("Proxy-Authenticate");
+    if (!proxyAuth) {
+      throw new SipAuthError(
         "Outbound call failed: missing Proxy-Authenticate header in response",
       );
     }
-    const nonceMatch = proxyAuthenticate.match(/, nonce="(.+?)"/);
+
+    const nonceMatch = proxyAuth.match(/, nonce="(.+?)"/);
     if (!nonceMatch) {
-      throw new Error(
-        `Outbound call failed: malformed Proxy-Authenticate header, missing nonce: ${proxyAuthenticate}`,
+      throw new SipAuthError(
+        `Outbound call failed: malformed Proxy-Authenticate header, missing nonce: ${proxyAuth}`,
       );
     }
-    const nonce = nonceMatch[1];
-    const newMessage = inviteMessage.fork();
-    newMessage.headers["Proxy-Authorization"] = generateAuthorization(
+
+    const authMessage = inviteMessage.fork();
+    authMessage.headers["Proxy-Authorization"] = generateAuthorization(
       this.sipInfo,
-      nonce,
+      nonceMatch[1],
       "INVITE",
     );
-    const progressMessage = await this.send(newMessage, true);
-    const outboundCallSession = new OutboundCallSession(this, progressMessage);
-    outboundCallSession.sdp = offerSDP;
-    return outboundCallSession;
+
+    const progressMessage = await this.send(authMessage, true);
+    const session = new OutboundCallSession(this, progressMessage);
+    session.sdp = offerSDP;
+    return session;
   }
 }
 
 export default Softphone;
+
+// Re-export commonly used types
+export { SoftPhoneOptions } from "./types.js";
+export * from "./errors/index.js";

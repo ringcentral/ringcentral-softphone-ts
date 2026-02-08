@@ -1,16 +1,16 @@
 import crypto from "node:crypto";
 
-import { SoftPhoneOptions } from "./types.js";
+import { SipCredentials } from "./types.js";
 
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 
 const generateResponse = (
-  sipInfo: SoftPhoneOptions,
+  credentials: SipCredentials,
   endpoint: string,
   nonce: string,
 ) => {
   const ha1 = md5(
-    `${sipInfo.authorizationId}:${sipInfo.domain}:${sipInfo.password}`,
+    `${credentials.authorizationId}:${credentials.domain}:${credentials.password}`,
   );
   const ha2 = md5(endpoint);
   const response = md5(`${ha1}:${nonce}:${ha2}`);
@@ -18,24 +18,24 @@ const generateResponse = (
 };
 
 export const generateAuthorization = (
-  sipInfo: SoftPhoneOptions,
+  credentials: SipCredentials,
   nonce: string,
   method: "REGISTER" | "INVITE",
 ) => {
   const authObj = {
     "Digest algorithm": "MD5",
-    username: sipInfo.authorizationId,
-    realm: sipInfo.domain,
+    username: credentials.authorizationId,
+    realm: credentials.domain,
     nonce,
-    uri: `sip:${sipInfo.domain}`,
+    uri: `sip:${credentials.domain}`,
     response: generateResponse(
-      sipInfo,
-      `${method}:sip:${sipInfo.domain}`,
+      credentials,
+      `${method}:sip:${credentials.domain}`,
       nonce,
     ),
   };
-  return Object.keys(authObj)
-    .map((key) => `${key}="${authObj[key]}"`)
+  return Object.entries(authObj)
+    .map(([key, value]) => `${key}="${value}"`)
     .join(", ");
 };
 

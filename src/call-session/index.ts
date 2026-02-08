@@ -13,7 +13,7 @@ import {
   RTP_SEQUENCE_NUMBER_MAX,
   SRTP_PROFILE_AES_CM_128_HMAC_SHA1_80,
 } from "../constants.js";
-import { SdpParser } from "../sdp.js";
+import { SdpParser } from "../sip/sdp.js";
 import {
   type InboundMessage,
   RequestMessage,

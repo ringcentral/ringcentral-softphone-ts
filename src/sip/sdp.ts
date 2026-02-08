@@ -1,5 +1,6 @@
-import { DTMF_PAYLOAD_TYPE } from "./constants.js";
-import { localKey, randomInt } from "./utils.js";
+import { DTMF_PAYLOAD_TYPE } from "../constants.js";
+import { SdpParseError } from "../errors/index.js";
+import { localKey, randomInt } from "../utils.js";
 
 export interface SdpConfig {
   localAddress: string;
@@ -44,12 +45,12 @@ export interface ParsedSdp {
 export class SdpParser {
   /**
    * Extracts the IP address from the connection line (c=IN IP4 ...).
-   * @throws Error if connection line is missing or malformed
+   * @throws SdpParseError if connection line is missing or malformed
    */
   static extractIP(sdp: string, context = "SDP"): string {
     const match = sdp.match(/c=IN IP4 ([\d.]+)/);
     if (!match) {
-      throw new Error(
+      throw new SdpParseError(
         `${context}: missing connection line (c=IN IP4) in SDP body`,
       );
     }
@@ -58,24 +59,26 @@ export class SdpParser {
 
   /**
    * Extracts the audio port from the media line (m=audio ...).
-   * @throws Error if media line is missing or malformed
+   * @throws SdpParseError if media line is missing or malformed
    */
   static extractPort(sdp: string, context = "SDP"): number {
     const match = sdp.match(/m=audio (\d+) /);
     if (!match) {
-      throw new Error(`${context}: missing media line (m=audio) in SDP body`);
+      throw new SdpParseError(
+        `${context}: missing media line (m=audio) in SDP body`,
+      );
     }
     return parseInt(match[1], 10);
   }
 
   /**
    * Extracts the SRTP key from the crypto line.
-   * @throws Error if crypto line is missing or malformed
+   * @throws SdpParseError if crypto line is missing or malformed
    */
   static extractSrtpKey(sdp: string, context = "SDP"): string {
     const match = sdp.match(/AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/);
     if (!match) {
-      throw new Error(
+      throw new SdpParseError(
         `${context}: missing SRTP key (AES_CM_128_HMAC_SHA1_80) in SDP body`,
       );
     }
@@ -84,7 +87,7 @@ export class SdpParser {
 
   /**
    * Parses all connection information from an SDP body.
-   * @throws Error if any required field is missing
+   * @throws SdpParseError if any required field is missing
    */
   static parse(sdp: string, context = "SDP"): ParsedSdp {
     return {

@@ -1,7 +1,7 @@
 import CallSession from "./index.js";
 import { type InboundMessage, OutboundMessage } from "../sip-message/index.js";
 import type Softphone from "../index.js";
-import { SdpBuilder, SdpParser } from "../sdp.js";
+import { SdpBuilder, SdpParser } from "../sip/sdp.js";
 
 class InboundCallSession extends CallSession {
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
