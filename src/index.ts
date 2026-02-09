@@ -212,7 +212,7 @@ class Softphone extends EventEmitter {
         "Max-Forwards": 70,
         From:
           `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
-        To: `<sip:${callee}@sip.ringcentral.com>`,
+        To: `<sip:${callee}@${this.sipInfo.domain}>`,
         Contact:
           ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
         "Call-ID": uuid(),
