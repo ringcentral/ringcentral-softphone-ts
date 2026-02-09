@@ -22,6 +22,7 @@ class InboundCallSession extends CallSession {
       localAddress: this.softphone.client.localAddress!,
       codecId: this.softphone.codec.id,
       codecName: this.softphone.codec.name,
+      localKey: this.localKey,
     });
     this.sdp = answerSDP;
     const newMessage = new OutboundMessage(

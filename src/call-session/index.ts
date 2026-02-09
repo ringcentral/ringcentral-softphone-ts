@@ -20,7 +20,12 @@ import {
   ResponseMessage,
 } from "../sip-message/index.js";
 import type Softphone from "../index.js";
-import { branch, extractAddress, localKey, randomInt } from "../utils.js";
+import {
+  branch,
+  extractAddress,
+  generateLocalKey,
+  randomInt,
+} from "../utils.js";
 import Streamer from "./streamer.js";
 import waitFor from "wait-for-async";
 
@@ -29,6 +34,7 @@ abstract class CallSession extends EventEmitter {
   public readonly sipMessage: InboundMessage;
   public readonly encoder: { encode: (pcm: Buffer) => Buffer };
   public readonly decoder: { decode: (audio: Buffer) => Buffer };
+  public readonly localKey: string;
 
   // for audio streaming
   public readonly ssrc = randomInt();
@@ -68,12 +74,17 @@ abstract class CallSession extends EventEmitter {
     return this._timestamp;
   }
 
-  public constructor(softphone: Softphone, sipMessage: InboundMessage) {
+  public constructor(
+    softphone: Softphone,
+    sipMessage: InboundMessage,
+    localKey: string = generateLocalKey(),
+  ) {
     super();
     this.softphone = softphone;
     this.encoder = softphone.codec.createEncoder();
     this.decoder = softphone.codec.createDecoder();
     this.sipMessage = sipMessage;
+    this.localKey = localKey;
     // inbound call from call queue, invite message may not have body
     if (this.sipMessage.body.length > 0) {
       this.remoteIP = SdpParser.extractIP(
@@ -88,7 +99,7 @@ abstract class CallSession extends EventEmitter {
   }
 
   public set remoteKey(key: string) {
-    const localKeyBuffer = Buffer.from(localKey, "base64");
+    const localKeyBuffer = Buffer.from(this.localKey, "base64");
     const remoteKeyBuffer = Buffer.from(key, "base64");
     this.srtpSession = new SrtpSession({
       profile: SRTP_PROFILE_AES_CM_128_HMAC_SHA1_80,

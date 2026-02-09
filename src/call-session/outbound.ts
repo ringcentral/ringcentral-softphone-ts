@@ -4,8 +4,12 @@ import type Softphone from "../index.js";
 import { extractAddress, withoutTag } from "../utils.js";
 
 class OutboundCallSession extends CallSession {
-  public constructor(softphone: Softphone, answerMessage: InboundMessage) {
-    super(softphone, answerMessage);
+  public constructor(
+    softphone: Softphone,
+    answerMessage: InboundMessage,
+    localKey: string,
+  ) {
+    super(softphone, answerMessage, localKey);
     this.localPeer = answerMessage.headers.From;
     this.remotePeer = answerMessage.headers.To;
     const keyMatch = answerMessage.body.match(

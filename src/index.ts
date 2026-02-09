@@ -3,7 +3,7 @@ import EventEmitter from "node:events";
 import InboundCallSession from "./call-session/inbound.js";
 import OutboundCallSession from "./call-session/outbound.js";
 import { SIP_SESSION_EXPIRES_SECONDS } from "./constants.js";
-import { CallError, SipAuthError } from "./errors/index.js";
+import { SipAuthError } from "./errors/index.js";
 import { SdpBuilder, SipRegistrar, SipTransport } from "./sip/index.js";
 import {
   InboundMessage,
@@ -11,7 +11,12 @@ import {
   RequestMessage,
   ResponseMessage,
 } from "./sip-message/index.js";
-import { branch, generateAuthorization, uuid } from "./utils.js";
+import {
+  branch,
+  generateAuthorization,
+  generateLocalKey,
+  uuid,
+} from "./utils.js";
 import { SoftPhoneOptions } from "./types.js";
 import Codec from "./codec.js";
 
@@ -171,7 +176,9 @@ class Softphone extends EventEmitter {
   /**
    * Answers an incoming call.
    */
-  public async answer(inviteMessage: InboundMessage): Promise<InboundCallSession> {
+  public async answer(
+    inviteMessage: InboundMessage,
+  ): Promise<InboundCallSession> {
     const session = new InboundCallSession(this, inviteMessage);
     await session.answer();
     return session;
@@ -189,23 +196,29 @@ class Softphone extends EventEmitter {
    * Initiates an outbound call.
    */
   public async call(callee: string): Promise<OutboundCallSession> {
+    const localKey = generateLocalKey();
     const offerSDP = SdpBuilder.create({
       localAddress: this.client.localAddress!,
       codecId: this.codec.id,
       codecName: this.codec.name,
+      localKey,
     });
 
     const inviteMessage = new RequestMessage(
       `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
       {
-        Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
+        Via:
+          `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
         "Max-Forwards": 70,
-        From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
+        From:
+          `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
         To: `<sip:${callee}@sip.ringcentral.com>`,
-        Contact: ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
+        Contact:
+          ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
         "Call-ID": uuid(),
         Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
-        Allow: `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
+        Allow:
+          `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
         Supported: `replaces, 100rel, timer, norefersub`,
         "Session-Expires": SIP_SESSION_EXPIRES_SECONDS,
         "Min-SE": 90,
@@ -239,7 +252,7 @@ class Softphone extends EventEmitter {
     );
 
     const progressMessage = await this.send(authMessage, true);
-    const session = new OutboundCallSession(this, progressMessage);
+    const session = new OutboundCallSession(this, progressMessage, localKey);
     session.sdp = offerSDP;
     return session;
   }

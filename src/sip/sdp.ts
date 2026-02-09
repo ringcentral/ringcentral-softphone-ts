@@ -1,11 +1,12 @@
 import { DTMF_PAYLOAD_TYPE } from "../constants.js";
 import { SdpParseError } from "../errors/index.js";
-import { localKey, randomInt } from "../utils.js";
+import { randomInt } from "../utils.js";
 
 export interface SdpConfig {
   localAddress: string;
   codecId: number;
   codecName: string;
+  localKey: string;
 }
 
 /**
@@ -16,7 +17,7 @@ export class SdpBuilder {
    * Creates an SDP offer/answer for audio communication.
    */
   static create(config: SdpConfig): string {
-    const { localAddress, codecId, codecName } = config;
+    const { localAddress, codecId, codecName, localKey } = config;
     return `
 v=0
 o=- ${Date.now()} 0 IN IP4 ${localAddress}
