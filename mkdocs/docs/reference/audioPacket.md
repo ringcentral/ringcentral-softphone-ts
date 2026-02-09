@@ -10,6 +10,6 @@
 
 ```ts
 callSession.on("audioPacket", (rtpPacket: RtpPacket) => {
-	// received a rtpPacket which is audio data
+  // received a rtpPacket which is audio data
 });
 ```

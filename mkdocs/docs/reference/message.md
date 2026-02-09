@@ -10,6 +10,6 @@
 
 ```ts
 cloudPhone.on("message", (message) => {
-	// received SIP message from server
+  // received SIP message from server
 });
 ```

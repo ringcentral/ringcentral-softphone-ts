@@ -46,12 +46,15 @@ export class SipRegistrar {
     const requestMessage = new RequestMessage(
       `REGISTER sip:${this.config.domain} SIP/2.0`,
       {
-        Via: `SIP/2.0/TLS ${this.transport.localAddress}:${this.transport.localPort};rport;branch=${branch()};alias`,
+        Via:
+          `SIP/2.0/TLS ${this.transport.localAddress}:${this.transport.localPort};rport;branch=${branch()};alias`,
         "Max-Forwards": "70",
-        From: `<sip:${this.config.username}@${this.config.domain}>;tag=${fromTag}`,
+        From:
+          `<sip:${this.config.username}@${this.config.domain}>;tag=${fromTag}`,
         To: `<sip:${this.config.username}@${this.config.domain}>`,
         "Call-ID": this.callId,
-        Contact: `<sip:${this.config.username}@${this.transport.localAddress}:${this.transport.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
+        Contact:
+          `<sip:${this.config.username}@${this.transport.localAddress}:${this.transport.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
         Expires: SIP_REGISTRATION_EXPIRES_SECONDS,
         Allow:
           "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",

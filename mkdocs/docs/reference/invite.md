@@ -10,6 +10,6 @@
 
 ```ts
 cloudPhone.on("invite", (message) => {
-	// received a SIP invige message, which means some one is calling you
+  // received a SIP invige message, which means some one is calling you
 });
 ```

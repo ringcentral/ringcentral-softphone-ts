@@ -22,12 +22,12 @@ const main = async () => {
     // answer the call
     const callSession = await softphone.answer(inviteMessage);
 
-	// send audio to remote peer
-    const streamer = callSession.streamAudio(fs.readFileSync('demos/test.wav'));
-    // You may subscribe to the 'finished' event of the streamer to 
-	// know when the audio sending is finished
-    streamer.once('finished', () => {
-      console.log('audio sending finished');
+    // send audio to remote peer
+    const streamer = callSession.streamAudio(fs.readFileSync("demos/test.wav"));
+    // You may subscribe to the 'finished' event of the streamer to
+    // know when the audio sending is finished
+    streamer.once("finished", () => {
+      console.log("audio sending finished");
     });
     // you may pause/resume/stop audio sending at any time
     // streamer.pause();

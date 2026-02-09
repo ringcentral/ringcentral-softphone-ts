@@ -10,6 +10,6 @@
 
 ```ts
 callSession.on("dtmfPacket", (dtmfPacket: DtmfPacket) => {
-	// received a packet which is about DTMF
+  // received a packet which is about DTMF
 });
 ```

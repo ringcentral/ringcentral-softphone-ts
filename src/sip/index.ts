@@ -1,3 +1,8 @@
-export { SdpBuilder, SdpParser, type SdpConfig, type ParsedSdp } from "./sdp.js";
+export {
+  type ParsedSdp,
+  SdpBuilder,
+  type SdpConfig,
+  SdpParser,
+} from "./sdp.js";
 export { SipTransport, type TransportOptions } from "./transport.js";
-export { SipRegistrar, type RegistrarConfig } from "./registrar.js";
+export { type RegistrarConfig, SipRegistrar } from "./registrar.js";

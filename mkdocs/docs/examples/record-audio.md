@@ -1,4 +1,4 @@
-# Record phone audio to a server 
+# Record phone audio to a server
 
 ```ts
 import fs from "node:fs";

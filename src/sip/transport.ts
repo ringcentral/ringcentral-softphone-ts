@@ -4,10 +4,7 @@ import tls, { TLSSocket } from "node:tls";
 import waitFor from "wait-for-async";
 
 import { ConnectionError } from "../errors/index.js";
-import {
-  InboundMessage,
-  OutboundMessage,
-} from "../sip-message/index.js";
+import { InboundMessage, OutboundMessage } from "../sip-message/index.js";
 
 export interface TransportOptions {
   host: string;
@@ -107,7 +104,9 @@ export class SipTransport extends EventEmitter {
   /**
    * Sends a SIP message and waits for a reply with matching CSeq.
    */
-  public sendAndWaitForReply(message: OutboundMessage): Promise<InboundMessage> {
+  public sendAndWaitForReply(
+    message: OutboundMessage,
+  ): Promise<InboundMessage> {
     this.socket.write(message.toString());
     return new Promise<InboundMessage>((resolve) => {
       const messageListener = (inboundMessage: InboundMessage) => {

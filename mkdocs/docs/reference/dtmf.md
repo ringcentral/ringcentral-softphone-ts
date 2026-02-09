@@ -10,6 +10,6 @@
 
 ```ts
 callSession.on("dtmf", (dtmf) => {
-	console.log("The user pressed the " + dtmf + " key.");
+  console.log("The user pressed the " + dtmf + " key.");
 });
 ```

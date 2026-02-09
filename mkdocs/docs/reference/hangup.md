@@ -2,12 +2,10 @@
 
 Hangs up the current call session's call.
 
-## Inputs 
+## Inputs
 
 None.
 
-## Outputs 
+## Outputs
 
 None.
-
-

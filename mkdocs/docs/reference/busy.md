@@ -1,6 +1,8 @@
 # callSession.on('busy', callback)
 
-This event is triggered when a call is made to an invalid number, or when the SIP server returns `SIP/2.0 486 Busy Here`. Upon triggering the busy event, the call session will be disposed of.
+This event is triggered when a call is made to an invalid number, or when the
+SIP server returns `SIP/2.0 486 Busy Here`. Upon triggering the busy event, the
+call session will be disposed of.
 
 ## Sample
 
@@ -10,4 +12,3 @@ callSession.on("busy", () => {
   console.log("cannot reach the callee number");
 });
 ```
-
