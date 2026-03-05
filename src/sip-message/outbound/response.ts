@@ -11,7 +11,8 @@ class ResponseMessage extends OutboundMessage {
   ) {
     super(undefined, { ...headers }, body);
     this.subject = `SIP/2.0 ${responseCode} ${responseCodes[responseCode]}`;
-    const keys = ["Via", "From", "To", "Call-ID", "CSeq"];
+    // server-side sometimes uses "Call-Id" instead of "Call-ID"
+    const keys = ["Via", "From", "To", "Call-ID", "Call-Id", "CSeq"];
     for (const key of keys) {
       if (inboundMessage.headers[key]) {
         this.headers[key] = inboundMessage.headers[key];
