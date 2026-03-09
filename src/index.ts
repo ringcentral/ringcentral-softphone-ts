@@ -26,7 +26,7 @@ import Codec from "./codec.js";
  * This is the main entry point for making and receiving calls.
  * It orchestrates the SIP transport, registration, and call control.
  */
-class Softphone extends EventEmitter {
+export class Softphone extends EventEmitter {
   public readonly sipInfo: SoftPhoneOptions;
   public readonly codec: Codec;
 
