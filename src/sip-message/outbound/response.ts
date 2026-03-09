@@ -11,11 +11,15 @@ class ResponseMessage extends OutboundMessage {
   ) {
     super(undefined, { ...headers }, body);
     this.subject = `SIP/2.0 ${responseCode} ${responseCodes[responseCode]}`;
-    // server-side sometimes uses "Call-Id" instead of "Call-ID"
-    const keys = ["Via", "From", "To", "Call-ID", "Call-Id", "CSeq"];
-    for (const key of keys) {
-      if (inboundMessage.headers[key]) {
-        this.headers[key] = inboundMessage.headers[key];
+    const requiredKeys = new Set(["via", "from", "to", "call-id", "cseq"]);
+    const allKeys = Object.keys(inboundMessage.headers).reduce((acc, key) => {
+      acc[key.toLowerCase()] = key;
+      return acc;
+    }, {} as Record<string, string>);
+    for (const key of requiredKeys) {
+      if (allKeys[key]) {
+        const originalKey = allKeys[key];
+        this.headers[originalKey] = inboundMessage.headers[originalKey];
       }
     }
   }
