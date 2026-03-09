@@ -4,7 +4,7 @@ import type { RtpPacket } from "werift-rtp";
 
 import Softphone from "../src/index.js";
 
-// import waitFor from 'wait-for-async';
+import waitFor from "wait-for-async";
 
 const softphone = new Softphone({
   outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY!,
@@ -40,8 +40,8 @@ const main = async () => {
     });
 
     // call transfer
-    // await waitFor({ interval: 3000 });
-    // await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
+    await waitFor({ interval: 3000 });
+    await callSession.transfer(process.env.ANOTHER_CALLEE_FOR_TESTING!);
 
     // // send audio to remote peer
     // const streamer = callSession.streamAudio(fs.readFileSync('demos/test.wav'));
