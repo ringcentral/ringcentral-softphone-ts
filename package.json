@@ -1,6 +1,6 @@
 {
   "name": "ringcentral-softphone",
-  "version": "1.4.0-beta.4",
+  "version": "1.4.0-beta.5",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
   "types": "dist/esm/index.d.ts",
@@ -26,9 +26,12 @@
     "out": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/outbound-call.ts",
     "join": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/join-rcv-meeting.ts",
     "multi": "tsx -r dotenv-override-true/config demos/multiple-calls-sequentially.ts",
-    "build": "tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json",
+    "build": "yarn build:clean && yarn build:types-and-js && yarn build:meta",
     "prepublishOnly": "yarn build",
-    "postpublish": "rm -rf dist"
+    "postpublish": "rm -rf dist",
+    "build:clean": "rm -rf dist",
+    "build:types-and-js": "tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json",
+    "build:meta": "node scripts/write-dist-package-jsons.mjs"
   },
   "dependencies": {
     "@evan/opus": "^1.0.3",
