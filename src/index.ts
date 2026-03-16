@@ -261,5 +261,5 @@ export class Softphone extends EventEmitter {
 export default Softphone;
 
 // Re-export commonly used types
-export { SoftPhoneOptions } from "./types.js";
+export { type SoftPhoneOptions } from "./types.js";
 export * from "./errors/index.js";
