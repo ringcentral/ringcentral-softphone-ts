@@ -38,11 +38,12 @@ class Streamer extends EventEmitter {
   }
 
   public get finished() {
-    return this.buffer.length < this.callSession.softphone.codec.packetSize;
+    return this.callSession.disposed ||
+      this.buffer.length < this.callSession.softphone.codec.packetSize;
   }
 
   private sendPacket() {
-    if (!this.callSession.disposed && !this.paused && !this.finished) {
+    if (!this.paused && !this.finished) {
       const temp = this.callSession.encoder.encode(
         this.buffer.subarray(0, this.callSession.softphone.codec.packetSize),
       );
