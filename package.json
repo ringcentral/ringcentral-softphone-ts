@@ -3,22 +3,31 @@
   "version": "1.4.0-beta.5",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
-  "types": "dist/esm/index.d.ts",
-  "module": "dist/esm/index.js",
-  "main": "dist/cjs/index.js",
+  "types": "dist/cjs/index.d.cts",
+  "main": "dist/cjs/index.cjs",
   "files": [
     "dist"
   ],
   "exports": {
     ".": {
-      "types": "./dist/esm/index.d.ts",
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js"
+      "require": {
+        "types": "./dist/cjs/index.d.cts",
+        "default": "./dist/cjs/index.cjs"
+      },
+      "import": {
+        "types": "./dist/esm/index.d.mts",
+        "default": "./dist/esm/index.mjs"
+      }
     },
     "./*": {
-      "types": "./dist/esm/*.d.ts",
-      "import": "./dist/esm/*.js",
-      "require": "./dist/cjs/*.js"
+      "require": {
+        "types": "./dist/cjs/*.d.cts",
+        "default": "./dist/cjs/*.cjs"
+      },
+      "import": {
+        "types": "./dist/esm/*.d.mts",
+        "default": "./dist/esm/*.mjs"
+      }
     }
   },
   "scripts": {
@@ -26,12 +35,10 @@
     "out": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/outbound-call.ts",
     "join": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/join-rcv-meeting.ts",
     "multi": "tsx -r dotenv-override-true/config demos/multiple-calls-sequentially.ts",
-    "build": "yarn build:clean && yarn build:types-and-js && yarn build:meta",
+    "prebuild": "rm -rf dist",
+    "build": "rollup --config rollup.config.mts",
     "prepublishOnly": "yarn build",
-    "postpublish": "rm -rf dist",
-    "build:clean": "rm -rf dist",
-    "build:types-and-js": "tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json",
-    "build:meta": "node scripts/write-dist-package-jsons.mjs"
+    "postpublish": "rm -rf dist"
   },
   "dependencies": {
     "@evan/opus": "^1.0.3",
@@ -42,6 +49,9 @@
   "devDependencies": {
     "@types/node": "^25.3.3",
     "dotenv-override-true": "^6.2.2",
+    "rollup": "^4.59.0",
+    "rollup-plugin-dts": "^6.4.0",
+    "rollup-plugin-esbuild": "^6.2.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "yarn-upgrade-all": "^0.7.5"
