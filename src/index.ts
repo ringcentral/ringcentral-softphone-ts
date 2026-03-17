@@ -258,8 +258,21 @@ export class Softphone extends EventEmitter {
   }
 }
 
+// For backward compatibility with older versions of the library that used default exports.
 export default Softphone;
 
 // Re-export commonly used types
 export { type SoftPhoneOptions } from "./types.ts";
 export * from "./errors.ts";
+
+// Call session classes
+export { CallSession } from "./call-session/call-session.ts";
+export { InboundCallSession } from "./call-session/inbound-call-session.ts";
+export { OutboundCallSession } from "./call-session/outbound-call-session.ts";
+export { Streamer } from "./call-session/streamer.ts";
+
+// SIP message classes
+export { InboundMessage } from "./sip-message/inbound-message.ts";
+
+// DTMF
+export { DTMF, type DTMFChar, isDTMFChar } from "./dtmf.ts";
