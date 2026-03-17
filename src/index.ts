@@ -258,6 +258,7 @@ export class Softphone extends EventEmitter {
   }
 }
 
+export default Softphone;
 
 // Re-export commonly used types
 export { type SoftPhoneOptions } from "./types.ts";

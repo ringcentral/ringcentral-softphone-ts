@@ -3,7 +3,7 @@ import process from "node:process";
 import waitFor from "wait-for-async";
 import type { RtpPacket } from "werift-rtp";
 
-import { Softphone } from "../src/index.ts";
+import Softphone from "../src/index.ts";
 
 const softphone = new Softphone({
   outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY!,

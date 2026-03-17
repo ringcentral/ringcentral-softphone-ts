@@ -2,7 +2,7 @@ import fs from "node:fs";
 import process from "node:process";
 import type { RtpPacket } from "werift-rtp";
 
-import { Softphone } from "../src/index.ts";
+import Softphone from "../src/index.ts";
 
 import waitFor from "wait-for-async";
 
