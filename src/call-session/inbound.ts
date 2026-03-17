@@ -1,9 +1,9 @@
-import CallSession from "./index.js";
+import { CallSession } from "./index.js";
 import { type InboundMessage, OutboundMessage } from "../sip-message/index.js";
-import type Softphone from "../index.js";
+import type { Softphone } from "../index.js";
 import { SdpBuilder, SdpParser } from "../sip/sdp.js";
 
-class InboundCallSession extends CallSession {
+export class InboundCallSession extends CallSession {
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
     super(softphone, inviteMessage);
     this.localPeer = inviteMessage.headers.To;
@@ -58,4 +58,3 @@ class InboundCallSession extends CallSession {
   }
 }
 
-export default InboundCallSession;

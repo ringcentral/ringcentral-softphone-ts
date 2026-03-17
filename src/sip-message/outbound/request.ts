@@ -1,9 +1,9 @@
-import OutboundMessage from "./index.js";
+import { OutboundMessage } from "./index.js";
 import { branch } from "../../utils.js";
 
 let cseq = Math.floor(Math.random() * 10000);
 
-class RequestMessage extends OutboundMessage {
+export class RequestMessage extends OutboundMessage {
   public constructor(subject = "", headers = {}, body = "") {
     super(subject, headers, body);
     if (this.headers.CSeq === undefined) {
@@ -32,4 +32,3 @@ class RequestMessage extends OutboundMessage {
   }
 }
 
-export default RequestMessage;

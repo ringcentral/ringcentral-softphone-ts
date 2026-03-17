@@ -1,4 +1,4 @@
-class SipMessage {
+export class SipMessage {
   public subject: string;
   public headers: {
     [key: string]: string;
@@ -37,4 +37,3 @@ class SipMessage {
   }
 }
 
-export default SipMessage;

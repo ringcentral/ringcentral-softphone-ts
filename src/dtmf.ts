@@ -23,7 +23,7 @@ export function isDTMFChar(char: string): char is DTMFChar {
   return VALID_DTMF_SET.has(char);
 }
 
-class DTMF {
+export class DTMF {
   public static readonly phoneChars = PHONE_CHARS;
 
   private static readonly payloads = [
@@ -57,4 +57,3 @@ class DTMF {
   };
 }
 
-export default DTMF;

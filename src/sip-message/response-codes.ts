@@ -1,5 +1,5 @@
 // Ref: https://en.wikipedia.org/wiki/List_of_SIP_response_codes'
-const responseCodes: {
+export const responseCodes: {
   [key: number]: string;
 } = {
   100: "Trying",
@@ -81,4 +81,3 @@ const responseCodes: {
   608: "Rejected",
 };
 
-export default responseCodes;

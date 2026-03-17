@@ -4,7 +4,7 @@ import { Buffer } from "node:buffer";
 
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
-import DTMF, { type DTMFChar, isDTMFChar } from "../dtmf.js";
+import { DTMF, type DTMFChar, isDTMFChar } from "../dtmf.js";
 import {
   DTMF_DEFAULT_DELAY_MS,
   DTMF_PAYLOAD_TYPE,
@@ -19,17 +19,17 @@ import {
   RequestMessage,
   ResponseMessage,
 } from "../sip-message/index.js";
-import type Softphone from "../index.js";
+import type { Softphone } from "../index.js";
 import {
   branch,
   extractAddress,
   generateLocalKey,
   randomInt,
 } from "../utils.js";
-import Streamer from "./streamer.js";
+import { Streamer } from "./streamer.js";
 import waitFor from "wait-for-async";
 
-abstract class CallSession extends EventEmitter {
+export abstract class CallSession extends EventEmitter {
   public readonly softphone: Softphone;
   public readonly sipMessage: InboundMessage;
   public readonly encoder: { encode: (pcm: Buffer) => Buffer };
@@ -359,4 +359,3 @@ abstract class CallSession extends EventEmitter {
   }
 }
 
-export default CallSession;

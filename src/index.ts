@@ -1,7 +1,7 @@
 import EventEmitter from "node:events";
 
-import InboundCallSession from "./call-session/inbound.js";
-import OutboundCallSession from "./call-session/outbound.js";
+import { InboundCallSession } from "./call-session/inbound.js";
+import { OutboundCallSession } from "./call-session/outbound.js";
 import { SIP_SESSION_EXPIRES_SECONDS } from "./constants.js";
 import { SipAuthError } from "./errors/index.js";
 import { SdpBuilder, SipRegistrar, SipTransport } from "./sip/index.js";
@@ -18,7 +18,7 @@ import {
   uuid,
 } from "./utils.js";
 import { SoftPhoneOptions } from "./types.js";
-import Codec from "./codec.js";
+import { Codec } from "./codec.js";
 
 /**
  * RingCentral Softphone client.
@@ -258,7 +258,6 @@ export class Softphone extends EventEmitter {
   }
 }
 
-export default Softphone;
 
 // Re-export commonly used types
 export { type SoftPhoneOptions } from "./types.js";

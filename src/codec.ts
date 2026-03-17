@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { Decoder, Encoder } from "@evan/opus";
 
-class Codec {
+export class Codec {
   id: number;
   name: "OPUS/16000" | "OPUS/48000/2" | "PCMU/8000";
   packetSize: number;
@@ -62,4 +62,3 @@ class Codec {
   }
 }
 
-export default Codec;

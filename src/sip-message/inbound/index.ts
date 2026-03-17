@@ -1,7 +1,7 @@
 import { uuid } from "../../utils.js";
-import SipMessage from "../sip-message.js";
+import { SipMessage } from "../sip-message.js";
 
-class InboundMessage extends SipMessage {
+export class InboundMessage extends SipMessage {
   public static fromString(str: string) {
     const sipMessage = new SipMessage();
     const [init, ...body] = str.split("\r\n\r\n");
@@ -18,4 +18,3 @@ class InboundMessage extends SipMessage {
   }
 }
 
-export default InboundMessage;
