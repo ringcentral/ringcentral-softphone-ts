@@ -1,5 +1,5 @@
-import { uuid } from "../../utils.js";
-import { SipMessage } from "../sip-message.js";
+import { uuid } from "../utils.js";
+import { SipMessage } from "./sip-message.js";
 
 export class InboundMessage extends SipMessage {
   public static fromString(str: string) {
@@ -17,4 +17,3 @@ export class InboundMessage extends SipMessage {
     return sipMessage;
   }
 }
-

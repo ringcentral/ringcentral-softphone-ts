@@ -1,5 +1,6 @@
-import { CallSession } from "./index.js";
-import { type InboundMessage, OutboundMessage } from "../sip-message/index.js";
+import { CallSession } from "./call-session.js";
+import type { InboundMessage } from "../sip-message/inbound-message.js";
+import { OutboundMessage } from "../sip-message/outbound/outbound-message.js";
 import type { Softphone } from "../index.js";
 import { SdpBuilder, SdpParser } from "../sip/sdp.js";
 
@@ -57,4 +58,3 @@ export class InboundCallSession extends CallSession {
     this.startLocalServices();
   }
 }
-

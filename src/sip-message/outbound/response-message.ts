@@ -1,5 +1,5 @@
-import { OutboundMessage } from "./index.js";
-import type { InboundMessage } from "../inbound/index.js";
+import { OutboundMessage } from "./outbound-message.js";
+import type { InboundMessage } from "../inbound-message.js";
 import { responseCodes } from "../response-codes.js";
 
 export class ResponseMessage extends OutboundMessage {
@@ -24,4 +24,3 @@ export class ResponseMessage extends OutboundMessage {
     }
   }
 }
-

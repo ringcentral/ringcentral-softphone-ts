@@ -14,11 +14,9 @@ import {
   SRTP_PROFILE_AES_CM_128_HMAC_SHA1_80,
 } from "../constants.js";
 import { SdpParser } from "../sip/sdp.js";
-import {
-  type InboundMessage,
-  RequestMessage,
-  ResponseMessage,
-} from "../sip-message/index.js";
+import type { InboundMessage } from "../sip-message/inbound-message.js";
+import { RequestMessage } from "../sip-message/outbound/request-message.js";
+import { ResponseMessage } from "../sip-message/outbound/response-message.js";
 import type { Softphone } from "../index.js";
 import {
   branch,
@@ -358,4 +356,3 @@ export abstract class CallSession extends EventEmitter {
     return this.toggleReceive(true);
   }
 }
-

@@ -1,6 +1,6 @@
-import { SipAuthError, SipRegistrationError } from "../errors/index.js";
+import { SipAuthError, SipRegistrationError } from "../errors.js";
 import { SIP_REGISTRATION_EXPIRES_SECONDS } from "../constants.js";
-import { RequestMessage } from "../sip-message/index.js";
+import { RequestMessage } from "../sip-message/outbound/request-message.js";
 import { SipCredentials } from "../types.js";
 import { branch, generateAuthorization, uuid } from "../utils.js";
 import { SipTransport } from "./transport.js";

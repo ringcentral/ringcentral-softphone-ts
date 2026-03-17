@@ -1,4 +1,4 @@
-import { OutboundMessage } from "./index.js";
+import { OutboundMessage } from "./outbound-message.js";
 import { branch } from "../../utils.js";
 
 let cseq = Math.floor(Math.random() * 10000);
@@ -31,4 +31,3 @@ export class RequestMessage extends OutboundMessage {
     return newMessage;
   }
 }
-

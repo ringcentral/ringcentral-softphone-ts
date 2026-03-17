@@ -1,5 +1,5 @@
 import { DTMF_PAYLOAD_TYPE } from "../constants.js";
-import { SdpParseError } from "../errors/index.js";
+import { SdpParseError } from "../errors.js";
 import { randomInt } from "../utils.js";
 
 export interface SdpConfig {

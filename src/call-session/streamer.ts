@@ -7,7 +7,7 @@ import {
   AUDIO_PACKET_INTERVAL_MS,
   RTP_EXTENSION_PROFILE,
 } from "../constants.js";
-import type { CallSession } from "./index.js";
+import type { CallSession } from "./call-session.js";
 
 export class Streamer extends EventEmitter {
   public paused = false;

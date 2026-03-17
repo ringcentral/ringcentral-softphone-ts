@@ -7,4 +7,3 @@ export class OutboundMessage extends SipMessage {
     this.headers["User-Agent"] = "ringcentral-softphone-ts";
   }
 }
-

@@ -1,16 +1,16 @@
 import EventEmitter from "node:events";
 
-import { InboundCallSession } from "./call-session/inbound.js";
-import { OutboundCallSession } from "./call-session/outbound.js";
+import { InboundCallSession } from "./call-session/inbound-call-session.js";
+import { OutboundCallSession } from "./call-session/outbound-call-session.js";
 import { SIP_SESSION_EXPIRES_SECONDS } from "./constants.js";
-import { SipAuthError } from "./errors/index.js";
-import { SdpBuilder, SipRegistrar, SipTransport } from "./sip/index.js";
-import {
-  InboundMessage,
-  OutboundMessage,
-  RequestMessage,
-  ResponseMessage,
-} from "./sip-message/index.js";
+import { SipAuthError } from "./errors.js";
+import { SdpBuilder } from "./sip/sdp.js";
+import { SipRegistrar } from "./sip/registrar.js";
+import { SipTransport } from "./sip/transport.js";
+import { InboundMessage } from "./sip-message/inbound-message.js";
+import { OutboundMessage } from "./sip-message/outbound/outbound-message.js";
+import { RequestMessage } from "./sip-message/outbound/request-message.js";
+import { ResponseMessage } from "./sip-message/outbound/response-message.js";
 import {
   branch,
   generateAuthorization,
@@ -261,4 +261,4 @@ export class Softphone extends EventEmitter {
 
 // Re-export commonly used types
 export { type SoftPhoneOptions } from "./types.js";
-export * from "./errors/index.js";
+export * from "./errors.js";
