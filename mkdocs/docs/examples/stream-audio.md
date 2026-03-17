@@ -4,7 +4,7 @@
 import fs from "node:fs";
 import process from "node:process";
 import type { RtpPacket } from "werift-rtp";
-import Softphone from "../src/index.js";
+import Softphone from "../src/index.ts";
 
 const softphone = new Softphone({
   outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY!,
