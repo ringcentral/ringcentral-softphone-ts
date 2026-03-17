@@ -3,9 +3,9 @@ import tls, { TLSSocket } from "node:tls";
 
 import waitFor from "wait-for-async";
 
-import { ConnectionError } from "../errors.js";
-import { InboundMessage } from "../sip-message/inbound-message.js";
-import { OutboundMessage } from "../sip-message/outbound/outbound-message.js";
+import { ConnectionError } from "../errors.ts";
+import { InboundMessage } from "../sip-message/inbound-message.ts";
+import { OutboundMessage } from "../sip-message/outbound/outbound-message.ts";
 
 export interface TransportOptions {
   host: string;

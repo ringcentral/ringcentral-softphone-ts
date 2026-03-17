@@ -1,6 +1,6 @@
-import { DTMF_PAYLOAD_TYPE } from "../constants.js";
-import { SdpParseError } from "../errors.js";
-import { randomInt } from "../utils.js";
+import { DTMF_PAYLOAD_TYPE } from "../constants.ts";
+import { SdpParseError } from "../errors.ts";
+import { randomInt } from "../utils.ts";
 
 export interface SdpConfig {
   localAddress: string;

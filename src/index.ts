@@ -1,24 +1,24 @@
 import EventEmitter from "node:events";
 
-import { InboundCallSession } from "./call-session/inbound-call-session.js";
-import { OutboundCallSession } from "./call-session/outbound-call-session.js";
-import { SIP_SESSION_EXPIRES_SECONDS } from "./constants.js";
-import { SipAuthError } from "./errors.js";
-import { SdpBuilder } from "./sip/sdp.js";
-import { SipRegistrar } from "./sip/registrar.js";
-import { SipTransport } from "./sip/transport.js";
-import { InboundMessage } from "./sip-message/inbound-message.js";
-import { OutboundMessage } from "./sip-message/outbound/outbound-message.js";
-import { RequestMessage } from "./sip-message/outbound/request-message.js";
-import { ResponseMessage } from "./sip-message/outbound/response-message.js";
+import { InboundCallSession } from "./call-session/inbound-call-session.ts";
+import { OutboundCallSession } from "./call-session/outbound-call-session.ts";
+import { SIP_SESSION_EXPIRES_SECONDS } from "./constants.ts";
+import { SipAuthError } from "./errors.ts";
+import { SdpBuilder } from "./sip/sdp.ts";
+import { SipRegistrar } from "./sip/registrar.ts";
+import { SipTransport } from "./sip/transport.ts";
+import { InboundMessage } from "./sip-message/inbound-message.ts";
+import { OutboundMessage } from "./sip-message/outbound/outbound-message.ts";
+import { RequestMessage } from "./sip-message/outbound/request-message.ts";
+import { ResponseMessage } from "./sip-message/outbound/response-message.ts";
 import {
   branch,
   generateAuthorization,
   generateLocalKey,
   uuid,
-} from "./utils.js";
-import { SoftPhoneOptions } from "./types.js";
-import { Codec } from "./codec.js";
+} from "./utils.ts";
+import { SoftPhoneOptions } from "./types.ts";
+import { Codec } from "./codec.ts";
 
 /**
  * RingCentral Softphone client.
@@ -260,5 +260,5 @@ export class Softphone extends EventEmitter {
 
 
 // Re-export commonly used types
-export { type SoftPhoneOptions } from "./types.js";
-export * from "./errors.js";
+export { type SoftPhoneOptions } from "./types.ts";
+export * from "./errors.ts";

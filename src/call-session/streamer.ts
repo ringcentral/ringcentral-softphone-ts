@@ -6,8 +6,8 @@ import { RtpHeader, RtpPacket } from "werift-rtp";
 import {
   AUDIO_PACKET_INTERVAL_MS,
   RTP_EXTENSION_PROFILE,
-} from "../constants.js";
-import type { CallSession } from "./call-session.js";
+} from "../constants.ts";
+import type { CallSession } from "./call-session.ts";
 
 export class Streamer extends EventEmitter {
   public paused = false;

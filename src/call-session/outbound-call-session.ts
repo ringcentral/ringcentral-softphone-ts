@@ -1,8 +1,8 @@
-import { CallSession } from "./call-session.js";
-import type { InboundMessage } from "../sip-message/inbound-message.js";
-import { RequestMessage } from "../sip-message/outbound/request-message.js";
-import type { Softphone } from "../index.js";
-import { extractAddress, withoutTag } from "../utils.js";
+import { CallSession } from "./call-session.ts";
+import type { InboundMessage } from "../sip-message/inbound-message.ts";
+import { RequestMessage } from "../sip-message/outbound/request-message.ts";
+import type { Softphone } from "../index.ts";
+import { extractAddress, withoutTag } from "../utils.ts";
 
 export class OutboundCallSession extends CallSession {
   public constructor(

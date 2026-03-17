@@ -1,9 +1,9 @@
-import { SipAuthError, SipRegistrationError } from "../errors.js";
-import { SIP_REGISTRATION_EXPIRES_SECONDS } from "../constants.js";
-import { RequestMessage } from "../sip-message/outbound/request-message.js";
-import { SipCredentials } from "../types.js";
-import { branch, generateAuthorization, uuid } from "../utils.js";
-import { SipTransport } from "./transport.js";
+import { SipAuthError, SipRegistrationError } from "../errors.ts";
+import { SIP_REGISTRATION_EXPIRES_SECONDS } from "../constants.ts";
+import { RequestMessage } from "../sip-message/outbound/request-message.ts";
+import { SipCredentials } from "../types.ts";
+import { branch, generateAuthorization, uuid } from "../utils.ts";
+import { SipTransport } from "./transport.ts";
 
 const REGISTRATION_REFRESH_INTERVAL_MS = 30 * 1000;
 

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import { SipCredentials } from "./types.js";
+import { SipCredentials } from "./types.ts";
 
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 

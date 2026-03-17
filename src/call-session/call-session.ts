@@ -4,7 +4,7 @@ import { Buffer } from "node:buffer";
 
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
-import { DTMF, type DTMFChar, isDTMFChar } from "../dtmf.js";
+import { DTMF, type DTMFChar, isDTMFChar } from "../dtmf.ts";
 import {
   DTMF_DEFAULT_DELAY_MS,
   DTMF_PAYLOAD_TYPE,
@@ -12,19 +12,19 @@ import {
   RTP_EXTENSION_PROFILE,
   RTP_SEQUENCE_NUMBER_MAX,
   SRTP_PROFILE_AES_CM_128_HMAC_SHA1_80,
-} from "../constants.js";
-import { SdpParser } from "../sip/sdp.js";
-import type { InboundMessage } from "../sip-message/inbound-message.js";
-import { RequestMessage } from "../sip-message/outbound/request-message.js";
-import { ResponseMessage } from "../sip-message/outbound/response-message.js";
-import type { Softphone } from "../index.js";
+} from "../constants.ts";
+import { SdpParser } from "../sip/sdp.ts";
+import type { InboundMessage } from "../sip-message/inbound-message.ts";
+import { RequestMessage } from "../sip-message/outbound/request-message.ts";
+import { ResponseMessage } from "../sip-message/outbound/response-message.ts";
+import type { Softphone } from "../index.ts";
 import {
   branch,
   extractAddress,
   generateLocalKey,
   randomInt,
-} from "../utils.js";
-import { Streamer } from "./streamer.js";
+} from "../utils.ts";
+import { Streamer } from "./streamer.ts";
 import waitFor from "wait-for-async";
 
 export abstract class CallSession extends EventEmitter {
