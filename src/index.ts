@@ -26,8 +26,8 @@ class Softphone extends EventEmitter {
   public client: TLSSocket;
   public codec: Codec;
 
-  public fakeDomain = uuid() + ".invalid";
-  public fakeEmail = uuid() + "@" + this.fakeDomain;
+  public fakeDomain = `${uuid()}.invalid`;
+  public fakeEmail = `${uuid()}@${this.fakeDomain}`;
 
   private intervalHandle?: NodeJS.Timeout;
   private connected = false;
@@ -70,7 +70,7 @@ class Softphone extends EventEmitter {
       cache = "";
       for (let i = 0; i < tempMessages.length; i++) {
         if (!tempMessages[i].includes("Content-Length: ")) {
-          tempMessages[i] = tempMessages[i] + "\r\nContent-Length: 0";
+          tempMessages[i] = `${tempMessages[i]}\r\nContent-Length: 0`;
         }
       }
       for (const message of tempMessages) {
@@ -124,7 +124,7 @@ class Softphone extends EventEmitter {
       );
       const message = await this.send(newMessage, true);
       if (!message.subject.startsWith("SIP/2.0 200 ")) {
-        throw new Error("Failed to register: " + message.subject);
+        throw new Error(`Failed to register: ${message.subject}`);
       }
     };
     await sipRegister();
@@ -153,11 +153,11 @@ class Softphone extends EventEmitter {
 
   public enableDebugMode() {
     this.on("message", (message) =>
-      console.log(`Receiving...(${new Date()})\n` + message.toString()),
+      console.log(`Receiving...(${new Date()})\n${message.toString()}`),
     );
     const tlsWrite = this.client.write.bind(this.client);
     this.client.write = (message) => {
-      console.log(`Sending...(${new Date()})\n` + message);
+      console.log(`Sending...(${new Date()})\n${message}`);
       return tlsWrite(message);
     };
   }
