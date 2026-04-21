@@ -463,7 +463,7 @@ if there is no call queue.
 
 #### Code style
 
-We use `deno fmt && deno lint --fix` to format and lint all code.
+We use `yarn lint` to format and lint all code.
 
 #### Docs
 

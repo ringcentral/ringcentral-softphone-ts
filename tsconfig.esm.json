@@ -1,16 +1,14 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "module": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "target": "ESNext",
+    "types": ["node"],
+    "rootDir": "./src",
     "declaration": true,
-    "outDir": "./dist/esm",
-    "skipLibCheck": true,
-    "paths": {
-      "wait-for-async": ["./node_modules/wait-for-async/dist/esm/index.js"],
-      "werift-rtp": ["./node_modules/werift-rtp/lib/rtp/src/index.js"],
-      "@evan/opus": ["./node_modules/@evan/opus/lib.js"]
-    }
+    "outDir": "./dist",
+    "skipLibCheck": true
   },
   "include": ["src/**/*.ts"]
 }
