@@ -235,7 +235,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
         Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
         "Max-Forwards": 70,
         From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
-        To: `<sip:${callee}@sip.ringcentral.com>`,
+        To: `<sip:${callee}@${this.sipInfo.domain}>`,
         Contact: ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
         "Call-ID": uuid(),
         Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
