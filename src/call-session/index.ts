@@ -13,6 +13,11 @@ import {
 import { branch, extractAddress, localKey, randomInt } from "../utils.js";
 import Streamer from "./streamer.js";
 
+type DtmfChar = (typeof DTMF.phoneChars)[number];
+
+const isDtmfChar = (value: string): value is DtmfChar =>
+  (DTMF.phoneChars as readonly string[]).includes(value);
+
 abstract class CallSession extends EventEmitter {
   public softphone: Softphone;
   public sipMessage: InboundMessage;
@@ -83,9 +88,7 @@ abstract class CallSession extends EventEmitter {
     await this.softphone.send(requestMessage);
   }
 
-  public sendDTMF(
-    char: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "*" | "#",
-  ) {
+  public sendDTMF(char: DtmfChar) {
     const payloads = DTMF.charToPayloads(char);
     const timestamp = this.timestamp;
     let first = true;
@@ -117,7 +120,10 @@ abstract class CallSession extends EventEmitter {
 
   public async sendDTMFs(s: string, delay = 500) {
     for (const c of s) {
-      this.sendDTMF(c as any);
+      if (!isDtmfChar(c)) {
+        throw new Error(`invalid phone char: ${c}`);
+      }
+      this.sendDTMF(c);
       await waitFor({ interval: delay });
     }
   }
