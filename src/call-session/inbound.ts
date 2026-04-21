@@ -1,7 +1,7 @@
-import CallSession from "./index.js";
-import { type InboundMessage, OutboundMessage } from "../sip-message/index.js";
 import type Softphone from "../index.js";
+import { type InboundMessage, OutboundMessage } from "../sip-message/index.js";
 import { localKey, randomInt } from "../utils.js";
+import CallSession from "./index.js";
 
 class InboundCallSession extends CallSession {
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
@@ -39,8 +39,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
         From: this.sipMessage.headers.From,
         To: this.sipMessage.headers.To,
         CSeq: this.sipMessage.headers.CSeq,
-        Contact:
-          `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+        Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
         Allow:
           "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",
         Supported: "replaces, 100rel, timer, norefersub",

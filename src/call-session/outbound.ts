@@ -1,7 +1,7 @@
-import CallSession from "./index.js";
-import { type InboundMessage, RequestMessage } from "../sip-message/index.js";
 import type Softphone from "../index.js";
+import { type InboundMessage, RequestMessage } from "../sip-message/index.js";
 import { extractAddress, withoutTag } from "../utils.js";
+import CallSession from "./index.js";
 
 class OutboundCallSession extends CallSession {
   public constructor(softphone: Softphone, answerMessage: InboundMessage) {
@@ -63,12 +63,12 @@ class OutboundCallSession extends CallSession {
 
   public get sessionId() {
     const header = this.sipMessage.headers["p-rc-api-ids"];
-    let match = header.match(/party-id=([^;]+);session-id=([^;]+)/)!;
+    const match = header.match(/party-id=([^;]+);session-id=([^;]+)/)!;
     return match[2];
   }
   public get partyId() {
     const header = this.sipMessage.headers["p-rc-api-ids"];
-    let match = header.match(/party-id=([^;]+);session-id=([^;]+)/)!;
+    const match = header.match(/party-id=([^;]+);session-id=([^;]+)/)!;
     return match[1];
   }
 }

@@ -1,5 +1,5 @@
-import EventEmitter from "node:events";
 import { Buffer } from "node:buffer";
+import EventEmitter from "node:events";
 
 import { RtpHeader, RtpPacket } from "werift-rtp";
 
@@ -38,8 +38,10 @@ class Streamer extends EventEmitter {
   }
 
   public get finished() {
-    return this.callSession.disposed ||
-      this.buffer.length < this.callSession.softphone.codec.packetSize;
+    return (
+      this.callSession.disposed ||
+      this.buffer.length < this.callSession.softphone.codec.packetSize
+    );
   }
 
   private sendPacket() {

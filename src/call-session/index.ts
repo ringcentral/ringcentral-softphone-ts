@@ -1,19 +1,17 @@
+import { Buffer } from "node:buffer";
 import dgram from "node:dgram";
 import EventEmitter from "node:events";
-import { Buffer } from "node:buffer";
-
+import waitFor from "wait-for-async";
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
-
 import DTMF from "../dtmf.js";
+import type Softphone from "../index.js";
 import {
   type InboundMessage,
   RequestMessage,
   ResponseMessage,
 } from "../sip-message/index.js";
-import type Softphone from "../index.js";
 import { branch, extractAddress, localKey, randomInt } from "../utils.js";
 import Streamer from "./streamer.js";
-import waitFor from "wait-for-async";
 
 abstract class CallSession extends EventEmitter {
   public softphone: Softphone;
@@ -206,13 +204,11 @@ abstract class CallSession extends EventEmitter {
     const requestMessage = new RequestMessage(
       `REFER sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.outboundProxy};transport=tls SIP/2.0`,
       {
-        Via:
-          `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
+        Via: `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
         "Max-Forwards": 70,
         From: this.localPeer,
         To: this.remotePeer,
-        Contact:
-          `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+        Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
         "Call-ID": this.callId,
         Event: "refer",
         Expires: 600,
@@ -220,8 +216,7 @@ abstract class CallSession extends EventEmitter {
         Accept: "message/sipfrag;version=2.0",
         "Allow-Events": "presence, message-summary, refer",
         "Refer-To": `sip:${transferTo}@${this.softphone.sipInfo.domain}`,
-        "Referred-By":
-          `<sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.domain}>`,
+        "Referred-By": `<sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.domain}>`,
       },
     );
     await this.softphone.send(requestMessage);
@@ -253,11 +248,9 @@ abstract class CallSession extends EventEmitter {
         "Call-Id": this.callId,
         From: this.localPeer,
         To: this.remotePeer,
-        Via:
-          `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
+        Via: `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
         "Content-Type": "application/sdp",
-        Contact:
-          ` <sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+        Contact: ` <sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
       },
       newSDP,
     );

@@ -1,16 +1,18 @@
 import EventEmitter from "node:events";
-import tls, { TLSSocket } from "node:tls";
+import tls, { type TLSSocket } from "node:tls";
 
 import waitFor from "wait-for-async";
 
 import InboundCallSession from "./call-session/inbound.js";
 import OutboundCallSession from "./call-session/outbound.js";
+import Codec from "./codec.js";
 import {
   InboundMessage,
   OutboundMessage,
   RequestMessage,
   ResponseMessage,
 } from "./sip-message/index.js";
+import type { SoftPhoneOptions } from "./types.js";
 import {
   branch,
   generateAuthorization,
@@ -18,8 +20,6 @@ import {
   randomInt,
   uuid,
 } from "./utils.js";
-import { SoftPhoneOptions } from "./types.js";
-import Codec from "./codec.js";
 
 class Softphone extends EventEmitter {
   public sipInfo: SoftPhoneOptions;
@@ -98,15 +98,12 @@ class Softphone extends EventEmitter {
       const requestMessage = new RequestMessage(
         `REGISTER sip:${this.sipInfo.domain} SIP/2.0`,
         {
-          Via:
-            `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
+          Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
           "Max-Forwards": "70",
-          From:
-            `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${fromTag}`,
+          From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${fromTag}`,
           To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
           "Call-ID": this.registerCallId,
-          Contact:
-            `<sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
+          Contact: `<sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
           Expires: 3600,
           Allow:
             "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",
@@ -155,10 +152,8 @@ class Softphone extends EventEmitter {
   }
 
   public enableDebugMode() {
-    this.on(
-      "message",
-      (message) =>
-        console.log(`Receiving...(${new Date()})\n` + message.toString()),
+    this.on("message", (message) =>
+      console.log(`Receiving...(${new Date()})\n` + message.toString()),
     );
     const tlsWrite = this.client.write.bind(this.client);
     this.client.write = (message) => {
@@ -194,7 +189,7 @@ class Softphone extends EventEmitter {
         // "12563 INVITE" vs "12563 ACK"
         if (
           inboundMessage.headers.CSeq.trim().split(/\s+/)[0] !==
-            message.headers.CSeq.trim().split(/\s+/)[0]
+          message.headers.CSeq.trim().split(/\s+/)[0]
         ) {
           return;
         }
@@ -237,18 +232,14 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
     const inviteMessage = new RequestMessage(
       `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
       {
-        Via:
-          `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
+        Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
         "Max-Forwards": 70,
-        From:
-          `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
+        From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
         To: `<sip:${callee}@sip.ringcentral.com>`,
-        Contact:
-          ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
+        Contact: ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
         "Call-ID": uuid(),
         Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
-        Allow:
-          `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
+        Allow: `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
         Supported: `replaces, 100rel, timer, norefersub`,
         "Session-Expires": 1800,
         "Min-SE": 90,
