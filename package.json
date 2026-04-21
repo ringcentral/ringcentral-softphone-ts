@@ -27,7 +27,7 @@
     "join": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/join-rcv-meeting.ts",
     "multi": "tsx -r dotenv-override-true/config demos/multiple-calls-sequentially.ts",
     "lint": "biome check --write .",
-    "build": "tsc -p tsconfig.esm.json",
+    "build": "tsc -p tsconfig.json",
     "prepublishOnly": "yarn build",
     "postpublish": "rm -rf dist"
   },
