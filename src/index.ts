@@ -182,9 +182,7 @@ class Softphone extends EventEmitter {
   public send(message: OutboundMessage, waitForReply = false) {
     this.client.write(message.toString());
     if (!waitForReply) {
-      return new Promise<undefined>((resolve) => {
-        resolve(undefined);
-      });
+      return Promise.resolve(undefined);
     }
     return new Promise<InboundMessage>((resolve) => {
       const messageListerner = (inboundMessage: InboundMessage) => {
