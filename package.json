@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "types": "dist/index.d.ts",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
   "files": [
     "dist"
   ],
@@ -13,11 +14,13 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
       "default": "./dist/index.js"
     },
     "./*": {
       "types": "./dist/*.d.ts",
       "import": "./dist/*.js",
+      "require": "./dist/*.cjs",
       "default": "./dist/*.js"
     }
   },
@@ -27,7 +30,7 @@
     "join": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/join-rcv-meeting.ts",
     "multi": "tsx -r dotenv-override-true/config demos/multiple-calls-sequentially.ts",
     "lint": "biome check --write .",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup && tsc -p tsconfig.json --emitDeclarationOnly",
     "prepublishOnly": "yarn build",
     "postpublish": "rm -rf dist"
   },
@@ -41,6 +44,7 @@
     "@biomejs/biome": "^2.4.1",
     "@types/node": "^25.6.0",
     "dotenv-override-true": "^6.2.2",
+    "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "yarn-upgrade-all": "^0.7.5"
