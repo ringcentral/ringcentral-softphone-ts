@@ -730,10 +730,10 @@ unrun@^0.2.37:
   dependencies:
     rolldown "1.0.0-rc.17"
 
-wait-for-async@^0.8.0:
-  version "0.8.0"
-  resolved "https://registry.yarnpkg.com/wait-for-async/-/wait-for-async-0.8.0.tgz#ed2c1a723aa6494c7a7bbdef26e17253596efcca"
-  integrity sha512-yfxsXC1sJZWI1I7V2BXaI2BaQTm8MeE353V1WXRzFc6HcMCxGjP+EUmJJe6h8VPK1anNxVz8jEJ6lQAjjoUrLQ==
+wait-for-async@^0.8.1:
+  version "0.8.1"
+  resolved "https://registry.yarnpkg.com/wait-for-async/-/wait-for-async-0.8.1.tgz#6e6448ec9fb93d2db342638e8599b61da98da506"
+  integrity sha512-RWFqo7llgDioH+iu55jntxCtxNjkobJBoZmOMlCVQBLHVeGi0iQIHshSQ7yxBYg/p5674/MhIlIM22EdmbArlQ==
 
 werift-rtp@^0.8.8:
   version "0.8.8"
