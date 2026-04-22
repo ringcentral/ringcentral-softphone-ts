@@ -30,7 +30,7 @@
     "join": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/join-rcv-meeting.ts",
     "multi": "tsx -r dotenv-override-true/config demos/multiple-calls-sequentially.ts",
     "lint": "biome check --write .",
-    "build": "tsup && tsc -p tsconfig.json --emitDeclarationOnly",
+    "build": "tsdown",
     "prepublishOnly": "yarn build",
     "postpublish": "rm -rf dist"
   },
@@ -44,7 +44,7 @@
     "@biomejs/biome": "^2.4.1",
     "@types/node": "^25.6.0",
     "dotenv-override-true": "^6.2.2",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.21.10",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "yarn-upgrade-all": "^0.7.5"
