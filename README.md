@@ -127,6 +127,32 @@ await softphone.register();
 
 For complete examples, see [demos/](demos/)
 
+## E2E test (real credentials)
+
+This repository includes one real integration test under `tests/e2e/`.
+
+Put two SIP accounts in `.env`:
+
+```bash
+SIP_A_DOMAIN=sip.ringcentral.com
+SIP_A_OUTBOUND_PROXY=sip10.ringcentral.com:5096
+SIP_A_USERNAME=1650...
+SIP_A_PASSWORD=...
+SIP_A_AUTHORIZATION_ID=...
+
+SIP_B_DOMAIN=sip.ringcentral.com
+SIP_B_OUTBOUND_PROXY=sip10.ringcentral.com:5096
+SIP_B_USERNAME=1650...
+SIP_B_PASSWORD=...
+SIP_B_AUTHORIZATION_ID=...
+```
+
+Run:
+
+```bash
+yarn test:e2e
+```
+
 ## Debug mode
 
 ```ts
