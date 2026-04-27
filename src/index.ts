@@ -56,6 +56,11 @@ class Softphone extends EventEmitter {
         this.connected = true;
       },
     );
+    const tlsWrite = this.client.write.bind(this.client);
+    this.client.write = (message) => {
+      this.emit("outboundMessage", message.toString());
+      return tlsWrite(message);
+    };
 
     let cache = "";
     this.client.on("data", (data) => {
@@ -157,11 +162,9 @@ class Softphone extends EventEmitter {
     this.on("message", (message) =>
       console.log(`Receiving...(${new Date()})\n${message.toString()}`),
     );
-    const tlsWrite = this.client.write.bind(this.client);
-    this.client.write = (message) => {
+    this.on("outboundMessage", (message) => {
       console.log(`Sending...(${new Date()})\n${message}`);
-      return tlsWrite(message);
-    };
+    });
   }
 
   public revoke() {
