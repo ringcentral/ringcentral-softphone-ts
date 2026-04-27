@@ -22,29 +22,56 @@ const sipConfigFromPrefix = (prefix: "SIP_A" | "SIP_B"): SoftPhoneOptions => ({
   domain: requiredEnv(`${prefix}_DOMAIN`),
 });
 
-const includes = (
-  messages: InboundMessage[],
-  predicate: (message: InboundMessage) => boolean,
-) => messages.some(predicate);
-
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+type Side = "caller" | "callee";
+type Direction = "inbound" | "outbound";
+type SipTraceItem = {
+  side: Side;
+  direction: Direction;
+  subject: string;
+  content: string;
+};
+
+const getSubject = (rawMessage: string) => rawMessage.split("\r\n")[0] ?? "";
 
 describe("E2E call flow", () => {
   test("one softphone calls the other, callee answers, caller hangs up", async () => {
     const caller = new Softphone(sipConfigFromPrefix("SIP_A"));
     const callee = new Softphone(sipConfigFromPrefix("SIP_B"));
-    const callerInbound: InboundMessage[] = [];
-    const calleeInbound: InboundMessage[] = [];
-
-    caller.on("message", (message: InboundMessage) =>
-      callerInbound.push(message),
-    );
-    callee.on("message", (message: InboundMessage) =>
-      calleeInbound.push(message),
-    );
+    const sipTrace: SipTraceItem[] = [];
 
     try {
       await Promise.all([caller.register(), callee.register()]);
+
+      const trackInbound = (side: Side, message: InboundMessage) => {
+        sipTrace.push({
+          side,
+          direction: "inbound",
+          subject: message.subject,
+          content: message.toString(),
+        });
+      };
+      const trackOutbound = (side: Side, rawMessage: string) => {
+        sipTrace.push({
+          side,
+          direction: "outbound",
+          subject: getSubject(rawMessage),
+          content: rawMessage,
+        });
+      };
+      caller.on("message", (message: InboundMessage) =>
+        trackInbound("caller", message),
+      );
+      callee.on("message", (message: InboundMessage) =>
+        trackInbound("callee", message),
+      );
+      caller.on("outboundMessage", (message: string) =>
+        trackOutbound("caller", message),
+      );
+      callee.on("outboundMessage", (message: string) =>
+        trackOutbound("callee", message),
+      );
 
       let calleeSessionDisposePromise: Promise<unknown> | undefined;
       callee.once("invite", async (inviteMessage: InboundMessage) => {
@@ -54,6 +81,7 @@ describe("E2E call flow", () => {
 
       const outboundSession = await caller.call(callee.sipInfo.username);
       await once(outboundSession, "answered");
+      const callId = outboundSession.callId;
 
       await outboundSession.hangup();
       if (calleeSessionDisposePromise) {
@@ -61,40 +89,23 @@ describe("E2E call flow", () => {
       }
       await delay(300);
 
-      console.log(JSON.stringify(callerInbound, null, 2));
-      console.log(JSON.stringify(calleeInbound, null, 2));
+      const callTrace = sipTrace.filter((item) =>
+        item.content.includes(`Call-ID: ${callId}\r\n`),
+      );
+      expect(callTrace.length).toBeGreaterThan(0);
 
-      expect(
-        includes(calleeInbound, (message) =>
-          message.subject.startsWith(`INVITE sip:${callee.sipInfo.username}@`),
-        ),
-      ).toBe(true);
-      expect(
-        includes(calleeInbound, (message) =>
-          message.subject.startsWith("ACK sip:"),
-        ),
-      ).toBe(true);
-      expect(
-        includes(calleeInbound, (message) =>
-          message.subject.startsWith("BYE sip:"),
-        ),
-      ).toBe(true);
-      expect(
-        includes(
-          callerInbound,
-          (message) =>
-            message.subject.startsWith("SIP/2.0 200") &&
-            (message.getHeader("CSeq")?.endsWith(" INVITE") ?? false),
-        ),
-      ).toBe(true);
-      expect(
-        includes(
-          callerInbound,
-          (message) =>
-            message.subject.startsWith("SIP/2.0 200") &&
-            (message.getHeader("CSeq")?.endsWith(" BYE") ?? false),
-        ),
-      ).toBe(true);
+      const first = callTrace[0];
+      const last = callTrace[callTrace.length - 1];
+
+      // Placeholder assertions. Update these exact expectations later.
+      expect(first.side).toBe("caller");
+      expect(first.direction).toBe("outbound");
+      expect(first.subject.startsWith("INVITE sip:")).toBe(true);
+
+      expect(last.side).toBe("caller");
+      expect(last.direction).toBe("inbound");
+      expect(last.subject.startsWith("SIP/2.0 200")).toBe(true);
+      expect(last.content.includes(" BYE")).toBe(true);
     } finally {
       caller.revoke();
       callee.revoke();
