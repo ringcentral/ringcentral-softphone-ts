@@ -31,6 +31,7 @@ type SipTraceItem = {
   direction: Direction;
   subject: string;
   content: string;
+  timestamp: string;
 };
 
 const getSubject = (rawMessage: string) => rawMessage.split("\r\n")[0] ?? "";
@@ -50,6 +51,7 @@ describe("E2E call flow", () => {
           direction: "inbound",
           subject: message.subject,
           content: message.toString(),
+          timestamp: new Date().toISOString(),
         });
       };
       const trackOutbound = (side: Side, rawMessage: string) => {
@@ -58,6 +60,7 @@ describe("E2E call flow", () => {
           direction: "outbound",
           subject: getSubject(rawMessage),
           content: rawMessage,
+          timestamp: new Date().toISOString(),
         });
       };
       caller.on("message", (message: InboundMessage) =>
@@ -83,6 +86,8 @@ describe("E2E call flow", () => {
       await once(outboundSession, "answered");
       const callId = outboundSession.callId;
 
+      await delay(3000);
+
       await outboundSession.hangup();
       if (calleeSessionDisposePromise) {
         await calleeSessionDisposePromise;
@@ -93,6 +98,8 @@ describe("E2E call flow", () => {
         item.content.includes(`Call-ID: ${callId}\r\n`),
       );
       expect(callTrace.length).toBeGreaterThan(0);
+
+      console.log(JSON.stringify(callTrace, null, 2));
 
       const first = callTrace[0];
       const last = callTrace[callTrace.length - 1];
