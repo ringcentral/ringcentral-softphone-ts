@@ -9,13 +9,14 @@ Users are recommended to use this SDK instead of the JavaScript SDK.
 This SDK allows you to create a softphone without GUI that runs on server-side
 without a web browser.
 
-## New documentation and new name
+## More documentation
 
-New documentation is available here:
+More documentation is available here:
 https://ringcentral.github.io/ringcentral-softphone-ts/
 
-We are renaming this SDK to **RingCentral Cloud Phone SDK**, and it is currently
-a work in progress.
+But the documentation is not very up-to-date. And it mentions another name of this SDK: **RingCentral Cloud Phone SDK**
+
+It's just for your information. Latest documentation is always this README file.
 
 ## Installation
 
