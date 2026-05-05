@@ -1,0 +1,27 @@
+name: Test
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      SIP_A_OUTBOUND_PROXY: ${{ secrets.SIP_A_OUTBOUND_PROXY }}
+      SIP_A_DOMAIN: ${{ secrets.SIP_A_DOMAIN }}
+      SIP_A_USERNAME: ${{ secrets.SIP_A_USERNAME }}
+      SIP_A_PASSWORD: ${{ secrets.SIP_A_PASSWORD }}
+      SIP_A_AUTHORIZATION_ID: ${{ secrets.SIP_A_AUTHORIZATION_ID }}
+      SIP_B_OUTBOUND_PROXY: ${{ secrets.SIP_B_OUTBOUND_PROXY }}
+      SIP_B_DOMAIN: ${{ secrets.SIP_B_DOMAIN }}
+      SIP_B_USERNAME: ${{ secrets.SIP_B_USERNAME }}
+      SIP_B_PASSWORD: ${{ secrets.SIP_B_PASSWORD }}
+      SIP_B_AUTHORIZATION_ID: ${{ secrets.SIP_B_AUTHORIZATION_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn test
