@@ -151,7 +151,7 @@ SIP_B_AUTHORIZATION_ID=...
 Run:
 
 ```bash
-yarn test:e2e
+yarn test
 ```
 
 ## Debug mode
