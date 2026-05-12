@@ -1,11 +1,17 @@
+import type dgram from "node:dgram";
 import type Softphone from "../index.js";
 import { type InboundMessage, RequestMessage } from "../sip-message/index.js";
 import { extractAddress, withoutTag } from "../utils.js";
 import CallSession from "./index.js";
 
 class OutboundCallSession extends CallSession {
-  public constructor(softphone: Softphone, answerMessage: InboundMessage) {
+  public constructor(
+    softphone: Softphone,
+    answerMessage: InboundMessage,
+    socket: dgram.Socket,
+  ) {
     super(softphone, answerMessage);
+    this.socket = socket;
     this.localPeer = answerMessage.headers.From;
     this.remotePeer = answerMessage.headers.To;
     this.remoteKey = answerMessage.body.match(

@@ -1,6 +1,6 @@
 import type Softphone from "../index.js";
 import { type InboundMessage, OutboundMessage } from "../sip-message/index.js";
-import { localKey, randomInt } from "../utils.js";
+import { localKey } from "../utils.js";
 import CallSession from "./index.js";
 
 class InboundCallSession extends CallSession {
@@ -17,13 +17,15 @@ class InboundCallSession extends CallSession {
   }
 
   public async answer() {
+    const { socket, port } = await CallSession.createBoundSocket();
+    this.socket = socket;
     const answerSDP = `
 v=0
 o=- ${Date.now()} 0 IN IP4 ${this.softphone.client.localAddress}
 s=rc-softphone-ts
 c=IN IP4 ${this.softphone.client.localAddress}
 t=0 0
-m=audio ${randomInt()} RTP/SAVP ${this.softphone.codec.id} 101
+m=audio ${port} RTP/SAVP ${this.softphone.codec.id} 101
 a=rtpmap:${this.softphone.codec.id} ${this.softphone.codec.name}
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15

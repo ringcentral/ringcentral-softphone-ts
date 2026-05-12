@@ -4,6 +4,7 @@ import tls, { type TLSSocket } from "node:tls";
 import waitFor from "wait-for-async";
 
 import InboundCallSession from "./call-session/inbound.js";
+import CallSession from "./call-session/index.js";
 import OutboundCallSession from "./call-session/outbound.js";
 import Codec from "./codec.js";
 import {
@@ -13,13 +14,7 @@ import {
   ResponseMessage,
 } from "./sip-message/index.js";
 import type { SoftPhoneOptions } from "./types.js";
-import {
-  branch,
-  generateAuthorization,
-  localKey,
-  randomInt,
-  uuid,
-} from "./utils.js";
+import { branch, generateAuthorization, localKey, uuid } from "./utils.js";
 
 class Softphone extends EventEmitter {
   public sipInfo: SoftPhoneOptions;
@@ -219,13 +214,14 @@ class Softphone extends EventEmitter {
   }
 
   public async call(callee: string) {
+    const { socket, port } = await CallSession.createBoundSocket();
     const offerSDP = `
 v=0
 o=- ${Date.now()} 0 IN IP4 ${this.client.localAddress}
 s=rc-softphone-ts
 c=IN IP4 ${this.client.localAddress}
 t=0 0
-m=audio ${randomInt()} RTP/SAVP ${this.codec.id} 101
+m=audio ${port} RTP/SAVP ${this.codec.id} 101
 a=rtpmap:${this.codec.id} ${this.codec.name}
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
@@ -260,7 +256,11 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
       "INVITE",
     );
     const progressMessage = await this.send(newMessage, true);
-    const outboundCallSession = new OutboundCallSession(this, progressMessage);
+    const outboundCallSession = new OutboundCallSession(
+      this,
+      progressMessage,
+      socket,
+    );
     outboundCallSession.sdp = offerSDP;
     return outboundCallSession;
   }

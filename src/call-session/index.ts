@@ -53,6 +53,27 @@ abstract class CallSession extends EventEmitter {
     }
   }
 
+  public static async createBoundSocket() {
+    const socket = dgram.createSocket("udp4");
+    return await new Promise<{ socket: dgram.Socket; port: number }>(
+      (resolve, reject) => {
+        const onError = (error: Error) => {
+          socket.removeListener("listening", onListening);
+          socket.close();
+          reject(error);
+        };
+        const onListening = () => {
+          socket.removeListener("error", onError);
+          const address = socket.address();
+          resolve({ socket, port: address.port });
+        };
+        socket.once("error", onError);
+        socket.once("listening", onListening);
+        socket.bind(0);
+      },
+    );
+  }
+
   public set remoteKey(key: string) {
     const localKeyBuffer = Buffer.from(localKey, "base64");
     const remoteKeyBuffer = Buffer.from(key, "base64");
@@ -145,7 +166,11 @@ abstract class CallSession extends EventEmitter {
   }
 
   protected startLocalServices() {
-    this.socket = dgram.createSocket("udp4");
+    if (!this.socket) {
+      throw new Error(
+        "RTP socket is not initialized; expected pre-bound socket from SDP setup",
+      );
+    }
     this.socket.on("message", (message) => {
       const rtpPacket = RtpPacket.deSerialize(
         this.srtpSession.decrypt(message),
@@ -180,9 +205,6 @@ abstract class CallSession extends EventEmitter {
       }
     });
 
-    // as I tested, we can use a random port here and it still works
-    // but it seems that in SDP we need to tell remote our local IP Address, not 127.0.0.1
-    this.socket.bind(); // random port
     // send a message to remote server so that it knows where to reply
     this.send("hello");
 
