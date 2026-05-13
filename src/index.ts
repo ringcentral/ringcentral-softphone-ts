@@ -153,12 +153,19 @@ class Softphone extends EventEmitter {
     });
   }
 
-  public enableDebugMode() {
-    this.on("message", (message) =>
-      console.log(`Receiving...(${new Date()})\n${message.toString()}`),
-    );
+  public enableDebugMode(
+    options = {
+      inboundPrefix: "Receiving...\n",
+      outboundPrefix: "Sending...\n",
+    },
+  ) {
+    this.on("message", (message) => {
+      console.log(
+        `${options.inboundPrefix}(${new Date()})\n${message.toString()}`,
+      );
+    });
     this.on("outboundMessage", (message) => {
-      console.log(`Sending...(${new Date()})\n${message}`);
+      console.log(`${options.outboundPrefix}(${new Date()})\n${message}`);
     });
   }
 
