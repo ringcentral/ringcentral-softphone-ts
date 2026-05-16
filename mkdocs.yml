@@ -37,11 +37,8 @@ theme:
       toggle:
         icon: material/toggle-switch-off-outline
         name: Switch to light mode
-  font:
-    text: Roboto
-    code: Roboto Mono
-
 plugins:
+  - material-ringcentral:
   - search:
       separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
   - badges
