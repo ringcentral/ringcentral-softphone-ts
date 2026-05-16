@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import process from "node:process";
-import waitFor from "wait-for-async";
 import type { RtpPacket } from "werift-rtp";
 
 import Softphone from "../src/index.js";

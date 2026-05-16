@@ -1,18 +1,22 @@
+import { Buffer } from "node:buffer";
 import dgram from "node:dgram";
 import EventEmitter from "node:events";
-import { Buffer } from "node:buffer";
-
+import waitFor from "wait-for-async";
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
-
 import DTMF from "../dtmf.js";
+import type Softphone from "../index.js";
 import {
   type InboundMessage,
   RequestMessage,
   ResponseMessage,
 } from "../sip-message/index.js";
-import type Softphone from "../index.js";
-import { branch, localKey, randomInt } from "../utils.js";
+import { branch, extractAddress, localKey, randomInt } from "../utils.js";
 import Streamer from "./streamer.js";
+
+type DtmfChar = (typeof DTMF.phoneChars)[number];
+
+const isDtmfChar = (value: string): value is DtmfChar =>
+  (DTMF.phoneChars as readonly string[]).includes(value);
 
 abstract class CallSession extends EventEmitter {
   public softphone: Softphone;
@@ -20,12 +24,13 @@ abstract class CallSession extends EventEmitter {
   public socket!: dgram.Socket;
   public localPeer!: string;
   public remotePeer!: string;
-  public remoteIP: string;
-  public remotePort: number;
+  public remoteIP!: string;
+  public remotePort!: number;
   public disposed = false;
   public srtpSession!: SrtpSession;
   public encoder: { encode: (pcm: Buffer) => Buffer };
   public decoder: { decode: (audio: Buffer) => Buffer };
+  public sdp!: string;
 
   // for audio streaming
   public ssrc = randomInt();
@@ -38,10 +43,34 @@ abstract class CallSession extends EventEmitter {
     this.encoder = softphone.codec.createEncoder();
     this.decoder = softphone.codec.createDecoder();
     this.sipMessage = sipMessage;
-    this.remoteIP = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-    this.remotePort = parseInt(
-      this.sipMessage.body.match(/m=audio (\d+) /)![1],
-      10,
+    // inbound call from call queue, invite message may not have body
+    if (this.sipMessage.body.length > 0) {
+      this.remoteIP = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
+      this.remotePort = parseInt(
+        this.sipMessage.body.match(/m=audio (\d+) /)![1],
+        10,
+      );
+    }
+  }
+
+  public static async createBoundSocket() {
+    const socket = dgram.createSocket("udp4");
+    return await new Promise<{ socket: dgram.Socket; port: number }>(
+      (resolve, reject) => {
+        const onError = (error: Error) => {
+          socket.removeListener("listening", onListening);
+          socket.close();
+          reject(error);
+        };
+        const onListening = () => {
+          socket.removeListener("error", onError);
+          const address = socket.address();
+          resolve({ socket, port: address.port });
+        };
+        socket.once("error", onError);
+        socket.once("listening", onListening);
+        socket.bind(0);
+      },
     );
   }
 
@@ -80,32 +109,43 @@ abstract class CallSession extends EventEmitter {
     await this.softphone.send(requestMessage);
   }
 
-  public sendDTMF(
-    char: "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "*" | "#",
-  ) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    let sequenceNumber = timestamp % 65536;
-    const rtpHeader = new RtpHeader({
-      version: 2,
-      padding: false,
-      paddingSize: 0,
-      extension: false,
-      marker: false,
-      payloadOffset: 12,
-      payloadType: 101,
-      sequenceNumber,
-      timestamp,
-      ssrc: randomInt(),
-      csrcLength: 0,
-      csrc: [],
-      extensionProfile: 48862,
-      extensionLength: undefined,
-      extensions: [],
-    });
-    for (const payload of DTMF.charToPayloads(char)) {
-      rtpHeader.sequenceNumber = sequenceNumber++;
+  public sendDTMF(char: DtmfChar) {
+    const payloads = DTMF.charToPayloads(char);
+    const timestamp = this.timestamp;
+    let first = true;
+    for (const payload of payloads) {
+      const rtpHeader = new RtpHeader({
+        version: 2,
+        padding: false,
+        paddingSize: 0,
+        extension: false,
+        marker: first,
+        payloadOffset: 12,
+        payloadType: 101,
+        sequenceNumber: this.sequenceNumber,
+        timestamp,
+        ssrc: this.ssrc,
+        csrcLength: 0,
+        csrc: [],
+        extensionProfile: 48862,
+        extensionLength: undefined,
+        extensions: [],
+      });
       const rtpPacket = new RtpPacket(rtpHeader, payload);
       this.send(this.srtpSession.encrypt(rtpPacket.payload, rtpPacket.header));
+      this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
+      first = false;
+    }
+    this.timestamp += 800;
+  }
+
+  public async sendDTMFs(s: string, delay = 500) {
+    for (const c of s) {
+      if (!isDtmfChar(c)) {
+        throw new Error(`invalid phone char: ${c}`);
+      }
+      this.sendDTMF(c);
+      await waitFor({ interval: delay });
     }
   }
 
@@ -126,7 +166,11 @@ abstract class CallSession extends EventEmitter {
   }
 
   protected startLocalServices() {
-    this.socket = dgram.createSocket("udp4");
+    if (!this.socket) {
+      throw new Error(
+        "RTP socket is not initialized; expected pre-bound socket from SDP setup",
+      );
+    }
     this.socket.on("message", (message) => {
       const rtpPacket = RtpPacket.deSerialize(
         this.srtpSession.decrypt(message),
@@ -161,9 +205,6 @@ abstract class CallSession extends EventEmitter {
       }
     });
 
-    // as I tested, we can use a random port here and it still works
-    // but it seems that in SDP we need to tell remote our local IP Address, not 127.0.0.1
-    this.socket.bind(); // random port
     // send a message to remote server so that it knows where to reply
     this.send("hello");
 
@@ -191,13 +232,11 @@ abstract class CallSession extends EventEmitter {
     const requestMessage = new RequestMessage(
       `REFER sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.outboundProxy};transport=tls SIP/2.0`,
       {
-        Via:
-          `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
+        Via: `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
         "Max-Forwards": 70,
         From: this.localPeer,
         To: this.remotePeer,
-        Contact:
-          `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+        Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
         "Call-ID": this.callId,
         Event: "refer",
         Expires: 600,
@@ -205,8 +244,7 @@ abstract class CallSession extends EventEmitter {
         Accept: "message/sipfrag;version=2.0",
         "Allow-Events": "presence, message-summary, refer",
         "Refer-To": `sip:${transferTo}@${this.softphone.sipInfo.domain}`,
-        "Referred-By":
-          `<sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.domain}>`,
+        "Referred-By": `<sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.domain}>`,
       },
     );
     await this.softphone.send(requestMessage);
@@ -225,6 +263,45 @@ abstract class CallSession extends EventEmitter {
       };
       this.softphone.on("message", notifyHandler);
     });
+  }
+
+  public async toggleReceive(toReceive: boolean) {
+    let newSDP = this.sdp;
+    if (!toReceive) {
+      newSDP = newSDP.replace(/a=sendrecv/, "a=sendonly");
+    }
+    const requestMessage = new RequestMessage(
+      `INVITE ${extractAddress(this.remotePeer)} SIP/2.0`,
+      {
+        "Call-Id": this.callId,
+        From: this.localPeer,
+        To: this.remotePeer,
+        Via: `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
+        "Content-Type": "application/sdp",
+        Contact: ` <sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+      },
+      newSDP,
+    );
+    const replyMessage = await this.softphone.send(requestMessage, true);
+    const ackMessage = new RequestMessage(
+      `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
+      {
+        "Call-Id": this.callId,
+        From: this.localPeer,
+        To: this.remotePeer,
+        Via: replyMessage.headers.Via,
+        CSeq: replyMessage.headers.CSeq.replace(" INVITE", " ACK"),
+      },
+    );
+    await this.softphone.send(ackMessage);
+  }
+
+  public async hold() {
+    return this.toggleReceive(false);
+  }
+
+  public async unhold() {
+    return this.toggleReceive(true);
   }
 }
 

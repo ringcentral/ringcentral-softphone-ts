@@ -12,7 +12,7 @@ class InboundMessage extends SipMessage {
       headers.map((line) => line.split(": ")),
     );
     if (sipMessage.headers.To && !sipMessage.headers.To.includes(";tag=")) {
-      sipMessage.headers.To += ";tag=" + uuid(); // generate local tag
+      sipMessage.headers.To += `;tag=${uuid()}`; // generate local tag
     }
     return sipMessage;
   }

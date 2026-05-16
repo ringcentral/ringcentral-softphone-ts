@@ -34,6 +34,10 @@ const main = async () => {
     callSession.on("audioPacket", (rtpPacket: RtpPacket) => {
       writeStream.write(rtpPacket.payload);
     });
+    // either you or the peer hang up
+    callSession.once("disposed", () => {
+      writeStream.close();
+    });
 
     // call transfer
     // await waitFor({ interval: 3000 });
@@ -54,11 +58,6 @@ const main = async () => {
     // streamer.stop();
     // // you may start/restart the streaming:
     // streamer.start();
-
-    // either you or the peer hang up
-    callSession.once("disposed", () => {
-      writeStream.close();
-    });
 
     // receive DTMF
     callSession.on("dtmf", (digit) => {

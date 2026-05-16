@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import { SoftPhoneOptions } from "./types.js";
+import type { SoftPhoneOptions } from "./types.js";
 
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 
@@ -34,13 +34,13 @@ export const generateAuthorization = (
       nonce,
     ),
   };
-  return Object.keys(authObj)
-    .map((key) => `${key}="${authObj[key]}"`)
+  return Object.entries(authObj)
+    .map(([key, value]) => `${key}="${value}"`)
     .join(", ");
 };
 
 export const uuid = () => crypto.randomUUID();
-export const branch = () => "z9hG4bK-" + uuid();
+export const branch = () => `z9hG4bK-${uuid()}`;
 
 export const randomInt = () =>
   Math.floor(Math.random() * (65535 - 1024 + 1)) + 1024;
