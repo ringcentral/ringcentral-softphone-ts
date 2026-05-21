@@ -114,6 +114,9 @@ class Softphone extends EventEmitter {
         // sometimes the server will return 200 OK directly
         return;
       }
+      if (!inboundMessage.subject.startsWith("SIP/2.0 401 ")) {
+        throw new Error(`Failed to register: ${inboundMessage.subject}`);
+      }
       const wwwAuth = inboundMessage.getHeader("Www-Authenticate")!;
       const nonce = wwwAuth.match(/, nonce="(.+?)"/)![1];
       const newMessage = requestMessage.fork();
