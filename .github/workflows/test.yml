@@ -24,5 +24,6 @@ jobs:
         with:
           node-version: 24
           cache: yarn
-      - run: yarn install --frozen-lockfile
+      - run: rm yarn.lock
+      - run: yarn install --registry https://registry.npmjs.org/
       - run: yarn test
