@@ -18,12 +18,9 @@ const newSoftphoneInstance = async (name: string) => {
 };
 
 const main = async () => {
-  await newSoftphoneInstance("Softphone 1");
-  await newSoftphoneInstance("Softphone 2");
-  await newSoftphoneInstance("Softphone 3");
-  await newSoftphoneInstance("Softphone 4");
-  await newSoftphoneInstance("Softphone 5");
-  await newSoftphoneInstance("Softphone 6");
+  for (let i = 1; i <= 10; i++) {
+    await newSoftphoneInstance(`Softphone ${i}`);
+  }
 };
 main();
 
