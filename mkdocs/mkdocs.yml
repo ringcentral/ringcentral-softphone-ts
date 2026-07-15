@@ -1,0 +1,65 @@
+site_name: RingCentral Softphone SDK for TypeScript
+site_description: Build headless RingCentral calling integrations in Node.js.
+site_url: https://ringcentral.github.io/ringcentral-softphone-ts/
+
+repo_url: https://github.com/ringcentral/ringcentral-softphone-ts
+repo_name: ringcentral/ringcentral-softphone-ts
+edit_uri: edit/main/mkdocs/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.path
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - scheme: default
+      primary: custom
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to light mode
+
+plugins:
+  - material-ringcentral
+  - search
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - admonition
+  - tables
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+
+extra_css:
+  - assets/extra.css
+
+copyright: "2024-2026 RingCentral, Inc. All rights reserved."
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Calls: guides/call-control.md
+  - Audio: guides/audio.md
+  - DTMF: guides/dtmf.md
+  - Advanced Usage: guides/advanced.md
+  - API Reference:
+      - Softphone: reference/softphone.md
+      - CallSession: reference/call-session.md
+      - Streamer: reference/streamer.md
+  - Examples: examples.md
+  - Troubleshooting: troubleshooting.md

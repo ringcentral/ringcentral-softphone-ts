@@ -1,17 +1,31 @@
-name: Publish documentation
+name: Documentation
+
 on:
   push:
     branches:
       - main
+  pull_request:
+
 permissions:
   contents: write
+
 jobs:
-  deploy:
+  docs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
-          python-version: 3.11
-      - run: pip install -r requirements.txt
-      - run: mkdocs gh-deploy --force -f mkdocs.yml
+          python-version: "3.11"
+      - run: pip install -r mkdocs/requirements.txt
+      - name: Enforce Softphone SDK naming
+        run: |
+          if git grep -niE 'cloud[ _-]*phone' -- README.md mkdocs; then
+            echo "Use Softphone SDK naming in documentation."
+            exit 1
+          fi
+      - name: Build documentation
+        run: mkdocs build --strict -f mkdocs/mkdocs.yml --site-dir "${RUNNER_TEMP}/mkdocs-site"
+      - name: Deploy documentation
+        if: github.event_name == 'push'
+        run: mkdocs gh-deploy --force -f mkdocs/mkdocs.yml

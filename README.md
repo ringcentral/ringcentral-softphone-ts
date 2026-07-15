@@ -1,105 +1,72 @@
 # RingCentral Softphone SDK for TypeScript
 
-This is a TypeScript SDK for RingCentral Softphone. It is a complete rewrite of
-the
-[RingCentral Softphone SDK for JavaScript](https://github.com/ringcentral/ringcentral-softphone-js)
+`ringcentral-softphone` creates a headless RingCentral softphone in Node.js. It
+supports inbound and outbound calls, DTMF, audio streaming, transfer, hold, and
+unhold without a browser or graphical interface.
 
-Users are recommended to use this SDK instead of the JavaScript SDK.
+This project is a TypeScript rewrite of the
+[RingCentral Softphone SDK for JavaScript](https://github.com/ringcentral/ringcentral-softphone-js),
+and is recommended for new integrations.
 
-This SDK allows you to create a softphone without GUI that runs on server-side
-without a web browser.
-
-## More documentation
-
-More documentation is available here:
-https://ringcentral.github.io/ringcentral-softphone-ts/
-
-But the documentation is not very up-to-date. And it mentions another name of this SDK: **RingCentral Cloud Phone SDK**
-
-It's just for your information. Latest documentation is always this README file.
+The README is the source of truth. The same information is organized as a
+task-focused guide in the maintained
+[hosted documentation](https://ringcentral.github.io/ringcentral-softphone-ts/).
 
 ## Installation
 
+```bash
+yarn add ringcentral-softphone
 ```
-yarn install ringcentral-softphone
+
+Or with npm:
+
+```bash
+npm install ringcentral-softphone
 ```
 
-## Where to get credentials?
+## Get SIP credentials
 
-### Manually
+You need the SIP domain, TLS outbound proxy, username, password, and
+authorization ID for an **Existing Phone** device.
 
-1. Login to https://service.ringcentral.com
-2. Find the user/extension you want to use
-3. Check the user's "Devices & Numbers"
-4. Find a phone/device that you want to use (Phone type **must** be "Existing
-   Phone"), if there is none, you need to create one.
-5. Click the "Set Up and Provision" button
-6. Click the link "Set up manually using SIP"
-7. You will find "SIP Domain", "Outbound Proxy", "User Name", "Password" and
-   "Authorization ID"
+### From the RingCentral web portal
 
-Please note that, "SIP Domain" name should come without port number. I don't
-know why it shows a port number on the page. This SDK requires a "domain" which
-is "SIP Domain" but without the port number.
+1. Sign in to [RingCentral](https://service.ringcentral.com).
+2. Open the user or extension that will place and receive calls.
+3. Open **Devices & Numbers**.
+4. Select an **Existing Phone** device, or create one if necessary.
+5. Select **Set Up and Provision**.
+6. Select **Set up manually using SIP**.
+7. Copy the SIP domain, outbound proxy, username, password, and authorization ID.
 
-Please also note that, not every device/phone can be used with the softphone
-SDK. Some phones/devices with type "RingCentral Phone app" cannot be used with
-the softphone SDK. You will need to have a device/phone with type **"Exsting
-Phone"**.
+Remove the port from the SIP domain. For example, use
+`sip.ringcentral.com`, not `sip.ringcentral.com:5061`. Keep the port in the
+outbound proxy.
 
-### Programmatically
+Not every device can be used by this SDK. In particular, a device shown as the
+RingCentral desktop or mobile app is not an **Existing Phone** device.
 
-Invoke this API to list all devices under an extension:
-https://developers.ringcentral.com/api-reference/Devices/listExtensionDevices
+### From the RingCentral REST API
 
-Please note that, not every device can be used for this softphone SDK. You will
-need to find an device with **`type: 'OtherPhone'`**. Devices with
-`type: 'SoftPhone'` can **NOT** be used for this softphone SDK.
+Use
+[List Extension Devices](https://developers.ringcentral.com/api-reference/Devices/listExtensionDevices)
+to find a device whose API `type` is `OtherPhone`. The API type `SoftPhone`
+represents a RingCentral app device and cannot be used with this SDK.
 
-I know this is confusing. `type: 'SoftPhone'` in API response is the same as
-`type = "RingCentral Phone app"` in the GUI (mentioned in the Manually section
-above). `type: 'OtherPhone'` in API response is the same as
-`type = "Exiting Phone"` in the GUI.
-
-If you cannot find an appropriate device, you will need to create a device
-manually. Please refer to the previous section.
-
-Invoke this RESTful API:
-https://developers.ringcentral.com/api-reference/Devices/readDeviceSipInfo
-
-Please note that, in order to invoke this API, you need to be familiar with
-RingCentral RESTful programmming.
-
-Here is a demo:
-https://github.com/tylerlong/rc-get-device-info-demo/blob/main/src/demo.ts
-
-The credentials data returned by that API is like this:
+Then call
+[Read Device SIP Information](https://developers.ringcentral.com/api-reference/Devices/readDeviceSipInfo).
+Choose the `proxyTLS` value for the region nearest your workload because the SDK
+connects over TLS. The response has this shape:
 
 ```json
 {
   "domain": "sip.ringcentral.com",
   "outboundProxies": [
     {
-      "region": "EMEA",
-      "proxy": "sip40.ringcentral.com:5090",
-      "proxyTLS": "sip40.ringcentral.com:5096"
-    },
-    {
-      "region": "APAC",
-      "proxy": "sip71.ringcentral.com:5090",
-      "proxyTLS": "sip71.ringcentral.com:5096"
-    },
-    {
       "region": "NA",
-      "proxy": "SIP20.ringcentral.com:5090",
+      "proxy": "sip20.ringcentral.com:5090",
       "proxyTLS": "sip20.ringcentral.com:5096"
-    },
-    {
-      "region": "LATAM",
-      "proxy": "sip80.ringcentral.com:5090",
-      "proxyTLS": "sip80.ringcentral.com:5096"
     }
-    ...
   ],
   "userName": "16501234567",
   "password": "password",
@@ -107,32 +74,325 @@ The credentials data returned by that API is like this:
 }
 ```
 
-You will need to choose a outboundProxy value based on your location. And please
-choose the `proxyTLS` value because this SDK uses TLS. For example if you live
-in north America, choose `sip10.ringcentral.com:5096`.
+See the maintained
+[credential lookup demo](https://github.com/tylerlong/rc-get-device-info-demo/blob/main/src/demo.ts)
+for a complete REST API example.
 
-## Usage
+## Configure a Softphone
+
+```ts
+import Softphone from "ringcentral-softphone";
+
+const requiredEnv = (name: string) => {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing environment variable: ${name}`);
+  return value;
+};
+
+const softphone = new Softphone({
+  domain: requiredEnv("SIP_INFO_DOMAIN"),
+  outboundProxy: requiredEnv("SIP_INFO_OUTBOUND_PROXY"),
+  username: requiredEnv("SIP_INFO_USERNAME"),
+  password: requiredEnv("SIP_INFO_PASSWORD"),
+  authorizationId: requiredEnv("SIP_INFO_AUTHORIZATION_ID"),
+});
+```
+
+### Softphone options
+
+| Option | Type | Required | Description |
+| --- | --- | --- | --- |
+| `domain` | `string` | Yes | SIP domain without a port, such as `sip.ringcentral.com`. |
+| `outboundProxy` | `string` | Yes | Regional TLS proxy including its port, such as `sip20.ringcentral.com:5096`. |
+| `username` | `string` | Yes | SIP username. |
+| `password` | `string` | Yes | SIP password. |
+| `authorizationId` | `string` | Yes | SIP authorization ID. |
+| `codec` | `"OPUS/16000" \| "OPUS/48000/2" \| "PCMU/8000"` | No | Audio codec; defaults to `OPUS/16000`. |
+| `ignoreTlsCertErrors` | `boolean` | No | Disables TLS certificate verification; defaults to `false`. Use only in controlled development environments. |
+
+## Receive a call
+
+Attach the `invite` listener before registering so an inbound call cannot arrive
+between registration and listener setup. `answer()` resolves to the resulting
+call session.
 
 ```ts
 import Softphone from "ringcentral-softphone";
 
 const softphone = new Softphone({
-  domain: process.env.SIP_INFO_DOMAIN,
-  outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY,
-  username: process.env.SIP_INFO_USERNAME,
-  password: process.env.SIP_INFO_PASSWORD,
-  authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID,
+  domain: process.env.SIP_INFO_DOMAIN!,
+  outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY!,
+  username: process.env.SIP_INFO_USERNAME!,
+  password: process.env.SIP_INFO_PASSWORD!,
+  authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID!,
 });
+
+softphone.on("invite", async (inviteMessage) => {
+  const callSession = await softphone.answer(inviteMessage);
+
+  callSession.on("dtmf", (digit) => console.log("DTMF:", digit));
+  callSession.on("audioPacket", (packet) => {
+    console.log("Received audio bytes:", packet.payload.length);
+  });
+  callSession.once("disposed", () => {
+    console.log("Call ended");
+    softphone.revoke();
+  });
+
+  callSession.sendDTMF("1");
+});
+
 await softphone.register();
 ```
 
-For complete examples, see [demos/](demos/)
+To reject an invite instead, call `await softphone.decline(inviteMessage)`.
 
-## E2E test (real credentials)
+## Place a call
 
-This repository includes one real integration test under `tests/e2e/`.
+Use a country-code-qualified destination. The returned outbound call session
+emits `answered` or `busy`.
 
-Put two SIP accounts in `.env`:
+```ts
+import Softphone from "ringcentral-softphone";
+
+const softphone = new Softphone({
+  domain: process.env.SIP_INFO_DOMAIN!,
+  outboundProxy: process.env.SIP_INFO_OUTBOUND_PROXY!,
+  username: process.env.SIP_INFO_USERNAME!,
+  password: process.env.SIP_INFO_PASSWORD!,
+  authorizationId: process.env.SIP_INFO_AUTHORIZATION_ID!,
+});
+
+await softphone.register();
+const callSession = await softphone.call("16505550100");
+
+callSession.once("answered", async () => {
+  console.log("Call answered");
+  callSession.sendDTMF("1");
+  await callSession.sendDTMFs("01#", 500);
+  await callSession.hold();
+  await callSession.unhold();
+  await callSession.hangup();
+  softphone.revoke();
+});
+
+callSession.once("busy", () => {
+  console.log("The destination is busy or cannot be reached");
+  softphone.revoke();
+});
+
+callSession.once("disposed", () => console.log("Call session disposed"));
+```
+
+Call `await callSession.cancel()` before the peer answers to cancel an outbound
+call. Use `await callSession.transfer("16505550101")` to transfer an active call.
+
+Complete programs are maintained under [`demos/`](demos/).
+
+## Consumer API
+
+The tables below intentionally document the supported integration surface. Raw
+sockets, SRTP state, codec workers, peers, sequence counters, and internal
+helpers are implementation details.
+
+### Softphone methods
+
+| Method | Result | Purpose |
+| --- | --- | --- |
+| `register()` | `Promise<void>` | Connect and register; refreshes the registration until revoked. |
+| `revoke()` | `void` | Stop registration, remove listeners, and close the TLS connection. |
+| `enableDebugMode(options?)` | `void` | Log inbound and outbound SIP messages, optionally with custom prefixes. |
+| `answer(inviteMessage)` | `Promise<InboundCallSession>` | Answer an inbound invite and create its call session. |
+| `decline(inviteMessage)` | `Promise<void>` | Decline an inbound invite with SIP status 603. |
+| `call(callee)` | `Promise<OutboundCallSession>` | Start an outbound call. |
+
+### Softphone events and observation properties
+
+| Member | Payload/value | Purpose |
+| --- | --- | --- |
+| `invite` | `InboundMessage` | A new inbound call can be answered or declined. |
+| `message` | `InboundMessage` | Observe every parsed inbound SIP message. |
+| `outboundMessage` | `string` | Observe every serialized outbound SIP message. |
+| `registrationError` | `Error` | A registration refresh failed. |
+| `sipInfo` | `SoftPhoneOptions` | The active SIP configuration. Treat credentials as sensitive. |
+| `codec.id` | `number` | RTP payload type for the selected audio codec; useful when forwarding RTP. |
+
+### CallSession methods
+
+| Method | Result | Purpose |
+| --- | --- | --- |
+| `hangup()` | `Promise<void>` | Hang up an active call. |
+| `sendDTMF(char)` | `void` | Send one of `0-9`, `*`, `#`, or `A-D`. |
+| `sendDTMFs(chars, delay?)` | `Promise<void>` | Send a sequence with a 500 ms default delay after each character. |
+| `streamAudio(buffer)` | `Streamer` | Start sending a buffer in the selected codec's raw input format. |
+| `sendPacket(rtpPacket)` | `void` | Forward a received RTP packet to this session. |
+| `transfer(destination)` | `Promise<void>` | Transfer an active call. |
+| `hold()` / `unhold()` | `Promise<void>` | Stop or resume receiving remote audio through SIP re-invite. |
+| `cancel()` | `Promise<void>` | Cancel an unanswered outbound call. Outbound only. |
+
+### CallSession properties and events
+
+| Member | Payload/value | Purpose |
+| --- | --- | --- |
+| `callId` | `string` | SIP Call-ID for inbound and outbound calls. |
+| `disposed` | `boolean` | Whether the session has been disposed. |
+| `sessionId` | `string` | RingCentral telephony session ID. Outbound only. |
+| `partyId` | `string` | RingCentral telephony party ID. Outbound only. |
+| `answered` | no payload | The peer answered. Outbound only. |
+| `busy` | no payload | The destination returned SIP 486 and the session was disposed. Outbound only. |
+| `disposed` | no payload | The session closed. |
+| `audioPacket` | `RtpPacket` | Decoded audio in `packet.payload`. |
+| `dtmf` | `string` | A decoded DTMF character. |
+| `dtmfPacket` | `RtpPacket` | An incoming telephone-event RTP packet. |
+| `rtpPacket` | `RtpPacket` | Any decrypted incoming RTP packet, before audio decoding. |
+
+### Streamer controls, state, and events
+
+| Member | Result/value | Purpose |
+| --- | --- | --- |
+| `start()` | `void` | Start from the beginning, or restart after completion. |
+| `stop()` | `void` | Stop and discard the remaining buffered audio. |
+| `pause()` | `void` | Pause sending. |
+| `resume()` | `void` | Resume sending. |
+| `paused` | `boolean` | Whether sending is paused. |
+| `finished` | `boolean` | Whether the buffer is exhausted or the call is disposed. |
+| `finished` event | no payload | The audio buffer has been sent. |
+
+## Audio
+
+`audioPacket` exposes audio in the selected codec's decoded format.
+`streamAudio()` expects a `Buffer` in the matching input format:
+
+| Codec | Format | Playback example |
+| --- | --- | --- |
+| `OPUS/16000` (default) | 16-bit signed little-endian PCM, 16 kHz, mono | `ffplay -autoexit -f s16le -ar 16000 -ac 1 audio.raw` |
+| `OPUS/48000/2` | 16-bit signed little-endian PCM, 48 kHz, stereo | `ffplay -autoexit -f s16le -ar 48000 -ac 2 audio.raw` |
+| `PCMU/8000` | 8-bit mu-law, 8 kHz, mono | `ffplay -autoexit -f mulaw -ar 8000 -ac 1 audio.raw` |
+
+For example:
+
+```ts
+import fs from "node:fs";
+
+const streamer = callSession.streamAudio(fs.readFileSync("audio.raw"));
+streamer.once("finished", () => console.log("Audio sent"));
+streamer.pause();
+streamer.resume();
+streamer.stop();
+streamer.start();
+```
+
+If a call is put on hold while streaming, pause the streamer and resume it after
+unholding.
+
+## DTMF
+
+Send a single character immediately:
+
+```ts
+callSession.sendDTMF("1");
+```
+
+Send a sequence with a delay after each character:
+
+```ts
+await callSession.sendDTMFs("101#", 500);
+```
+
+Listen for decoded inbound DTMF:
+
+```ts
+callSession.on("dtmf", (digit) => console.log("DTMF:", digit));
+```
+
+## Advanced usage
+
+### Debug and SIP observation
+
+```ts
+softphone.enableDebugMode();
+
+softphone.on("message", (message) => {
+  console.log("Inbound SIP subject:", message.subject);
+});
+
+softphone.on("outboundMessage", (message) => {
+  console.log("Outbound SIP message:", message);
+});
+```
+
+Custom debug prefixes can distinguish multiple instances:
+
+```ts
+softphone.enableDebugMode({
+  inboundPrefix: "Instance A receiving...\n",
+  outboundPrefix: "Instance A sending...\n",
+});
+```
+
+### Forward RTP between call sessions
+
+```ts
+callSession1.on("rtpPacket", (packet) => {
+  if (packet.header.payloadType === softphone.codec.id) {
+    callSession2.sendPacket(packet);
+  }
+});
+```
+
+`sendPacket()` encrypts the packet for the destination call session. Do not
+access the underlying sockets or SRTP session directly.
+
+### Multiple instances with the same credentials
+
+Multiple instances can register with the same credentials, but only the most
+recent instance receives inbound calls.
+
+### Telephony session and party IDs
+
+Outbound call sessions expose `sessionId` and `partyId`, parsed from the
+`p-rc-api-ids` SIP header. RingCentral does not include these values in the
+initial inbound invite. For inbound calls, see the
+[call-ID workaround](https://github.com/tylerlong/rc-softphone-call-id-test).
+
+### TLS certificate errors
+
+Most applications should leave certificate verification enabled. For a trusted,
+controlled lab with a self-signed or misconfigured certificate, set
+`ignoreTlsCertErrors: true`. This makes the connection vulnerable to
+man-in-the-middle attacks and must not be used in production.
+
+### Conferences
+
+Conference creation and management use the RingCentral REST API and are outside
+this SDK's scope, but the SDK can place calls into conferences. See the
+[conference demo project](https://github.com/tylerlong/softphone-invite-agent-to-conference-demo).
+
+## Troubleshooting
+
+### Outbound call emits `busy`
+
+SIP status 486 means the destination is busy or cannot be reached. Confirm that:
+
+- The destination includes its country code and is valid.
+- The device has a valid **Emergency Address** in the RingCentral portal.
+
+The SDK emits `busy` and disposes the outbound call session.
+
+### Only one instance receives inbound calls
+
+This is expected when several instances use the same credentials. The most
+recent registration receives inbound calls.
+
+### TLS certificate validation fails
+
+Fix the certificate chain in production. Use `ignoreTlsCertErrors` only for a
+trusted development environment.
+
+## End-to-end test with real credentials
+
+The integration test under `tests/e2e/` uses two SIP accounts. Put them in
+`.env`:
 
 ```bash
 SIP_A_DOMAIN=sip.ringcentral.com
@@ -148,357 +408,35 @@ SIP_B_PASSWORD=...
 SIP_B_AUTHORIZATION_ID=...
 ```
 
-Run:
+Run it with:
 
 ```bash
 yarn test
 ```
 
-## Debug mode
+## Development
 
-```ts
-softphone.enableDebugMode(); // print all SIP messages
+Format and lint the project:
+
+```bash
+yarn lint
 ```
 
-## Supported features
+Install and serve the documentation:
 
-- inbound call
-- outbound call
-- inbound DTMF
-- outbound DTMF
-- decline inbound call
-- cancel outbound call
-- hang up ongoing call
-- receive audio stream from peer
-- stream local audio to remote peer
-- call transfer
-- hold / unhold
-
-## inbound call
-
-```ts
-softphone.on("invite", async (inviteMessage) => {
-});
+```bash
+python -m pip install -r mkdocs/requirements.txt
+mkdocs serve -f mkdocs/mkdocs.yml
 ```
 
-## outbound call
+Build documentation strictly:
 
-```ts
-const callSession = await softphone.call("12345678987");
+```bash
+mkdocs build --strict -f mkdocs/mkdocs.yml
 ```
 
-## outbound DTMF
-
-```ts
-callSession.sendDTMF("1");
-```
-
-### A sugar method to send DTMFs
-
-```ts
-await callSession.sendDTMFs("101#", 500);
-```
-
-It will send four chars (1,0,1,#) one by one. After sending each one, it will
-pause for 500ms.
-
-## inbound DTMF
-
-```ts
-callSession.on("dtmf", (digit) => {
-  console.log("dtmf", digit);
-});
-```
-
-## decline inbound call
-
-```ts
-softphone.on("invite", async (inviteMessage) => {
-  // decline the call
-  // await waitFor({ interval: 1000 });
-  await softphone.decline(inviteMessage);
-}
-```
-
-## cancel outbound call
-
-```ts
-callSession.cancel();
-```
-
-This should be invoked BEFORE the call is answered
-
-## hang up ongoing call
-
-```ts
-callSession.hangup();
-```
-
-## receive audio stream from peer
-
-```ts
-const writeStream = fs.createWriteStream(`${callSession.callId}.wav`, {
-  flags: "a",
-});
-callSession.on("audioPacket", (rtpPacket: RtpPacket) => {
-  writeStream.write(rtpPacket.payload);
-});
-// either you or the peer hang up
-callSession.once("disposed", () => {
-  writeStream.close();
-});
-```
-
-## stream local audio to remote peer
-
-```ts
-// send audio to remote peer
-const streamer = callSession.streamAudio(
-  fs.readFileSync("demos/opus-48000-2.wav"),
-);
-// You may subscribe to the 'finished' event of the streamer to know when the audio sending is finished
-streamer.once("finished", () => {
-  console.log("audio sending finished");
-});
-
-// // You may loop the streaming:
-// streamer.on("finished", () => {
-//   streamer.start();
-// })
-
-// // you may pause/resume/stop audio sending at any time
-// await waitFor({ interval: 3000 });
-// streamer.pause();
-// await waitFor({ interval: 3000 });
-// streamer.resume();
-// await waitFor({ interval: 2000 });
-// streamer.stop();
-
-// // you may start/restart the streaming:
-// streamer.start();
-```
-
-## call transfer
-
-```ts
-await callSession.transfer("12345678987");
-```
-
-## hold / unhold
-
-```ts
-await callSession.hold();
-await callSession.unhold();
-```
-
-Please note that, if you are streaming audio to remote peer, you may want to
-pause the streaming when the call is on hold.
-
-## Audio codec
-
-### By default it is `OPUS/16000`
-
-### Other codecs
-
-There are two more codecs supported: `OPUS/48000/2` and `PCMU/8000`.
-
-To use them, you will need to explicitly set them when creating the softphone
-instance:
-
-```ts
-import Softphone from "ringcentral-softphone";
-
-const softphone = new Softphone({
-  // ...
-  codec: "PCMU/8000", // or "OPUS/48000/2" or "OPUS/16000"
-  // ...
-});
-```
-
-### OPUS/16000
-
-The codec used between server and client is "OPUS/16000". This SDK will auto
-decode/encode the codec to/from "uncompressed PCM".
-
-Bit rate is 16, which means 16 bits per sample. Sample rate is 16000, which
-means 16000 samples per second. Encoding is "signed-integer".
-
-You may play saved audio by the following command:
-
-```
-play -t raw -b 16 -r 16000 -e signed-integer test.wav
-```
-
-To stream an audio file to remote peer, you need to make sure that the audio
-file is playable by the command above.
-
-#### ffmpeg
-
-If you prefer ffmpeg, here is the command to play the file:
-
-```
-ffplay -autoexit -f s16le -ar 16000 test.wav
-```
-
-#### how to generate audio file for testing
-
-On macOS:
-
-```
-say "Hello world" -o test.wav --data-format=LEI16@16000
-```
-
-For Linux and Windows, please do some investigation yourself. Audio file
-generation is out of scope of this SDK.
-
-### PCMU/8000
-
-If you choose this codec, make sure audio is playable using the following
-commands:
-
-```
-play -b 8 -r 8000 -e mu-law test.raw
-```
-
-Please note that, if I name the file as *.wav, `play` will complain:
-
-```
-play FAIL formats: can't open input file `6fdbbf2f-74fe-437a-b5a7-80c0c546baf0.wav': WAVE: RIFF header not found
-```
-
-Either you rename it to *.raw or use `ffplay` instead
-
-```
-ffplay -autoexit -f mulaw -ar 8000 test.wav
-```
-
-### OPUS/48000/2
-
-If you choose this codec, make sure audio is playable using the following
-commands:
-
-```
-play -t raw -b 16 -r 48000 -e signed-integer -c 2 test.wav
-```
-
-I don't know how to use `ffplay` to play such an audio file. Please create a PR
-if you know, thanks.
-
-## Multiple instances with same credentials
-
-You can run multiple softphone instances with the same credentials without
-encountering any errors. However, only the most recent instance will receive
-inbound calls.
-
-In the future, we may consider supporting multiple active instances using the
-same credentials. For now, we believe there is no demand for this functionality.
-
-## Invalid callee number
-
-If you call an invalid number. The sip server will return "SIP/2.0 486 Busy
-Here".
-
-This SDK will emit a "busy" event for the call session and dispose it.
-
-You can detect such an event by:
-
-```ts
-callSession.once("busy", () => {
-  console.log("cannot reach the callee number");
-});
-```
-
-## Pipe a call session to another
-
-When you get audio from a call session, you may forward it to another call
-session:
-
-```ts
-callSession1.on("rtpPacket", (rtpPacket: RtpPacket) => {
-  // if statement is to make sure that it is an audio packet
-  if (rtpPacket.header.payloadType === softphone.codec.id) {
-    callSession2.sendPacket(rtpPacket);
-  }
-});
-```
-
-## Telephony Session ID (& Call Party ID)
-
-For outbound calls, you will be able to find header like this
-`p-rc-api-ids: party-id=p-a0d17e323f0fez1953f50f90dz296e3440000-1;session-id=s-a0d17e323f0fez1953f50f90dz296e3440000`
-from `outbounCallSession.sipMessage.headers`. I have added two sugar methods:
-`outboundCallSession.sessionId` and `outboundCallSession.partyId`.
-
-However, for inbound calls, the SIP server doesn't tell us anything about the
-Telephony Session ID. You may use
-[this workaround](https://github.com/tylerlong/rc-softphone-call-id-test).
-
-## 🔧 `ignoreTlsCertErrors` (optional)
-
-Most developers **do not need this option**.
-
-However, in rare cases — such as testing in a **lab or development environment**
-with self-signed or improperly configured TLS certificates — you may encounter
-certificate validation errors when establishing a TLS connection.
-
-To bypass these errors, you can set the `ignoreTlsCertErrors` flag to `true`:
-
-```ts
-const softphone = new Softphone({
-  ...
-  ignoreTlsCertErrors: true
-});
-```
-
-> ⚠️ Warning: Enabling this option disables certificate verification and makes
-> the TLS connection vulnerable to man-in-the-middle (MITM) attacks. Use only in
-> trusted, controlled environments — never in production.
-
-## Troubleshooting (Common issues)
-
-### `SIP/2.0 486 Busy Here` for outbound call
-
-First of all, make sure that the target number is valid. If the target number is
-invalid, you will get `SIP/2.0 486 Busy Here`.
-
-Secondly, make sure that the device has a "Emergency Address" configured and
-there is no complains about Emergency address by checking the details of the
-device on https://service.ringcentral.com. It is an known issue that, if the
-Emergency Address is not configured properly, outbound call will not work.
-
----
-
-## Dev Notes
-
-Content below is for the maintainer/contributor of this SDK.
-
-- We don't need to explicitly tell remote server our local UDP port (for audio
-  streaming) via SIP SDP message. We send a RTP message to the remote server
-  first, so the remote server knows our IP and port. So, the port number in SDP
-  message could be fake.
-- Ref: https://www.ietf.org/rfc/rfc3261.txt
-- Caller Id feature is not supported. `P-Asserted-Identity` doesn't work. I
-  think it is by design, since hardphone cannot support it.
-
-## Conferences
-
-Conference involves RESTful API which is out of scope of this SDK. With this
-being said, this SDK works well with conferences. Here is a
-[demo project for this SDK work with conferences](https://github.com/tylerlong/softphone-invite-agent-to-conference-demo).
-The demo is about making a call to a call queue number, it would be even simpler
-if there is no call queue.
-
-#### Code style
-
-We use `yarn lint` to format and lint all code.
-
-#### Docs
-
-All docs related files are located in `mkdocs` folder.
-
-You will need to setup Python environment and install everything in
-`mkdocs/requirements.txt`.
-
-Serve the docs locally: `mkdocs serve -f mkdocs/mkdocs.yml`.
-
-Deploy the docs: `mkdocs gh-deploy -f mkdocs/mkdocs.yml`
+The SDK intentionally relies on the initial RTP packet to establish the local
+media endpoint, so the SDP port does not need to expose a separately configured
+local UDP port. SIP behavior is based on [RFC 3261](https://www.rfc-editor.org/rfc/rfc3261).
+
+Caller-ID selection through `P-Asserted-Identity` is not supported.
