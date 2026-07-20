@@ -1,4 +1,4 @@
-# Audio
+# Audio & DTMF
 
 Call sessions emit received audio and can stream a `Buffer` to the remote peer.
 The raw buffer format depends on the codec selected when constructing the
@@ -23,16 +23,16 @@ const softphone = new Softphone({
 
 ## Receive audio
 
-For Opus codecs, `audioPacket.payload` contains decoded PCM. For PCMU, it
-contains mu-law bytes.
+For Opus codecs, the `audio` event provides decoded PCM. For PCMU, it provides
+mu-law bytes. The event payload is a `Buffer`.
 
 ```ts
 import fs from "node:fs";
 
 const output = fs.createWriteStream(`${callSession.callId}.raw`);
 
-callSession.on("audioPacket", (packet) => {
-  output.write(packet.payload);
+callSession.on("audio", (audio) => {
+  output.write(audio);
 });
 
 callSession.once("disposed", () => output.close());
@@ -61,5 +61,30 @@ streamer.start(); // restart from the beginning
 
 Pause streaming while the call is on hold, then resume after unholding.
 
-The repository contains small test buffers used by the maintained demos. See
-the [Examples](../examples.md) page.
+## Send DTMF
+
+DTMF characters are limited to `0-9`, `*`, and `#`. Send one character
+immediately:
+
+```ts
+callSession.sendDTMF("1");
+```
+
+Send a sequence with a delay after each character. The default delay is 500
+milliseconds:
+
+```ts
+await callSession.sendDTMFs("101#", 500);
+```
+
+## Receive DTMF
+
+```ts
+callSession.on("dtmf", (digit) => {
+  console.log("DTMF:", digit);
+});
+```
+
+The repository contains small test buffers used by the maintained programs.
+See the [Demos](../examples.md) page, including the
+[meeting example](https://github.com/ringcentral/ringcentral-softphone-ts/blob/main/demos/join-rcv-meeting.ts).

@@ -1,4 +1,4 @@
-# Examples
+# Demos
 
 The repository demos are maintained as executable TypeScript programs. This
 page keeps only short patterns and links to those source files, avoiding copied

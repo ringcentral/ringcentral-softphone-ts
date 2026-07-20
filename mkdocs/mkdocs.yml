@@ -54,12 +54,6 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Calls: guides/call-control.md
-  - Audio: guides/audio.md
-  - DTMF: guides/dtmf.md
-  - Advanced Usage: guides/advanced.md
-  - API Reference:
-      - Softphone: reference/softphone.md
-      - CallSession: reference/call-session.md
-      - Streamer: reference/streamer.md
-  - Examples: examples.md
+  - Audio & DTMF: guides/audio.md
+  - Demos: examples.md
   - Troubleshooting: troubleshooting.md

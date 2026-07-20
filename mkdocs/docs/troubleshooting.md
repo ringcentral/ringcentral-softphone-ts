@@ -39,8 +39,9 @@ Call `softphone.enableDebugMode()` to inspect the SIP exchange. The initial
 ## Audio is distorted or silent
 
 The input to `streamAudio()` must match the selected codec exactly. Check the
-sample format, sample rate, and channel count on the [Audio](guides/audio.md)
-page. The SDK does not resample or convert files.
+sample format, sample rate, and channel count on the
+[Audio & DTMF](guides/audio.md) page. The SDK does not resample or convert
+files.
 
 ## Inbound telephony IDs are missing
 

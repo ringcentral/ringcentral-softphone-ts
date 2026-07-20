@@ -111,4 +111,49 @@ between registration and listener setup.
 | `codec` | No | `OPUS/16000` (default), `OPUS/48000/2`, or `PCMU/8000`. |
 | `ignoreTlsCertErrors` | No | Disable TLS certificate checks in a controlled development environment only. |
 
+Types for options, invites, call sessions, outbound call sessions, and audio
+streamers are available from the package root. Inline values are inferred, so
+import these types only when a function or stored value needs an annotation:
+
+```ts
+import type {
+  CallSession,
+  InboundInvite,
+  OutboundCallSession,
+  SoftphoneOptions,
+  Streamer,
+} from "ringcentral-softphone";
+```
+
+Call `softphone.revoke()` when the application no longer needs the
+registration.
+
+## Debug registration
+
+`register()` rejects when the initial registration fails. Listen for
+`registrationError` to handle a later registration refresh failure:
+
+```ts
+softphone.on("registrationError", (error) => {
+  console.error("Registration refresh failed", error);
+});
+
+softphone.enableDebugMode();
+```
+
+Custom prefixes help distinguish logs from multiple instances:
+
+```ts
+softphone.enableDebugMode({
+  inboundPrefix: "Instance A receiving...\n",
+  outboundPrefix: "Instance A sending...\n",
+});
+```
+
+## TLS certificates
+
+Certificate verification is enabled by default. Fix the certificate chain in
+production. Set `ignoreTlsCertErrors: true` only in a trusted, controlled
+development environment because it permits man-in-the-middle attacks.
+
 Next, [answer or place a call](guides/call-control.md).

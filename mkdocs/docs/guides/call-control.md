@@ -20,8 +20,8 @@ softphone.on("invite", async (inviteMessage) => {
   const callSession = await softphone.answer(inviteMessage);
 
   callSession.on("dtmf", (digit) => console.log("DTMF:", digit));
-  callSession.on("audioPacket", (packet) => {
-    console.log("Received audio bytes:", packet.payload.length);
+  callSession.on("audio", (audio) => {
+    console.log("Received audio bytes:", audio.length);
   });
   callSession.once("disposed", () => {
     console.log("Call ended");
@@ -96,8 +96,46 @@ await callSession.hold();
 await callSession.unhold();
 ```
 
-Hold stops receiving remote audio through a SIP re-invite. If audio is being
-streamed to the peer, pause its `Streamer` while the call is on hold.
+Hold temporarily stops receiving remote audio. If audio is being streamed to
+the peer, pause its `Streamer` while the call is on hold.
+
+## Telephony session and party IDs
+
+Outbound sessions expose optional `sessionId` and `partyId` values after
+RingCentral supplies them:
+
+```ts
+callSession.once("answered", () => {
+  console.log(callSession.sessionId, callSession.partyId);
+});
+```
+
+RingCentral does not include these values in the initial inbound invite. For
+inbound calls, see the
+[call-ID workaround](https://github.com/tylerlong/rc-softphone-call-id-test).
+
+## Multiple instances
+
+Several instances can register with the same credentials, but only the most
+recent instance receives inbound calls. See the
+[multiple-instances demo](https://github.com/ringcentral/ringcentral-softphone-ts/blob/main/demos/multi-instances.ts).
+
+## Meetings
+
+Conference creation and management use the RingCentral REST API and are outside
+this SDK's scope. The SDK can still dial a meeting and send its access code with
+DTMF. See the
+[meeting demo](https://github.com/ringcentral/ringcentral-softphone-ts/blob/main/demos/join-rcv-meeting.ts)
+and the
+[conference integration demo](https://github.com/tylerlong/softphone-invite-agent-to-conference-demo).
+
+## Limitations
+
+- Only the most recent registration receives inbound calls when credentials
+  are shared by several instances.
+- Inbound invites do not provide RingCentral telephony session or party IDs.
+- Selecting a custom caller ID is not supported.
+- Conference orchestration belongs to the RingCentral REST API, not this SDK.
 
 See the complete maintained
 [inbound](https://github.com/ringcentral/ringcentral-softphone-ts/blob/main/demos/inbound-call.ts)
