@@ -1,6 +1,6 @@
 {
   "name": "ringcentral-softphone",
-  "version": "1.3.9",
+  "version": "2.0.0-beta.1",
   "homepage": "https://github.com/ringcentral/ringcentral-softphone-ts",
   "license": "MIT",
   "type": "module",
@@ -12,27 +12,30 @@
   ],
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs",
-      "default": "./dist/index.mjs"
-    },
-    "./*": {
-      "types": "./dist/*.d.mts",
-      "import": "./dist/*.mjs",
-      "require": "./dist/*.cjs",
-      "default": "./dist/*.mjs"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "scripts": {
-    "in": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/inbound-call.ts",
-    "out": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/outbound-call.ts",
-    "join": "rm -rf *.wav && tsx -r dotenv-override-true/config demos/join-rcv-meeting.ts",
+    "in": "rm -f -- *.wav *.raw && tsx -r dotenv-override-true/config demos/inbound-call.ts",
+    "out": "rm -f -- *.wav *.raw && tsx -r dotenv-override-true/config demos/outbound-call.ts",
+    "join": "rm -f -- *.wav *.raw && tsx -r dotenv-override-true/config demos/join-rcv-meeting.ts",
     "multi-call": "tsx -r dotenv-override-true/config demos/multiple-calls-sequentially.ts",
     "multi-inst": "tsx -r dotenv-override-true/config demos/multi-instances.ts",
     "lint": "biome check --write .",
-    "test": "vitest run",
+    "test": "vitest run --exclude 'tests/e2e/**'",
+    "test:e2e": "vitest run tests/e2e",
+    "typecheck": "tsc --noEmit",
+    "typecheck:demos": "tsc -p demos/tsconfig.json",
     "typecheck:tests": "tsc -p tests/tsconfig.json",
+    "test:package": "yarn build && tsc -p tests/package/tsconfig.json && node tests/package/declarations.mjs && node tests/package/runtime.mjs && node tests/package/runtime.cjs",
+    "validate": "yarn typecheck && yarn typecheck:demos && yarn typecheck:tests && yarn test && yarn test:package",
     "build": "tsdown",
     "prepublishOnly": "yarn build",
     "postpublish": "rm -rf dist"
