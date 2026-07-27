@@ -4,6 +4,13 @@ import { type InboundMessage, RequestMessage } from "../sip-message/index.js";
 import { extractAddress, withoutTag } from "../utils.js";
 import CallSession from "./index.js";
 
+export const parseTelephonyId = (
+  header: string | undefined,
+  name: "party-id" | "session-id",
+): string | undefined =>
+  header?.match(new RegExp(`(?:^|;)\\s*${name}=([^;]+)`, "i"))?.[1]?.trim() ||
+  undefined;
+
 class OutboundCallSession extends CallSession {
   public constructor(
     softphone: Softphone,
@@ -68,14 +75,17 @@ class OutboundCallSession extends CallSession {
   }
 
   public get sessionId() {
-    const header = this.sipMessage.headers["p-rc-api-ids"];
-    const match = header.match(/party-id=([^;]+);session-id=([^;]+)/)!;
-    return match[2];
+    return parseTelephonyId(
+      this.sipMessage.getHeader("P-Rc-Api-Ids"),
+      "session-id",
+    );
   }
+
   public get partyId() {
-    const header = this.sipMessage.headers["p-rc-api-ids"];
-    const match = header.match(/party-id=([^;]+);session-id=([^;]+)/)!;
-    return match[1];
+    return parseTelephonyId(
+      this.sipMessage.getHeader("P-Rc-Api-Ids"),
+      "party-id",
+    );
   }
 }
 

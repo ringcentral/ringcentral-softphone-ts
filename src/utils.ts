@@ -1,11 +1,11 @@
 import crypto from "node:crypto";
 
-import type { SoftPhoneOptions } from "./types.js";
+import type { SoftphoneOptions } from "./types.js";
 
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 
 const generateResponse = (
-  sipInfo: SoftPhoneOptions,
+  sipInfo: SoftphoneOptions,
   endpoint: string,
   nonce: string,
 ) => {
@@ -18,7 +18,7 @@ const generateResponse = (
 };
 
 export const generateAuthorization = (
-  sipInfo: SoftPhoneOptions,
+  sipInfo: SoftphoneOptions,
   nonce: string,
   method: "REGISTER" | "INVITE",
 ) => {

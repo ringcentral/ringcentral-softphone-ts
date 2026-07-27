@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import process from "node:process";
-import type { RtpPacket } from "werift-rtp";
 
 import Softphone from "../src/index.js";
 
@@ -26,11 +25,11 @@ const main = async () => {
   // callee answers the call
   callSession.once("answered", async () => {
     // receive audio
-    const writeStream = fs.createWriteStream(`${callSession.callId}.wav`, {
+    const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, {
       flags: "a",
     });
-    callSession.on("audioPacket", (rtpPacket: RtpPacket) => {
-      writeStream.write(rtpPacket.payload);
+    callSession.on("audio", (audio) => {
+      writeStream.write(audio);
     });
     // either you or the peer hang up
     callSession.once("disposed", () => {

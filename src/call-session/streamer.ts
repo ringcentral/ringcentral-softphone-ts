@@ -3,9 +3,10 @@ import EventEmitter from "node:events";
 
 import { RtpHeader, RtpPacket } from "werift-rtp";
 
+import type { StreamerEventMap } from "../types.js";
 import type CallSession from "./index.js";
 
-class Streamer extends EventEmitter {
+class Streamer extends EventEmitter<StreamerEventMap> {
   public paused = false;
   private callSession: CallSession;
   private buffer: Buffer;

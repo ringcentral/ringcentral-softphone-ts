@@ -10,15 +10,26 @@ import {
   RequestMessage,
   ResponseMessage,
 } from "../sip-message/index.js";
+import type {
+  DtmfChar,
+  OutboundCallSessionEventMap,
+  Streamer as PublicStreamer,
+} from "../types.js";
 import { branch, extractAddress, localKey, randomInt } from "../utils.js";
 import Streamer from "./streamer.js";
-
-type DtmfChar = (typeof DTMF.phoneChars)[number];
 
 const isDtmfChar = (value: string): value is DtmfChar =>
   (DTMF.phoneChars as readonly string[]).includes(value);
 
-abstract class CallSession extends EventEmitter {
+export const requireCallId = (message: InboundMessage): string => {
+  const callId = message.getHeader("Call-ID")?.trim();
+  if (!callId) {
+    throw new Error("Cannot create call session without a Call-ID header");
+  }
+  return callId;
+};
+
+abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   public softphone: Softphone;
   public sipMessage: InboundMessage;
   public socket!: dgram.Socket;
@@ -31,11 +42,14 @@ abstract class CallSession extends EventEmitter {
   public encoder: { encode: (pcm: Buffer) => Buffer };
   public decoder: { decode: (audio: Buffer) => Buffer };
   public sdp!: string;
+  public readonly callId: string;
 
   // for audio streaming
   public ssrc = randomInt();
   public sequenceNumber = randomInt();
   public timestamp = randomInt();
+
+  private byeHandler?: (message: InboundMessage) => void;
 
   public constructor(softphone: Softphone, sipMessage: InboundMessage) {
     super();
@@ -43,6 +57,8 @@ abstract class CallSession extends EventEmitter {
     this.encoder = softphone.codec.createEncoder();
     this.decoder = softphone.codec.createDecoder();
     this.sipMessage = sipMessage;
+    this.callId = requireCallId(sipMessage);
+
     // inbound call from call queue, invite message may not have body
     if (this.sipMessage.body.length > 0) {
       this.remoteIP = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
@@ -88,10 +104,6 @@ abstract class CallSession extends EventEmitter {
     });
   }
 
-  public get callId() {
-    return this.sipMessage.getHeader("Call-ID");
-  }
-
   public send(data: string | Buffer) {
     this.socket.send(data, this.remotePort, this.remoteIP);
   }
@@ -107,6 +119,7 @@ abstract class CallSession extends EventEmitter {
       },
     );
     await this.softphone.send(requestMessage);
+    this.dispose();
   }
 
   public sendDTMF(char: DtmfChar) {
@@ -151,7 +164,7 @@ abstract class CallSession extends EventEmitter {
 
   // buffer is the content of a audio file, it is supposed to be uncompressed PCM data
   // The audio should be playable by command: play -t raw -b 16 -r 16000 -e signed-integer test.wav
-  public streamAudio(input: Buffer) {
+  public streamAudio(input: Buffer): PublicStreamer {
     const streamer = new Streamer(this, input);
     streamer.start();
     return streamer;
@@ -199,6 +212,7 @@ abstract class CallSession extends EventEmitter {
         try {
           rtpPacket.payload = this.decoder.decode(rtpPacket.payload);
           this.emit("audioPacket", rtpPacket);
+          this.emit("audio", rtpPacket.payload);
         } catch {
           console.error("Audio packet decode failed", rtpPacket);
         }
@@ -208,22 +222,28 @@ abstract class CallSession extends EventEmitter {
     // send a message to remote server so that it knows where to reply
     this.send("hello");
 
-    const byeHandler = (inboundMessage: InboundMessage) => {
+    this.byeHandler = (inboundMessage: InboundMessage) => {
       if (inboundMessage.getHeader("Call-ID") !== this.callId) {
         return;
       }
       if (inboundMessage.headers.CSeq.endsWith(" BYE")) {
-        this.softphone.off("message", byeHandler);
         this.dispose();
       }
     };
-    this.softphone.on("message", byeHandler);
+    this.softphone.on("message", this.byeHandler);
   }
 
   protected dispose() {
+    if (this.disposed) {
+      return;
+    }
     this.disposed = true;
     this.emit("disposed");
     this.removeAllListeners();
+    if (this.byeHandler) {
+      this.softphone.off("message", this.byeHandler);
+      this.byeHandler = undefined;
+    }
     this.socket?.removeAllListeners();
     this.socket?.close();
   }

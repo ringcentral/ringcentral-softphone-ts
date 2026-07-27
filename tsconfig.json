@@ -9,6 +9,7 @@
     "declaration": true,
     "outDir": "./dist",
     "skipLibCheck": true,
+    "stripInternal": true,
     "declarationMap": true
   },
   "include": ["src/**/*.ts"]

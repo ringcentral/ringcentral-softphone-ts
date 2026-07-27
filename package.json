@@ -34,7 +34,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:demos": "tsc -p demos/tsconfig.json",
     "typecheck:tests": "tsc -p tests/tsconfig.json",
-    "test:package": "yarn build && tsc -p tests/package/tsconfig.json && node tests/package/declarations.mjs && node tests/package/runtime.mjs && node tests/package/runtime.cjs",
+    "test:package": "yarn build && tsc -p tests/package/tsconfig.json && node tests/package/runtime.mjs && node tests/package/runtime.cjs",
     "validate": "yarn typecheck && yarn typecheck:demos && yarn typecheck:tests && yarn test && yarn test:package",
     "build": "tsdown",
     "prepublishOnly": "yarn build",

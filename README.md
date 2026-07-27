@@ -110,6 +110,27 @@ const softphone = new Softphone({
 | `codec` | `"OPUS/16000" \| "OPUS/48000/2" \| "PCMU/8000"` | No | Audio codec; defaults to `OPUS/16000`. |
 | `ignoreTlsCertErrors` | `boolean` | No | Disables TLS certificate verification; defaults to `false`. Use only in controlled development environments. |
 
+Consumer types come from the same package entry point:
+
+```ts
+import type {
+  CallSession,
+  InboundInvite,
+  OutboundCallSession,
+  SoftphoneOptions,
+  Streamer,
+} from "ringcentral-softphone";
+```
+
+Inline event handlers and returned values are inferred automatically. Import
+these types when storing them or passing them between functions.
+
+CommonJS consumers access the constructor through the package namespace:
+
+```js
+const Softphone = require("ringcentral-softphone").default;
+```
+
 ## Receive a call
 
 Attach the `invite` listener before registering so an inbound call cannot arrive
@@ -131,8 +152,8 @@ softphone.on("invite", async (inviteMessage) => {
   const callSession = await softphone.answer(inviteMessage);
 
   callSession.on("dtmf", (digit) => console.log("DTMF:", digit));
-  callSession.on("audioPacket", (packet) => {
-    console.log("Received audio bytes:", packet.payload.length);
+  callSession.on("audio", (audio) => {
+    console.log("Received audio bytes:", audio.length);
   });
   callSession.once("disposed", () => {
     console.log("Call ended");
@@ -189,78 +210,9 @@ call. Use `await callSession.transfer("16505550101")` to transfer an active call
 
 Complete programs are maintained under [`demos/`](demos/).
 
-## Consumer API
-
-The tables below intentionally document the supported integration surface. Raw
-sockets, SRTP state, codec workers, peers, sequence counters, and internal
-helpers are implementation details.
-
-### Softphone methods
-
-| Method | Result | Purpose |
-| --- | --- | --- |
-| `register()` | `Promise<void>` | Connect and register; refreshes the registration until revoked. |
-| `revoke()` | `void` | Stop registration, remove listeners, and close the TLS connection. |
-| `enableDebugMode(options?)` | `void` | Log inbound and outbound SIP messages, optionally with custom prefixes. |
-| `answer(inviteMessage)` | `Promise<InboundCallSession>` | Answer an inbound invite and create its call session. |
-| `decline(inviteMessage)` | `Promise<void>` | Decline an inbound invite with SIP status 603. |
-| `call(callee)` | `Promise<OutboundCallSession>` | Start an outbound call. |
-
-### Softphone events and observation properties
-
-| Member | Payload/value | Purpose |
-| --- | --- | --- |
-| `invite` | `InboundMessage` | A new inbound call can be answered or declined. |
-| `message` | `InboundMessage` | Observe every parsed inbound SIP message. |
-| `outboundMessage` | `string` | Observe every serialized outbound SIP message. |
-| `registrationError` | `Error` | A registration refresh failed. |
-| `sipInfo` | `SoftPhoneOptions` | The active SIP configuration. Treat credentials as sensitive. |
-| `codec.id` | `number` | RTP payload type for the selected audio codec; useful when forwarding RTP. |
-
-### CallSession methods
-
-| Method | Result | Purpose |
-| --- | --- | --- |
-| `hangup()` | `Promise<void>` | Hang up an active call. |
-| `sendDTMF(char)` | `void` | Send one of `0-9`, `*`, `#`, or `A-D`. |
-| `sendDTMFs(chars, delay?)` | `Promise<void>` | Send a sequence with a 500 ms default delay after each character. |
-| `streamAudio(buffer)` | `Streamer` | Start sending a buffer in the selected codec's raw input format. |
-| `sendPacket(rtpPacket)` | `void` | Forward a received RTP packet to this session. |
-| `transfer(destination)` | `Promise<void>` | Transfer an active call. |
-| `hold()` / `unhold()` | `Promise<void>` | Stop or resume receiving remote audio through SIP re-invite. |
-| `cancel()` | `Promise<void>` | Cancel an unanswered outbound call. Outbound only. |
-
-### CallSession properties and events
-
-| Member | Payload/value | Purpose |
-| --- | --- | --- |
-| `callId` | `string` | SIP Call-ID for inbound and outbound calls. |
-| `disposed` | `boolean` | Whether the session has been disposed. |
-| `sessionId` | `string` | RingCentral telephony session ID. Outbound only. |
-| `partyId` | `string` | RingCentral telephony party ID. Outbound only. |
-| `answered` | no payload | The peer answered. Outbound only. |
-| `busy` | no payload | The destination returned SIP 486 and the session was disposed. Outbound only. |
-| `disposed` | no payload | The session closed. |
-| `audioPacket` | `RtpPacket` | Decoded audio in `packet.payload`. |
-| `dtmf` | `string` | A decoded DTMF character. |
-| `dtmfPacket` | `RtpPacket` | An incoming telephone-event RTP packet. |
-| `rtpPacket` | `RtpPacket` | Any decrypted incoming RTP packet, before audio decoding. |
-
-### Streamer controls, state, and events
-
-| Member | Result/value | Purpose |
-| --- | --- | --- |
-| `start()` | `void` | Start from the beginning, or restart after completion. |
-| `stop()` | `void` | Stop and discard the remaining buffered audio. |
-| `pause()` | `void` | Pause sending. |
-| `resume()` | `void` | Resume sending. |
-| `paused` | `boolean` | Whether sending is paused. |
-| `finished` | `boolean` | Whether the buffer is exhausted or the call is disposed. |
-| `finished` event | no payload | The audio buffer has been sent. |
-
 ## Audio
 
-`audioPacket` exposes audio in the selected codec's decoded format.
+The `audio` event provides a `Buffer` in the selected codec's decoded format.
 `streamAudio()` expects a `Buffer` in the matching input format:
 
 | Codec | Format | Playback example |
@@ -269,7 +221,17 @@ helpers are implementation details.
 | `OPUS/48000/2` | 16-bit signed little-endian PCM, 48 kHz, stereo | `ffplay -autoexit -f s16le -ar 48000 -ac 2 audio.raw` |
 | `PCMU/8000` | 8-bit mu-law, 8 kHz, mono | `ffplay -autoexit -f mulaw -ar 8000 -ac 1 audio.raw` |
 
-For example:
+Save received audio using the call ID as the filename:
+
+```ts
+import fs from "node:fs";
+
+const output = fs.createWriteStream(`${callSession.callId}.raw`);
+callSession.on("audio", (audio) => output.write(audio));
+callSession.once("disposed", () => output.close());
+```
+
+Stream audio to the call:
 
 ```ts
 import fs from "node:fs";
@@ -286,6 +248,8 @@ If a call is put on hold while streaming, pause the streamer and resume it after
 unholding.
 
 ## DTMF
+
+DTMF characters are limited to `0-9`, `*`, and `#`.
 
 Send a single character immediately:
 
@@ -305,19 +269,20 @@ Listen for decoded inbound DTMF:
 callSession.on("dtmf", (digit) => console.log("DTMF:", digit));
 ```
 
-## Advanced usage
+## Additional scenarios
 
-### Debug and SIP observation
+### Debugging
 
 ```ts
 softphone.enableDebugMode();
+```
 
-softphone.on("message", (message) => {
-  console.log("Inbound SIP subject:", message.subject);
-});
+The initial `register()` call rejects if registration fails. Listen for
+`registrationError` to handle a later registration refresh failure:
 
-softphone.on("outboundMessage", (message) => {
-  console.log("Outbound SIP message:", message);
+```ts
+softphone.on("registrationError", (error) => {
+  console.error("Registration refresh failed", error);
 });
 ```
 
@@ -330,19 +295,6 @@ softphone.enableDebugMode({
 });
 ```
 
-### Forward RTP between call sessions
-
-```ts
-callSession1.on("rtpPacket", (packet) => {
-  if (packet.header.payloadType === softphone.codec.id) {
-    callSession2.sendPacket(packet);
-  }
-});
-```
-
-`sendPacket()` encrypts the packet for the destination call session. Do not
-access the underlying sockets or SRTP session directly.
-
 ### Multiple instances with the same credentials
 
 Multiple instances can register with the same credentials, but only the most
@@ -350,10 +302,16 @@ recent instance receives inbound calls.
 
 ### Telephony session and party IDs
 
-Outbound call sessions expose `sessionId` and `partyId`, parsed from the
-`p-rc-api-ids` SIP header. RingCentral does not include these values in the
+Outbound call sessions expose optional `sessionId` and `partyId` values after
+RingCentral supplies them. RingCentral does not include these values in the
 initial inbound invite. For inbound calls, see the
 [call-ID workaround](https://github.com/tylerlong/rc-softphone-call-id-test).
+
+```ts
+callSession.once("answered", () => {
+  console.log(callSession.sessionId, callSession.partyId);
+});
+```
 
 ### TLS certificate errors
 
@@ -367,6 +325,15 @@ man-in-the-middle attacks and must not be used in production.
 Conference creation and management use the RingCentral REST API and are outside
 this SDK's scope, but the SDK can place calls into conferences. See the
 [conference demo project](https://github.com/tylerlong/softphone-invite-agent-to-conference-demo).
+
+## Limitations
+
+- Only the most recent registration receives inbound calls when credentials
+  are shared by several instances.
+- Inbound invites do not provide RingCentral telephony session or party IDs.
+- Audio files must already match the selected codec's raw input format.
+- Conference orchestration belongs to the RingCentral REST API, not this SDK.
+- Selecting a custom caller ID is not supported.
 
 ## Troubleshooting
 
@@ -388,6 +355,19 @@ recent registration receives inbound calls.
 
 Fix the certificate chain in production. Use `ignoreTlsCertErrors` only for a
 trusted development environment.
+
+### Registration fails
+
+Check all five credential values. Use the domain without its port, a regional
+`proxyTLS` value including its port, and credentials for an **Existing Phone**
+device (`OtherPhone` in the REST API). Use `enableDebugMode()` to inspect the
+registration exchange.
+
+### Audio is distorted or silent
+
+The input to `streamAudio()` must exactly match the sample format, rate, and
+channel count for the selected codec. The SDK does not resample or convert
+files.
 
 ## End-to-end test with real credentials
 
@@ -411,7 +391,7 @@ SIP_B_AUTHORIZATION_ID=...
 Run it with:
 
 ```bash
-yarn test
+yarn test:e2e
 ```
 
 ## Development
@@ -420,6 +400,12 @@ Format and lint the project:
 
 ```bash
 yarn lint
+```
+
+Run the pull-request-safe validation suite:
+
+```bash
+yarn validate
 ```
 
 Install and serve the documentation:
@@ -434,9 +420,3 @@ Build documentation strictly:
 ```bash
 mkdocs build --strict -f mkdocs/mkdocs.yml
 ```
-
-The SDK intentionally relies on the initial RTP packet to establish the local
-media endpoint, so the SDP port does not need to expose a separately configured
-local UDP port. SIP behavior is based on [RFC 3261](https://www.rfc-editor.org/rfc/rfc3261).
-
-Caller-ID selection through `P-Asserted-Identity` is not supported.

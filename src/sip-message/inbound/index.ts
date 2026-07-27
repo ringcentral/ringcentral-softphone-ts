@@ -3,7 +3,7 @@ import SipMessage from "../sip-message.js";
 
 class InboundMessage extends SipMessage {
   public static fromString(str: string) {
-    const sipMessage = new SipMessage();
+    const sipMessage = new InboundMessage();
     const [init, ...body] = str.split("\r\n\r\n");
     sipMessage.body = body.join("\r\n\r\n");
     const [subject, ...headers] = init.split("\r\n");

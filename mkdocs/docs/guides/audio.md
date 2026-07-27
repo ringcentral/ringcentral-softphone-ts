@@ -85,6 +85,5 @@ callSession.on("dtmf", (digit) => {
 });
 ```
 
-The repository contains small test buffers used by the maintained programs.
-See the [Demos](../examples.md) page, including the
+For complete call flows, see the [Demos](../examples.md) page, including the
 [meeting example](https://github.com/ringcentral/ringcentral-softphone-ts/blob/main/demos/join-rcv-meeting.ts).

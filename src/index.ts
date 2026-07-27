@@ -13,38 +13,57 @@ import {
   RequestMessage,
   ResponseMessage,
 } from "./sip-message/index.js";
-import type { SoftPhoneOptions } from "./types.js";
+import {
+  type InboundInvite,
+  type NormalizedSoftphoneOptions,
+  normalizeSoftphoneOptions,
+  type CallSession as PublicCallSession,
+  type OutboundCallSession as PublicOutboundCallSession,
+  type SoftphoneEventMap,
+  type SoftphoneOptions,
+} from "./types.js";
 import { branch, generateAuthorization, localKey, uuid } from "./utils.js";
 
-class Softphone extends EventEmitter {
-  public sipInfo: SoftPhoneOptions;
+export type {
+  CallSession,
+  InboundInvite,
+  OutboundCallSession,
+  SoftphoneOptions,
+  Streamer,
+} from "./types.js";
+
+class Softphone extends EventEmitter<SoftphoneEventMap> {
+  /** @internal */
+  public sipInfo: NormalizedSoftphoneOptions;
+  /** @internal */
   public client: TLSSocket;
+  /** @internal */
   public codec: Codec;
 
+  /** @internal */
   public fakeDomain = `${uuid()}.invalid`;
+  /** @internal */
   public fakeEmail = `${uuid()}@${this.fakeDomain}`;
 
+  /** @internal */
   private intervalHandle?: NodeJS.Timeout;
+  /** @internal */
   private connected = false;
+  /** @internal */
+  private instanceId = uuid();
+  /** @internal */
+  private registerCallId = uuid();
 
-  public constructor(sipInfo: SoftPhoneOptions) {
+  public constructor(sipInfo: SoftphoneOptions) {
     super();
-    if (sipInfo.codec === undefined) {
-      sipInfo.codec = "OPUS/16000";
-    }
-    this.codec = new Codec(sipInfo.codec);
-    this.sipInfo = sipInfo;
-    if (this.sipInfo.domain === undefined) {
-      this.sipInfo.domain = "sip.ringcentral.com";
-    }
-    if (this.sipInfo.outboundProxy === undefined) {
-      this.sipInfo.outboundProxy = "sip10.ringcentral.com:5096";
-    }
-    const tokens = this.sipInfo.outboundProxy!.split(":");
+    this.sipInfo = normalizeSoftphoneOptions(sipInfo);
+    this.codec = new Codec(this.sipInfo.codec);
+
+    const proxy = new URL(`tls://${this.sipInfo.outboundProxy}`);
     this.client = tls.connect(
       {
-        host: tokens[0],
-        port: parseInt(tokens[1], 10),
+        host: proxy.hostname.replace(/^\[(.*)]$/, "$1"),
+        port: Number(proxy.port),
         rejectUnauthorized: !this.sipInfo.ignoreTlsCertErrors,
       },
       () => {
@@ -63,6 +82,7 @@ class Softphone extends EventEmitter {
       if (!cache.endsWith("\r\n")) {
         return; // haven't received a complete message yet
       }
+
       // received two empty body messages
       const tempMessages = cache
         .split("\r\nContent-Length: 0\r\n\r\n")
@@ -79,10 +99,7 @@ class Softphone extends EventEmitter {
     });
   }
 
-  private instanceId = uuid();
-  private registerCallId = uuid();
-
-  public async register() {
+  public async register(): Promise<void> {
     if (!this.connected) {
       await waitFor({
         interval: 100,
@@ -93,6 +110,7 @@ class Softphone extends EventEmitter {
         throw new Error("Failed to register: connect to TLS timeout");
       }
     }
+
     const sipRegister = async () => {
       const fromTag = uuid();
       const requestMessage = new RequestMessage(
@@ -130,16 +148,18 @@ class Softphone extends EventEmitter {
         throw new Error(`Failed to register: ${message.subject}`);
       }
     };
+
     await sipRegister();
-    this.intervalHandle = setInterval(
-      () => {
-        sipRegister().catch((error) => {
-          this.emit("registrationError", error);
-        });
-      },
-      30 * 1000, // refresh registration every 30 seconds
-    );
-    this.on("message", (inboundMessage) => {
+    this.intervalHandle = setInterval(() => {
+      sipRegister().catch((error: unknown) => {
+        this.emit(
+          "registrationError",
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      });
+    }, 30 * 1000);
+
+    this.on("message", (inboundMessage: InboundMessage) => {
       if (!inboundMessage.subject.startsWith("INVITE sip:")) {
         return;
       }
@@ -152,7 +172,7 @@ class Softphone extends EventEmitter {
         "Content-Length": "0",
       });
       this.send(outboundMessage);
-      this.emit("invite", inboundMessage);
+      this.emit("invite", inboundMessage as unknown as InboundInvite);
     });
   }
 
@@ -161,32 +181,35 @@ class Softphone extends EventEmitter {
       inboundPrefix: "Receiving...\n",
       outboundPrefix: "Sending...\n",
     },
-  ) {
-    this.on("message", (message) => {
+  ): void {
+    this.on("message", (message: InboundMessage) => {
       console.log(
         `${options.inboundPrefix}(${new Date()})\n${message.toString()}`,
       );
     });
-    this.on("outboundMessage", (message) => {
+    this.on("outboundMessage", (message: string) => {
       console.log(`${options.outboundPrefix}(${new Date()})\n${message}`);
     });
   }
 
-  public revoke() {
+  public revoke(): void {
     clearInterval(this.intervalHandle);
     this.removeAllListeners();
     this.client.removeAllListeners();
     this.client.destroy();
   }
 
+  /** @internal */
   public send(
     message: OutboundMessage,
     waitForReply?: true,
   ): Promise<InboundMessage>;
+  /** @internal */
   public send(
     message: OutboundMessage,
     waitForReply?: false,
   ): Promise<undefined>;
+  /** @internal */
   public send(message: OutboundMessage, waitForReply = false) {
     this.client.write(message.toString());
     if (!waitForReply) {
@@ -211,19 +234,23 @@ class Softphone extends EventEmitter {
     });
   }
 
-  public async answer(inviteMessage: InboundMessage) {
-    const inboundCallSession = new InboundCallSession(this, inviteMessage);
+  public async answer(invite: InboundInvite): Promise<PublicCallSession> {
+    const inboundCallSession = new InboundCallSession(
+      this,
+      invite as unknown as InboundMessage,
+    );
     await inboundCallSession.answer();
     return inboundCallSession;
   }
 
   // decline an inbound call
-  public async decline(inviteMessage: InboundMessage) {
-    const newMessage = new ResponseMessage(inviteMessage, 603);
-    await this.send(newMessage);
+  public async decline(invite: InboundInvite): Promise<void> {
+    await this.send(
+      new ResponseMessage(invite as unknown as InboundMessage, 603),
+    );
   }
 
-  public async call(callee: string) {
+  public async call(callee: string): Promise<PublicOutboundCallSession> {
     const { socket, port } = await CallSession.createBoundSocket();
     const offerSDP = `
 v=0

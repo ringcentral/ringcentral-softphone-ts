@@ -25,7 +25,7 @@ const main = async () => {
     await call();
     console.log(`Call ${i + 1} ended`);
   }
-  await softphone.revoke();
+  softphone.revoke();
 };
 
 main();
