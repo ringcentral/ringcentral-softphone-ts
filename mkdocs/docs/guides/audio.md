@@ -50,7 +50,8 @@ const streamer = callSession.streamAudio(fs.readFileSync("audio.raw"));
 streamer.once("finished", () => console.log("Audio sent"));
 ```
 
-Control the stream synchronously:
+Call these synchronous controls later in response to application state; they
+are not a sequence:
 
 ```ts
 streamer.pause();

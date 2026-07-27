@@ -92,7 +92,10 @@ const softphone = new Softphone({
 
 softphone.on("invite", async (inviteMessage) => {
   const callSession = await softphone.answer(inviteMessage);
-  callSession.once("disposed", () => console.log("Call ended"));
+  callSession.once("disposed", () => {
+    console.log("Call ended");
+    softphone.revoke();
+  });
 });
 
 await softphone.register();
@@ -125,6 +128,12 @@ import type {
 } from "ringcentral-softphone";
 ```
 
+CommonJS consumers access the constructor through the package namespace:
+
+```js
+const Softphone = require("ringcentral-softphone").default;
+```
+
 Call `softphone.revoke()` when the application no longer needs the
 registration.
 
@@ -140,6 +149,10 @@ softphone.on("registrationError", (error) => {
 
 softphone.enableDebugMode();
 ```
+
+Debug mode prints complete SIP exchanges, which can contain identities, phone
+numbers, call metadata, and authentication material. Do not enable it in
+production or publish its output without redacting sensitive values.
 
 Custom prefixes help distinguish logs from multiple instances:
 

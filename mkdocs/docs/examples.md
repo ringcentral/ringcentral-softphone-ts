@@ -23,6 +23,7 @@ await softphone.register();
 const callSession = await softphone.call("16505550100");
 callSession.once("answered", () => console.log("Answered"));
 callSession.once("busy", () => console.log("Busy or unreachable"));
+callSession.once("disposed", () => softphone.revoke());
 ```
 
 [View `demos/outbound-call.ts`](https://github.com/ringcentral/ringcentral-softphone-ts/blob/main/demos/outbound-call.ts)
@@ -30,7 +31,11 @@ callSession.once("busy", () => console.log("Busy or unreachable"));
 ## Join a meeting with DTMF
 
 ```ts
+import waitFor from "wait-for-async";
+
+await waitFor({ interval: 6000 });
 await callSession.sendDTMFs(`${accessCode}#`);
+await waitFor({ interval: 6000 });
 callSession.sendDTMF("#");
 ```
 

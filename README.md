@@ -159,8 +159,6 @@ softphone.on("invite", async (inviteMessage) => {
     console.log("Call ended");
     softphone.revoke();
   });
-
-  callSession.sendDTMF("1");
 });
 
 await softphone.register();
@@ -187,26 +185,22 @@ const softphone = new Softphone({
 await softphone.register();
 const callSession = await softphone.call("16505550100");
 
-callSession.once("answered", async () => {
-  console.log("Call answered");
-  callSession.sendDTMF("1");
-  await callSession.sendDTMFs("01#", 500);
-  await callSession.hold();
-  await callSession.unhold();
-  await callSession.hangup();
-  softphone.revoke();
-});
+callSession.once("answered", () => console.log("Call answered"));
 
 callSession.once("busy", () => {
   console.log("The destination is busy or cannot be reached");
-  softphone.revoke();
 });
 
-callSession.once("disposed", () => console.log("Call session disposed"));
+callSession.once("disposed", () => {
+  console.log("Call session disposed");
+  softphone.revoke();
+});
 ```
 
 Call `await callSession.cancel()` before the peer answers to cancel an outbound
-call. Use `await callSession.transfer("16505550101")` to transfer an active call.
+call. After the peer answers, use the call controls below as needed and call
+`await callSession.hangup()` when the application is finished with the call.
+Use `await callSession.transfer("16505550101")` to transfer an active call.
 
 Complete programs are maintained under [`demos/`](demos/).
 
@@ -238,6 +232,12 @@ import fs from "node:fs";
 
 const streamer = callSession.streamAudio(fs.readFileSync("audio.raw"));
 streamer.once("finished", () => console.log("Audio sent"));
+```
+
+Call the following controls later in response to application state; they are
+not a sequence:
+
+```ts
 streamer.pause();
 streamer.resume();
 streamer.stop();
@@ -276,6 +276,10 @@ callSession.on("dtmf", (digit) => console.log("DTMF:", digit));
 ```ts
 softphone.enableDebugMode();
 ```
+
+Debug mode prints complete SIP exchanges, which can contain identities, phone
+numbers, call metadata, and authentication material. Do not enable it in
+production or publish its output without redacting sensitive values.
 
 The initial `register()` call rejects if registration fails. Listen for
 `registrationError` to handle a later registration refresh failure:

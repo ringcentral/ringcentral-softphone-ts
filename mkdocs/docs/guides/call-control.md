@@ -50,24 +50,21 @@ The SDK responds with SIP status 603.
 await softphone.register();
 const callSession = await softphone.call("16505550100");
 
-callSession.once("answered", async () => {
-  console.log("Call answered");
-  callSession.sendDTMF("1");
-  await callSession.hold();
-  await callSession.unhold();
-  await callSession.hangup();
-  softphone.revoke();
-});
+callSession.once("answered", () => console.log("Call answered"));
 
 callSession.once("busy", () => {
   console.log("The destination is busy or cannot be reached");
-  softphone.revoke();
 });
 
-callSession.once("disposed", () => console.log("Call session disposed"));
+callSession.once("disposed", () => {
+  console.log("Call session disposed");
+  softphone.revoke();
+});
 ```
 
 SIP status 486 causes the outbound session to emit `busy` and then be disposed.
+After the peer answers, use the task-specific controls below and hang up when
+the application is finished with the call.
 
 ## Cancel, hang up, and transfer
 
