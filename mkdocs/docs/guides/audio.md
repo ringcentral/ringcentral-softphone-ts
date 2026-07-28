@@ -41,7 +41,8 @@ callSession.once("disposed", () => output.close());
 ## Stream audio
 
 Pass a complete raw audio buffer in the selected codec's input format.
-Streaming begins immediately.
+Streaming starts automatically on the next event-loop turn, so a `finished`
+listener attached immediately after `streamAudio()` also observes short input.
 
 ```ts
 import fs from "node:fs";
@@ -49,6 +50,10 @@ import fs from "node:fs";
 const streamer = callSession.streamAudio(fs.readFileSync("audio.raw"));
 streamer.once("finished", () => console.log("Audio sent"));
 ```
+
+`pause()` keeps the current position, `resume()` continues a paused run,
+`stop()` ends it without emitting `finished`, and `start()` restarts the
+original buffer.
 
 Call these synchronous controls later in response to application state; they
 are not a sequence:

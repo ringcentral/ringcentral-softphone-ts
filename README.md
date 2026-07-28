@@ -234,6 +234,11 @@ const streamer = callSession.streamAudio(fs.readFileSync("audio.raw"));
 streamer.once("finished", () => console.log("Audio sent"));
 ```
 
+Streaming starts automatically on the next event-loop turn, so the `finished`
+listener above is attached before even short input can complete. `pause()` keeps
+the current position, `resume()` continues a paused run, `stop()` ends it
+without emitting `finished`, and `start()` restarts the original buffer.
+
 Call the following controls later in response to application state; they are
 not a sequence:
 

@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import EventEmitter from "node:events";
 
-import { RtpHeader, RtpPacket } from "werift-rtp";
+import { RtpHeader } from "werift-rtp";
 
 import type { StreamerEventMap } from "../types.js";
 import type CallSession from "./index.js";
@@ -11,6 +11,7 @@ class Streamer extends EventEmitter<StreamerEventMap> {
   private callSession: CallSession;
   private buffer: Buffer;
   private originalBuffer: Buffer;
+  private timeout?: ReturnType<typeof setTimeout>;
 
   public constructor(callSession: CallSession, buffer: Buffer) {
     super();
@@ -20,22 +21,35 @@ class Streamer extends EventEmitter<StreamerEventMap> {
   }
 
   public start() {
+    this.cancelTimeout();
+    if (this.callSession.disposed) {
+      return;
+    }
     this.buffer = this.originalBuffer;
     this.paused = false;
-    this.sendPacket();
+    this.schedulePacket();
   }
 
   public stop() {
+    this.cancelTimeout();
+    this.paused = false;
     this.buffer = Buffer.alloc(0);
   }
 
   public pause() {
+    if (this.timeout === undefined) {
+      return;
+    }
     this.paused = true;
+    this.cancelTimeout();
   }
 
   public resume() {
+    if (!this.paused || this.callSession.disposed) {
+      return;
+    }
     this.paused = false;
-    this.sendPacket();
+    this.schedulePacket();
   }
 
   public get finished() {
@@ -45,51 +59,52 @@ class Streamer extends EventEmitter<StreamerEventMap> {
     );
   }
 
+  private cancelTimeout() {
+    clearTimeout(this.timeout);
+    this.timeout = undefined;
+  }
+
+  private schedulePacket(delay = 0) {
+    this.timeout = setTimeout(() => {
+      this.timeout = undefined;
+      this.sendPacket();
+    }, delay);
+  }
+
   private sendPacket() {
-    if (!this.paused && !this.finished) {
-      const temp = this.callSession.encoder.encode(
-        this.buffer.subarray(0, this.callSession.softphone.codec.packetSize),
-      );
-      const rtpPacket = new RtpPacket(
-        new RtpHeader({
-          version: 2,
-          padding: false,
-          paddingSize: 0,
-          extension: false,
-          marker: false,
-          payloadOffset: 12,
-          payloadType: this.callSession.softphone.codec.id,
-          sequenceNumber: this.callSession.sequenceNumber,
-          timestamp: this.callSession.timestamp,
-          ssrc: this.callSession.ssrc,
-          csrcLength: 0,
-          csrc: [],
-          extensionProfile: 48862,
-          extensionLength: undefined,
-          extensions: [],
-        }),
-        temp,
-      );
-      this.callSession.send(
-        this.callSession.srtpSession.encrypt(
-          rtpPacket.payload,
-          rtpPacket.header,
-        ),
-      );
-      this.callSession.sequenceNumber += 1;
-      if (this.callSession.sequenceNumber > 65535) {
-        this.callSession.sequenceNumber = 0;
-      }
-      this.callSession.timestamp +=
-        this.callSession.softphone.codec.timestampInterval;
-      this.buffer = this.buffer.subarray(
-        this.callSession.softphone.codec.packetSize,
-      );
-      if (this.finished) {
-        this.emit("finished");
-      } else {
-        setTimeout(() => this.sendPacket(), 20);
-      }
+    const { callSession } = this;
+    if (this.paused || callSession.disposed) {
+      return;
+    }
+    const { codec } = callSession.softphone;
+    if (this.finished) {
+      this.emit("finished");
+      return;
+    }
+
+    const payload = callSession.encoder.encode(
+      this.buffer.subarray(0, codec.packetSize),
+    );
+    const header = new RtpHeader({
+      payloadType: codec.id,
+      sequenceNumber: callSession.sequenceNumber,
+      timestamp: callSession.timestamp,
+      ssrc: callSession.ssrc,
+    });
+    callSession.send(callSession.srtpSession.encrypt(payload, header));
+    callSession.sequenceNumber += 1;
+    if (callSession.sequenceNumber > 65535) {
+      callSession.sequenceNumber = 0;
+    }
+    callSession.timestamp += codec.timestampInterval;
+    this.buffer = this.buffer.subarray(codec.packetSize);
+    if (callSession.disposed) {
+      return;
+    }
+    if (this.finished) {
+      this.emit("finished");
+    } else {
+      this.schedulePacket(20);
     }
   }
 }
