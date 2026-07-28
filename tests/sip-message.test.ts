@@ -66,14 +66,14 @@ describe("SIP messages", () => {
     expect(fork.headers.Via).toMatch(/;branch=.+$/);
   });
 
-  test.each([
-    "200 OK",
-    "603 Decline",
-  ])("creates the %s response status line", (status) => {
-    const response = new ResponseMessage(new InboundMessage(), status);
+  test.each(["200 OK", "603 Decline"])(
+    "creates the %s response status line",
+    (status) => {
+      const response = new ResponseMessage(new InboundMessage(), status);
 
-    expect(response.subject).toBe(`SIP/2.0 ${status}`);
-  });
+      expect(response.subject).toBe(`SIP/2.0 ${status}`);
+    },
+  );
 
   test("copies required response headers case-insensitively with their original casing", () => {
     const inbound = new InboundMessage("NOTIFY sip:1001 SIP/2.0", {

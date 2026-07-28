@@ -100,12 +100,15 @@ describe("Softphone options", () => {
     "sip20.ringcentral.com:0",
     "sip20.ringcentral.com:65536",
     "sip20.ringcentral.com:5096/path",
-  ])("rejects an invalid outbound proxy %s before connecting", (outboundProxy) => {
-    expect(() => new Softphone({ ...validOptions(), outboundProxy })).toThrow(
-      "outboundProxy must be a hostname and port",
-    );
-    expect(connect).not.toHaveBeenCalled();
-  });
+  ])(
+    "rejects an invalid outbound proxy %s before connecting",
+    (outboundProxy) => {
+      expect(() => new Softphone({ ...validOptions(), outboundProxy })).toThrow(
+        "outboundProxy must be a hostname and port",
+      );
+      expect(connect).not.toHaveBeenCalled();
+    },
+  );
 
   test("does not impose custom DNS grammar", () => {
     new Softphone({

@@ -28,17 +28,11 @@
     "join": "rm -f -- *.wav *.raw && tsx -r dotenv-override-true/config demos/join-rcv-meeting.ts",
     "multi-call": "tsx -r dotenv-override-true/config demos/multiple-calls-sequentially.ts",
     "multi-inst": "tsx -r dotenv-override-true/config demos/multi-instances.ts",
-    "lint": "biome check --write .",
     "test": "vitest run --exclude 'tests/e2e/**'",
     "test:e2e": "vitest run tests/e2e",
-    "typecheck": "tsc --noEmit",
-    "typecheck:demos": "tsc -p demos/tsconfig.json",
-    "typecheck:tests": "tsc -p tests/tsconfig.json",
-    "test:package": "pnpm run build && tsc -p tests/package/tsconfig.json && node tests/package/runtime.mjs && node tests/package/runtime.cjs",
-    "validate": "pnpm run typecheck && pnpm run typecheck:demos && pnpm run typecheck:tests && pnpm run test && pnpm run test:package",
+    "validate": "biome check . && tsc -p demos/tsconfig.json && tsc -p tests/tsconfig.json && pnpm run test && pnpm run build && tsc -p tests/package/tsconfig.json && node tests/package/runtime.mjs && node tests/package/runtime.cjs",
     "build": "tsdown",
-    "prepublishOnly": "pnpm run build",
-    "postpublish": "rm -rf dist"
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@evan/opus": "^1.0.3",

@@ -403,7 +403,7 @@ pnpm test:e2e
 Format and lint the project:
 
 ```bash
-pnpm lint
+pnpm exec biome check --write .
 ```
 
 Run the pull-request-safe validation suite:
