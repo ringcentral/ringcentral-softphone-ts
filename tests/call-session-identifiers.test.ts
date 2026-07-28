@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { requireCallId } from "../src/call-session/index.js";
 import { parseTelephonyId } from "../src/call-session/outbound.js";
-import InboundMessage from "../src/sip-message/inbound/index.js";
+import { InboundMessage } from "../src/sip-message.js";
 
 const messageWithCallId = (callId?: string) => {
   const header = callId === undefined ? "" : `Call-ID: ${callId}\r\n`;

@@ -1,5 +1,5 @@
 import type Softphone from "../index.js";
-import { type InboundMessage, OutboundMessage } from "../sip-message/index.js";
+import { type InboundMessage, OutboundMessage } from "../sip-message.js";
 import { localKey } from "../utils.js";
 import CallSession from "./index.js";
 

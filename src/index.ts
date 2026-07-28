@@ -12,7 +12,7 @@ import {
   OutboundMessage,
   RequestMessage,
   ResponseMessage,
-} from "./sip-message/index.js";
+} from "./sip-message.js";
 import {
   type InboundInvite,
   type NormalizedSoftphoneOptions,

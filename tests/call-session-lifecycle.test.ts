@@ -4,7 +4,7 @@ import { describe, expect, test, vi } from "vitest";
 
 import CallSession from "../src/call-session/index.js";
 import type Softphone from "../src/index.js";
-import InboundMessage from "../src/sip-message/inbound/index.js";
+import { InboundMessage } from "../src/sip-message.js";
 
 class TestCallSession extends CallSession {}
 

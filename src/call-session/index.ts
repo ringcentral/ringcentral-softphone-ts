@@ -9,7 +9,7 @@ import {
   type InboundMessage,
   RequestMessage,
   ResponseMessage,
-} from "../sip-message/index.js";
+} from "../sip-message.js";
 import type {
   DtmfChar,
   OutboundCallSessionEventMap,

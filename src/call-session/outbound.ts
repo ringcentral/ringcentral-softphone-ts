@@ -1,6 +1,6 @@
 import type dgram from "node:dgram";
 import type Softphone from "../index.js";
-import { type InboundMessage, RequestMessage } from "../sip-message/index.js";
+import { type InboundMessage, RequestMessage } from "../sip-message.js";
 import { extractAddress, withoutTag } from "../utils.js";
 import CallSession from "./index.js";
 
