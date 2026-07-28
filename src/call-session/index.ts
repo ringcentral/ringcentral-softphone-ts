@@ -274,7 +274,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         if (!inboundMessage.subject.startsWith("NOTIFY ")) {
           return;
         }
-        const responseMessage = new ResponseMessage(inboundMessage, 200);
+        const responseMessage = new ResponseMessage(inboundMessage, "200 OK");
         this.softphone.send(responseMessage);
         if (inboundMessage.body.trim() === "SIP/2.0 200 OK") {
           this.softphone.off("message", notifyHandler);

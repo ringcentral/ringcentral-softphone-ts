@@ -246,7 +246,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   // decline an inbound call
   public async decline(invite: InboundInvite): Promise<void> {
     await this.send(
-      new ResponseMessage(invite as unknown as InboundMessage, 603),
+      new ResponseMessage(invite as unknown as InboundMessage, "603 Decline"),
     );
   }
 

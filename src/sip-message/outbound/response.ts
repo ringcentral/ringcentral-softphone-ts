@@ -1,16 +1,15 @@
 import type InboundMessage from "../inbound/index.js";
-import responseCodes from "../response-codes.js";
 import OutboundMessage from "./index.js";
 
 class ResponseMessage extends OutboundMessage {
   public constructor(
     inboundMessage: InboundMessage,
-    responseCode: number,
+    status: string,
     headers = {},
     body = "",
   ) {
     super(undefined, { ...headers }, body);
-    this.subject = `SIP/2.0 ${responseCode} ${responseCodes[responseCode]}`;
+    this.subject = `SIP/2.0 ${status}`;
     const requiredKeys = new Set(["via", "from", "to", "call-id", "cseq"]);
     const allKeys = Object.keys(inboundMessage.headers).reduce(
       (acc, key) => {
