@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import dgram from "node:dgram";
 import EventEmitter from "node:events";
-import waitFor from "wait-for-async";
+import { setTimeout as sleep } from "node:timers/promises";
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 import DTMF from "../dtmf.js";
 import type Softphone from "../index.js";
@@ -158,7 +158,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         throw new Error(`invalid phone char: ${c}`);
       }
       this.sendDTMF(c);
-      await waitFor({ interval: delay });
+      await sleep(delay);
     }
   }
 

@@ -1,7 +1,5 @@
-import EventEmitter from "node:events";
+import EventEmitter, { once } from "node:events";
 import tls, { type TLSSocket } from "node:tls";
-
-import waitFor from "wait-for-async";
 
 import InboundCallSession from "./call-session/inbound.js";
 import CallSession from "./call-session/index.js";
@@ -101,13 +99,18 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
 
   public async register(): Promise<void> {
     if (!this.connected) {
-      await waitFor({
-        interval: 100,
-        times: 100,
-        condition: () => this.connected,
-      });
-      if (!this.connected) {
-        throw new Error("Failed to register: connect to TLS timeout");
+      const signal = AbortSignal.timeout(10_000);
+      try {
+        await once(this.client, "secureConnect", { signal });
+      } catch (error) {
+        if (
+          signal.aborted &&
+          error instanceof Error &&
+          error.name === "AbortError"
+        ) {
+          throw new Error("Failed to register: connect to TLS timeout");
+        }
+        throw error;
       }
     }
 

@@ -37,7 +37,6 @@
   "dependencies": {
     "@evan/opus": "^1.0.3",
     "debug": "^4.4.3",
-    "wait-for-async": "^0.8.1",
     "werift-rtp": "^0.8.8"
   },
   "devDependencies": {

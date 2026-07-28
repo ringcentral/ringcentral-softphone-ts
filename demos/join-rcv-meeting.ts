@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import process from "node:process";
-import waitFor from "wait-for-async";
+import { setTimeout as sleep } from "node:timers/promises";
 
 import Softphone from "../src/index.js";
 
@@ -34,17 +34,17 @@ const main = async () => {
     });
 
     // enter meeting access code
-    await waitFor({ interval: 6000 });
+    await sleep(6000);
     await callSession.sendDTMFs(
       `${process.env.MEETING_ACCESS_CODE_FOR_TESTING}#`,
     ); // meeting access code followed by #
 
     // enter participant ID
-    await waitFor({ interval: 6000 });
+    await sleep(6000);
     callSession.sendDTMF("#"); // enter # directly
 
     // quit after 10 seconds
-    await waitFor({ interval: 10000 });
+    await sleep(10000);
     await callSession.hangup();
     softphone.revoke();
   });

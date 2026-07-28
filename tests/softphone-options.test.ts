@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 const { connect } = vi.hoisted(() => ({ connect: vi.fn() }));
 
@@ -9,6 +9,7 @@ vi.mock("node:tls", () => ({
 }));
 
 import Softphone, { type SoftphoneOptions } from "../src/index.js";
+import { InboundMessage } from "../src/sip-message.js";
 
 const validOptions = (): SoftphoneOptions => ({
   domain: "sip.ringcentral.com",
@@ -26,12 +27,32 @@ const fakeSocket = () =>
     destroy: vi.fn(),
   });
 
-describe("Softphone options", () => {
-  beforeEach(() => {
-    connect.mockReset();
-    connect.mockImplementation(() => fakeSocket());
-  });
+const mockRegistrationResponse = (softphone: Softphone) =>
+  vi
+    .spyOn(
+      softphone as unknown as { send: () => Promise<InboundMessage> },
+      "send",
+    )
+    .mockResolvedValue(new InboundMessage("SIP/2.0 200 OK"));
 
+let socket: ReturnType<typeof fakeSocket>;
+
+beforeEach(() => {
+  connect.mockReset();
+  connect.mockImplementation((_options: unknown, callback?: () => void) => {
+    socket = fakeSocket();
+    if (callback) {
+      socket.once("secureConnect", callback);
+    }
+    return socket;
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("Softphone options", () => {
   test("clones options and applies only codec and TLS defaults", () => {
     const options = validOptions();
     const softphone = new Softphone(options);
@@ -127,5 +148,59 @@ describe("Softphone options", () => {
       expect.objectContaining({ host: "::1", port: 5096 }),
       expect.any(Function),
     );
+  });
+});
+
+describe("Softphone TLS readiness", () => {
+  test("waits for secureConnect before registering", async () => {
+    const softphone = new Softphone(validOptions());
+    const send = mockRegistrationResponse(softphone);
+    const registration = softphone.register();
+
+    expect(send).not.toHaveBeenCalled();
+    socket.emit("secureConnect");
+    await registration;
+    expect(send).toHaveBeenCalledOnce();
+
+    softphone.revoke();
+  });
+
+  test("registers when secureConnect already happened", async () => {
+    const softphone = new Softphone(validOptions());
+    const send = mockRegistrationResponse(softphone);
+    socket.emit("secureConnect");
+
+    await softphone.register();
+    expect(send).toHaveBeenCalledOnce();
+
+    softphone.revoke();
+  });
+
+  test("preserves the TLS timeout error", async () => {
+    const controller = new AbortController();
+    const timeout = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(controller.signal);
+    const softphone = new Softphone(validOptions());
+
+    const registration = softphone.register();
+    expect(timeout).toHaveBeenCalledWith(10_000);
+    controller.abort();
+
+    await expect(registration).rejects.toThrow(
+      "Failed to register: connect to TLS timeout",
+    );
+    softphone.revoke();
+  });
+
+  test("propagates TLS connection errors", async () => {
+    const softphone = new Softphone(validOptions());
+    const error = new Error("TLS failed");
+
+    const registration = softphone.register();
+    socket.emit("error", error);
+
+    await expect(registration).rejects.toBe(error);
+    softphone.revoke();
   });
 });

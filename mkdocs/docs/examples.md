@@ -31,11 +31,11 @@ callSession.once("disposed", () => softphone.revoke());
 ## Join a meeting with DTMF
 
 ```ts
-import waitFor from "wait-for-async";
+import { setTimeout as sleep } from "node:timers/promises";
 
-await waitFor({ interval: 6000 });
+await sleep(6000);
 await callSession.sendDTMFs(`${accessCode}#`);
-await waitFor({ interval: 6000 });
+await sleep(6000);
 callSession.sendDTMF("#");
 ```
 
