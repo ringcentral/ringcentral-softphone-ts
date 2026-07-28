@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { randomInt } from "node:crypto";
 import dgram from "node:dgram";
 import EventEmitter from "node:events";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -15,7 +16,7 @@ import type {
   OutboundCallSessionEventMap,
   Streamer as PublicStreamer,
 } from "../types.js";
-import { branch, extractAddress, localKey, randomInt } from "../utils.js";
+import { branch, extractAddress, localKey } from "../utils.js";
 import Streamer from "./streamer.js";
 
 const isDtmfChar = (value: string): value is DtmfChar =>
@@ -45,9 +46,9 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   public readonly callId: string;
 
   // for audio streaming
-  public ssrc = randomInt();
-  public sequenceNumber = randomInt();
-  public timestamp = randomInt();
+  public sequenceNumber = randomInt(2 ** 16);
+  public timestamp = randomInt(2 ** 32);
+  public ssrc = randomInt(2 ** 32);
 
   private byeHandler?: (message: InboundMessage) => void;
 
