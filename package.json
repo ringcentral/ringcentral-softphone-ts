@@ -34,10 +34,10 @@
     "typecheck": "tsc --noEmit",
     "typecheck:demos": "tsc -p demos/tsconfig.json",
     "typecheck:tests": "tsc -p tests/tsconfig.json",
-    "test:package": "yarn build && tsc -p tests/package/tsconfig.json && node tests/package/runtime.mjs && node tests/package/runtime.cjs",
-    "validate": "yarn typecheck && yarn typecheck:demos && yarn typecheck:tests && yarn test && yarn test:package",
+    "test:package": "pnpm run build && tsc -p tests/package/tsconfig.json && node tests/package/runtime.mjs && node tests/package/runtime.cjs",
+    "validate": "pnpm run typecheck && pnpm run typecheck:demos && pnpm run typecheck:tests && pnpm run test && pnpm run test:package",
     "build": "tsdown",
-    "prepublishOnly": "yarn build",
+    "prepublishOnly": "pnpm run build",
     "postpublish": "rm -rf dist"
   },
   "dependencies": {
@@ -53,8 +53,7 @@
     "tsdown": "^0.22.0",
     "tsx": "^4.22.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6",
-    "yarn-upgrade-all": "^0.8.1"
+    "vitest": "^4.1.6"
   },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "packageManager": "pnpm@11.17.0"
 }

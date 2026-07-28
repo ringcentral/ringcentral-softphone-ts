@@ -15,7 +15,7 @@ task-focused guide in the maintained
 ## Installation
 
 ```bash
-yarn add ringcentral-softphone
+pnpm add ringcentral-softphone
 ```
 
 Or with npm:
@@ -395,7 +395,7 @@ SIP_B_AUTHORIZATION_ID=...
 Run it with:
 
 ```bash
-yarn test:e2e
+pnpm test:e2e
 ```
 
 ## Development
@@ -403,13 +403,13 @@ yarn test:e2e
 Format and lint the project:
 
 ```bash
-yarn lint
+pnpm lint
 ```
 
 Run the pull-request-safe validation suite:
 
 ```bash
-yarn validate
+pnpm validate
 ```
 
 Install and serve the documentation:

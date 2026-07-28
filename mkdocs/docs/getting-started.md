@@ -2,10 +2,10 @@
 
 ## Install the SDK
 
-=== "Yarn"
+=== "pnpm"
 
     ```bash
-    yarn add ringcentral-softphone
+    pnpm add ringcentral-softphone
     ```
 
 === "npm"

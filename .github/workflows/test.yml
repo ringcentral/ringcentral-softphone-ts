@@ -10,12 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: yarn
-      - run: yarn install --frozen-lockfile --registry https://registry.npmjs.org/
-      - run: yarn validate
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --registry=https://registry.npmjs.org/
+      - run: pnpm validate
   e2e:
     if: github.event_name != 'pull_request'
     needs: validation
@@ -33,9 +34,10 @@ jobs:
       SIP_B_AUTHORIZATION_ID: ${{ secrets.SIP_B_AUTHORIZATION_ID }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: yarn
-      - run: yarn install --frozen-lockfile --registry https://registry.npmjs.org/
-      - run: yarn test:e2e
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --registry=https://registry.npmjs.org/
+      - run: pnpm test:e2e

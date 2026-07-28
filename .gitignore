@@ -8,4 +8,4 @@ dist/
 site
 .venv/
 *~
-.yarnrc
+.npmrc
