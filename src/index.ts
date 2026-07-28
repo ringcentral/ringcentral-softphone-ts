@@ -40,8 +40,6 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
 
   /** @internal */
   public fakeDomain = `${uuid()}.invalid`;
-  /** @internal */
-  public fakeEmail = `${uuid()}@${this.fakeDomain}`;
 
   /** @internal */
   private intervalHandle?: NodeJS.Timeout;
