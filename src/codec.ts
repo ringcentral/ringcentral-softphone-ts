@@ -1,6 +1,16 @@
 import { Buffer } from "node:buffer";
 import { Decoder, Encoder } from "@evan/opus";
 
+const createOpusEncoder = (channels: 1 | 2, sampleRate: 16000 | 48000) => {
+  const encoder = new Encoder({ channels, sample_rate: sampleRate });
+  return { encode: (pcm: Buffer) => Buffer.from(encoder.encode(pcm)) };
+};
+
+const createOpusDecoder = (channels: 1 | 2, sampleRate: 16000 | 48000) => {
+  const decoder = new Decoder({ channels, sample_rate: sampleRate });
+  return { decode: (opus: Buffer) => Buffer.from(decoder.decode(opus)) };
+};
+
 class Codec {
   id: number;
   name: "OPUS/16000" | "OPUS/48000/2" | "PCMU/8000";
@@ -12,32 +22,16 @@ class Codec {
     this.name = name;
     switch (name) {
       case "OPUS/16000": {
-        this.createEncoder = () => {
-          const encoder = new Encoder({ channels: 1, sample_rate: 16000 });
-          return { encode: (pcm: Buffer) => Buffer.from(encoder.encode(pcm)) };
-        };
-        this.createDecoder = () => {
-          const decoder = new Decoder({ channels: 1, sample_rate: 16000 });
-          return {
-            decode: (opus: Buffer) => Buffer.from(decoder.decode(opus)),
-          };
-        };
+        this.createEncoder = () => createOpusEncoder(1, 16000);
+        this.createDecoder = () => createOpusDecoder(1, 16000);
         this.id = 109;
         this.packetSize = 640;
         this.timestampInterval = 320;
         break;
       }
       case "OPUS/48000/2": {
-        this.createEncoder = () => {
-          const encoder = new Encoder({ channels: 2, sample_rate: 48000 });
-          return { encode: (pcm: Buffer) => Buffer.from(encoder.encode(pcm)) };
-        };
-        this.createDecoder = () => {
-          const decoder = new Decoder({ channels: 2, sample_rate: 48000 });
-          return {
-            decode: (opus: Buffer) => Buffer.from(decoder.decode(opus)),
-          };
-        };
+        this.createEncoder = () => createOpusEncoder(2, 48000);
+        this.createDecoder = () => createOpusDecoder(2, 48000);
         this.id = 111;
         this.packetSize = 3840;
         this.timestampInterval = 960;
