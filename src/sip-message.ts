@@ -2,40 +2,32 @@ import { branch, uuid } from "./utils.js";
 
 export class SipMessage {
   public subject: string;
-  public headers: {
-    [key: string]: string;
-  };
+  public headers: Record<string, string>;
   public body: string;
 
   public constructor(subject = "", headers = {}, body = "") {
     this.subject = subject;
     this.headers = headers;
-    this.body = body
-      .trim()
-      .split(/[\r\n]+/)
-      .join("\r\n");
+    this.body = body.trim().replace(/[\r\n]+/g, "\r\n");
     if (this.body.length > 0) {
       this.body += "\r\n";
     }
   }
 
   public toString() {
-    const r = [
+    return [
       this.subject,
       ...Object.keys(this.headers).map((key) => `${key}: ${this.headers[key]}`),
       "",
       this.body,
     ].join("\r\n");
-    return r;
   }
 
   public getHeader(key: string): string | undefined {
     const foundKey = Object.keys(this.headers).find(
       (k) => k.toLowerCase() === key.toLowerCase(),
     );
-    if (foundKey) {
-      return this.headers[foundKey];
-    }
+    return foundKey ? this.headers[foundKey] : undefined;
   }
 }
 
@@ -102,8 +94,7 @@ export class ResponseMessage extends OutboundMessage {
     headers = {},
     body = "",
   ) {
-    super(undefined, { ...headers }, body);
-    this.subject = `SIP/2.0 ${status}`;
+    super(`SIP/2.0 ${status}`, { ...headers }, body);
     const requiredKeys = new Set(["via", "from", "to", "call-id", "cseq"]);
     const allKeys = Object.keys(inboundMessage.headers).reduce(
       (acc, key) => {

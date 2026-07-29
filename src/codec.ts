@@ -38,12 +38,8 @@ class Codec {
         break;
       }
       case "PCMU/8000": {
-        this.createEncoder = () => {
-          return { encode: (pcm: Buffer) => pcm };
-        };
-        this.createDecoder = () => {
-          return { decode: (audio: Buffer) => audio };
-        };
+        this.createEncoder = () => ({ encode: (pcm: Buffer) => pcm });
+        this.createDecoder = () => ({ decode: (audio: Buffer) => audio });
         this.id = 0;
         this.packetSize = 160;
         this.timestampInterval = 160;

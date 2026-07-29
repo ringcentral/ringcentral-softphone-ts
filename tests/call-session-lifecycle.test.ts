@@ -1,6 +1,8 @@
+import { Buffer } from "node:buffer";
 import type dgram from "node:dgram";
 import EventEmitter from "node:events";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { RtpHeader, SrtpSession } from "werift-rtp";
 
 vi.mock("node:timers/promises", () => ({
   setTimeout: (delay: number) =>
@@ -10,6 +12,7 @@ vi.mock("node:timers/promises", () => ({
 }));
 
 import CallSession from "../src/call-session/index.js";
+import DTMF from "../src/dtmf.js";
 import type Softphone from "../src/index.js";
 import { InboundMessage } from "../src/sip-message.js";
 
@@ -34,6 +37,17 @@ const socket = () => ({
   removeAllListeners: vi.fn(),
   close: vi.fn(),
 });
+
+const createSrtpSession = () =>
+  new SrtpSession({
+    profile: 0x0001,
+    keys: {
+      localMasterKey: Buffer.alloc(16, 1),
+      localMasterSalt: Buffer.alloc(14, 2),
+      remoteMasterKey: Buffer.alloc(16, 3),
+      remoteMasterSalt: Buffer.alloc(14, 4),
+    },
+  });
 
 const softphone = (send: ReturnType<typeof vi.fn>) =>
   ({
@@ -106,5 +120,56 @@ describe("CallSession lifecycle", () => {
     await vi.advanceTimersByTimeAsync(1);
     await sending;
     expect(finished).toBe(true);
+  });
+
+  test("keeps the DTMF RTP and SRTP output unchanged", () => {
+    const session = new TestCallSession(softphone(vi.fn()), message());
+    const udpSocket = socket();
+    const actualSrtp = createSrtpSession();
+    const legacySrtp = createSrtpSession();
+    const encrypt = vi.spyOn(actualSrtp, "encrypt");
+    session.socket = udpSocket as unknown as dgram.Socket;
+    session.srtpSession = actualSrtp;
+    session.sequenceNumber = 42;
+    session.timestamp = 1234;
+    session.ssrc = 5678;
+
+    session.sendDTMF("5");
+
+    for (const [index, payload] of DTMF.charToPayloads("5").entries()) {
+      const header = new RtpHeader({
+        version: 2,
+        padding: false,
+        paddingSize: 0,
+        extension: false,
+        marker: index === 0,
+        payloadOffset: 12,
+        payloadType: 101,
+        sequenceNumber: 42 + index,
+        timestamp: 1234,
+        ssrc: 5678,
+        csrcLength: 0,
+        csrc: [],
+        extensionProfile: 48862,
+        extensionLength: undefined,
+        extensions: [],
+      });
+      expect(udpSocket.send.mock.calls[index]?.[0]).toEqual(
+        legacySrtp.encrypt(payload, header),
+      );
+      expect(encrypt).toHaveBeenNthCalledWith(
+        index + 1,
+        payload,
+        expect.objectContaining({
+          marker: index === 0,
+          payloadType: 101,
+          sequenceNumber: 42 + index,
+          timestamp: 1234,
+          ssrc: 5678,
+        }),
+      );
+    }
+    expect(session.sequenceNumber).toBe(48);
+    expect(session.timestamp).toBe(2034);
   });
 });

@@ -102,6 +102,17 @@ describe("Streamer", () => {
     expect(finished).toHaveBeenCalledOnce();
   });
 
+  test("wraps the sequence number from 65535 to 0", async () => {
+    const { callSession } = createCallSession();
+    callSession.sequenceNumber = 65535;
+    const streamer = new Streamer(callSession, Buffer.alloc(packetSize));
+
+    streamer.start();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(callSession.sequenceNumber).toBe(0);
+  });
+
   test("pauses one run and ignores repeated pause and resume calls", async () => {
     const { callSession, send } = createCallSession();
     const streamer = new Streamer(callSession, Buffer.alloc(packetSize * 3));

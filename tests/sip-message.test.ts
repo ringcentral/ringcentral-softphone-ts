@@ -32,13 +32,13 @@ describe("SIP messages", () => {
       {
         Test: "value",
       },
-      " first\nsecond ",
+      " first\rsecond\nthird\r\nfourth ",
     );
     const outbound = new OutboundMessage("MESSAGE sip:1001 SIP/2.0", {}, "hi");
 
-    expect(message.body).toBe("first\r\nsecond\r\n");
+    expect(message.body).toBe("first\r\nsecond\r\nthird\r\nfourth\r\n");
     expect(message.toString()).toBe(
-      "MESSAGE sip:1001 SIP/2.0\r\nTest: value\r\n\r\nfirst\r\nsecond\r\n",
+      "MESSAGE sip:1001 SIP/2.0\r\nTest: value\r\n\r\nfirst\r\nsecond\r\nthird\r\nfourth\r\n",
     );
     expect(outbound.headers["Content-Length"]).toBe(
       outbound.body.length.toString(),

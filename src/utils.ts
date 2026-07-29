@@ -4,35 +4,22 @@ import type { SoftphoneOptions } from "./types.js";
 
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 
-const generateResponse = (
-  sipInfo: SoftphoneOptions,
-  endpoint: string,
-  nonce: string,
-) => {
-  const ha1 = md5(
-    `${sipInfo.authorizationId}:${sipInfo.domain}:${sipInfo.password}`,
-  );
-  const ha2 = md5(endpoint);
-  const response = md5(`${ha1}:${nonce}:${ha2}`);
-  return response;
-};
-
 export const generateAuthorization = (
   sipInfo: SoftphoneOptions,
   nonce: string,
   method: "REGISTER" | "INVITE",
 ) => {
+  const ha1 = md5(
+    `${sipInfo.authorizationId}:${sipInfo.domain}:${sipInfo.password}`,
+  );
+  const ha2 = md5(`${method}:sip:${sipInfo.domain}`);
   const authObj = {
     "Digest algorithm": "MD5",
     username: sipInfo.authorizationId,
     realm: sipInfo.domain,
     nonce,
     uri: `sip:${sipInfo.domain}`,
-    response: generateResponse(
-      sipInfo,
-      `${method}:sip:${sipInfo.domain}`,
-      nonce,
-    ),
+    response: md5(`${ha1}:${nonce}:${ha2}`),
   };
   return Object.entries(authObj)
     .map(([key, value]) => `${key}="${value}"`)

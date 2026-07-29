@@ -92,10 +92,7 @@ class Streamer extends EventEmitter<StreamerEventMap> {
       ssrc: callSession.ssrc,
     });
     callSession.send(callSession.srtpSession.encrypt(payload, header));
-    callSession.sequenceNumber += 1;
-    if (callSession.sequenceNumber > 65535) {
-      callSession.sequenceNumber = 0;
-    }
+    callSession.sequenceNumber = (callSession.sequenceNumber + 1) % 65536;
     callSession.timestamp += codec.timestampInterval;
     this.buffer = this.buffer.subarray(codec.packetSize);
     if (callSession.disposed) {

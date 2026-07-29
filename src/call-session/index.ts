@@ -129,24 +129,13 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     let first = true;
     for (const payload of payloads) {
       const rtpHeader = new RtpHeader({
-        version: 2,
-        padding: false,
-        paddingSize: 0,
-        extension: false,
         marker: first,
-        payloadOffset: 12,
         payloadType: 101,
         sequenceNumber: this.sequenceNumber,
         timestamp,
         ssrc: this.ssrc,
-        csrcLength: 0,
-        csrc: [],
-        extensionProfile: 48862,
-        extensionLength: undefined,
-        extensions: [],
       });
-      const rtpPacket = new RtpPacket(rtpHeader, payload);
-      this.send(this.srtpSession.encrypt(rtpPacket.payload, rtpPacket.header));
+      this.send(this.srtpSession.encrypt(payload, rtpHeader));
       this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
       first = false;
     }
