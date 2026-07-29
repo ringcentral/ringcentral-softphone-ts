@@ -60,6 +60,7 @@ const setupCall = (progress: (cseq: string) => InboundMessage) => {
   );
   const softphone = Object.assign(new EventEmitter(), {
     call: Softphone.prototype.call,
+    createSdp: Softphone.prototype.createSdp,
     client: { localAddress: "127.0.0.1", localPort: 5061 },
     codec: {
       id: 109,

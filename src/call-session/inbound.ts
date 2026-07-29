@@ -1,6 +1,5 @@
 import type Softphone from "../index.js";
 import { type InboundMessage, OutboundMessage } from "../sip-message.js";
-import { localKey } from "../utils.js";
 import CallSession from "./index.js";
 
 class InboundCallSession extends CallSession {
@@ -19,19 +18,7 @@ class InboundCallSession extends CallSession {
   public async answer() {
     const { socket, port } = await CallSession.createBoundSocket();
     this.socket = socket;
-    const answerSDP = `
-v=0
-o=- ${Date.now()} 0 IN IP4 ${this.softphone.client.localAddress}
-s=rc-softphone-ts
-c=IN IP4 ${this.softphone.client.localAddress}
-t=0 0
-m=audio ${port} RTP/SAVP ${this.softphone.codec.id} 101
-a=rtpmap:${this.softphone.codec.id} ${this.softphone.codec.name}
-a=rtpmap:101 telephone-event/8000
-a=fmtp:101 0-15
-a=sendrecv
-a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
-`.trim();
+    const answerSDP = this.softphone.createSdp(port);
     this.sdp = answerSDP;
     const newMessage = new OutboundMessage(
       "SIP/2.0 200 OK",

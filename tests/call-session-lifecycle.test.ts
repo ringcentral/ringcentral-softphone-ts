@@ -13,8 +13,9 @@ vi.mock("node:timers/promises", () => ({
 
 import CallSession from "../src/call-session/index.js";
 import DTMF from "../src/dtmf.js";
-import type Softphone from "../src/index.js";
+import Softphone from "../src/index.js";
 import { InboundMessage } from "../src/sip-message.js";
+import { localKey } from "../src/utils.js";
 
 class TestCallSession extends CallSession {}
 
@@ -65,6 +66,31 @@ afterEach(() => {
 });
 
 describe("CallSession lifecycle", () => {
+  test("creates the shared SDP body", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1234);
+    const phone = {
+      client: { localAddress: "192.0.2.1" },
+      codec: { id: 109, name: "OPUS/16000" },
+    } as Softphone;
+
+    expect(Softphone.prototype.createSdp.call(phone, 4000)).toBe(
+      [
+        "v=0",
+        "o=- 1234 0 IN IP4 192.0.2.1",
+        "s=rc-softphone-ts",
+        "c=IN IP4 192.0.2.1",
+        "t=0 0",
+        "m=audio 4000 RTP/SAVP 109 101",
+        "a=rtpmap:109 OPUS/16000",
+        "a=rtpmap:101 telephone-event/8000",
+        "a=fmtp:101 0-15",
+        "a=sendrecv",
+        `a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}`,
+      ].join("\n"),
+    );
+  });
+
   test("disposes once after a successful local hangup", async () => {
     const send = vi.fn(async () => {});
     const sipMessage = message();

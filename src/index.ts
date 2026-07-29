@@ -41,13 +41,9 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   /** @internal */
   public fakeDomain = `${uuid()}.invalid`;
 
-  /** @internal */
   private intervalHandle?: NodeJS.Timeout;
-  /** @internal */
   private connected = false;
-  /** @internal */
   private instanceId = uuid();
-  /** @internal */
   private registerCallId = uuid();
 
   public constructor(sipInfo: SoftphoneOptions) {
@@ -210,7 +206,6 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
     message: OutboundMessage,
     waitForReply?: false,
   ): Promise<undefined>;
-  /** @internal */
   public send(message: OutboundMessage, waitForReply = false) {
     this.client.write(message.toString());
     if (!waitForReply) {
@@ -235,6 +230,23 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
     });
   }
 
+  /** @internal */
+  public createSdp(port: number): string {
+    return `
+v=0
+o=- ${Date.now()} 0 IN IP4 ${this.client.localAddress}
+s=rc-softphone-ts
+c=IN IP4 ${this.client.localAddress}
+t=0 0
+m=audio ${port} RTP/SAVP ${this.codec.id} 101
+a=rtpmap:${this.codec.id} ${this.codec.name}
+a=rtpmap:101 telephone-event/8000
+a=fmtp:101 0-15
+a=sendrecv
+a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
+`.trim();
+  }
+
   public async answer(invite: InboundInvite): Promise<PublicCallSession> {
     const inboundCallSession = new InboundCallSession(
       this,
@@ -253,19 +265,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
 
   public async call(callee: string): Promise<PublicOutboundCallSession> {
     const { socket, port } = await CallSession.createBoundSocket();
-    const offerSDP = `
-v=0
-o=- ${Date.now()} 0 IN IP4 ${this.client.localAddress}
-s=rc-softphone-ts
-c=IN IP4 ${this.client.localAddress}
-t=0 0
-m=audio ${port} RTP/SAVP ${this.codec.id} 101
-a=rtpmap:${this.codec.id} ${this.codec.name}
-a=rtpmap:101 telephone-event/8000
-a=fmtp:101 0-15
-a=sendrecv
-a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
-  `.trim();
+    const offerSDP = this.createSdp(port);
     const inviteMessage = new RequestMessage(
       `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
       {
