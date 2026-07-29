@@ -294,11 +294,17 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
       "INVITE",
     );
     const progressMessage = await this.send(newMessage, true);
-    const outboundCallSession = new OutboundCallSession(
-      this,
-      progressMessage,
-      socket,
-    );
+    let outboundCallSession: OutboundCallSession;
+    try {
+      outboundCallSession = new OutboundCallSession(
+        this,
+        progressMessage,
+        socket,
+      );
+    } catch (error) {
+      socket.close();
+      throw error;
+    }
     outboundCallSession.sdp = offerSDP;
     return outboundCallSession;
   }

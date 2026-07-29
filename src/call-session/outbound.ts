@@ -4,6 +4,25 @@ import { type InboundMessage, RequestMessage } from "../sip-message.js";
 import { extractAddress, withoutTag } from "../utils.js";
 import CallSession from "./index.js";
 
+// ponytail: RingCentral sends 183 with SDP before 200; add a state machine only if that contract changes.
+const requireProgressMessage = (message: InboundMessage) => {
+  if (!message.subject.startsWith("SIP/2.0 183 ")) {
+    throw new Error(
+      `Failed to start call: expected 183 Session Progress, received ${message.subject}`,
+    );
+  }
+  if (
+    !/c=IN IP4 [\d.]+/.test(message.body) ||
+    !/m=audio \d+ /.test(message.body) ||
+    !/AES_CM_128_HMAC_SHA1_80 inline:[\w+/]+/.test(message.body)
+  ) {
+    throw new Error(
+      "Failed to start call: 183 Session Progress did not contain usable SDP",
+    );
+  }
+  return message;
+};
+
 export const parseTelephonyId = (
   header: string | undefined,
   name: "party-id" | "session-id",
@@ -17,7 +36,7 @@ class OutboundCallSession extends CallSession {
     answerMessage: InboundMessage,
     socket: dgram.Socket,
   ) {
-    super(softphone, answerMessage);
+    super(softphone, requireProgressMessage(answerMessage));
     this.socket = socket;
     this.localPeer = answerMessage.headers.From;
     this.remotePeer = answerMessage.headers.To;
@@ -30,31 +49,31 @@ class OutboundCallSession extends CallSession {
   public init() {
     // wait for user to answer the call
     const answerHandler = (message: InboundMessage) => {
-      if (message.headers.CSeq !== this.sipMessage.headers.CSeq) {
+      if (
+        message.headers.CSeq !== this.sipMessage.headers.CSeq ||
+        !message.subject.startsWith("SIP/2.0 ")
+      ) {
         return;
       }
-      if (message.subject.startsWith("SIP/2.0 486")) {
-        this.softphone.off("message", answerHandler);
+      this.softphone.off("message", answerHandler);
+      if (!message.subject.startsWith("SIP/2.0 200 ")) {
         this.emit("busy");
         this.dispose();
         return;
       }
-      if (message.subject.startsWith("SIP/2.0 200")) {
-        this.softphone.off("message", answerHandler);
-        this.emit("answered");
+      this.emit("answered");
 
-        const ackMessage = new RequestMessage(
-          `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
-          {
-            "Call-ID": this.callId,
-            From: this.localPeer,
-            To: this.remotePeer,
-            Via: this.sipMessage.headers.Via,
-            CSeq: this.sipMessage.headers.CSeq.replace(" INVITE", " ACK"),
-          },
-        );
-        this.softphone.send(ackMessage);
-      }
+      const ackMessage = new RequestMessage(
+        `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
+        {
+          "Call-ID": this.callId,
+          From: this.localPeer,
+          To: this.remotePeer,
+          Via: this.sipMessage.headers.Via,
+          CSeq: this.sipMessage.headers.CSeq.replace(" INVITE", " ACK"),
+        },
+      );
+      this.softphone.send(ackMessage);
     };
     this.softphone.on("message", answerHandler);
     this.once("answered", () => this.startLocalServices());
