@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import type dgram from "node:dgram";
+import dgram from "node:dgram";
 import EventEmitter from "node:events";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { RtpHeader, SrtpSession } from "werift-rtp";
@@ -39,6 +39,20 @@ const socket = () => ({
   close: vi.fn(),
 });
 
+const bindingSocket = (event: "listening" | "error", error?: Error) => {
+  const udpSocket = Object.assign(new EventEmitter(), {
+    bind: vi.fn(() => {
+      queueMicrotask(() => udpSocket.emit(event, error));
+    }),
+    address: vi.fn(() => ({ port: 4321 })),
+    close: vi.fn(),
+  });
+  vi.spyOn(dgram, "createSocket").mockReturnValue(
+    udpSocket as unknown as dgram.Socket,
+  );
+  return udpSocket;
+};
+
 const createSrtpSession = () =>
   new SrtpSession({
     profile: 0x0001,
@@ -62,10 +76,34 @@ const softphone = (send: ReturnType<typeof vi.fn>) =>
   }) as unknown as Softphone;
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
 describe("CallSession lifecycle", () => {
+  test("returns the bound socket after it starts listening", async () => {
+    const udpSocket = bindingSocket("listening");
+
+    await expect(CallSession.createBoundSocket()).resolves.toEqual({
+      socket: udpSocket,
+      port: 4321,
+    });
+    expect(udpSocket.bind).toHaveBeenCalledWith(0);
+    expect(udpSocket.close).not.toHaveBeenCalled();
+    expect(udpSocket.listenerCount("listening")).toBe(0);
+    expect(udpSocket.listenerCount("error")).toBe(0);
+  });
+
+  test("closes the socket when binding fails", async () => {
+    const error = new Error("bind failed");
+    const udpSocket = bindingSocket("error", error);
+
+    await expect(CallSession.createBoundSocket()).rejects.toBe(error);
+    expect(udpSocket.close).toHaveBeenCalledOnce();
+    expect(udpSocket.listenerCount("listening")).toBe(0);
+    expect(udpSocket.listenerCount("error")).toBe(0);
+  });
+
   test("creates the shared SDP body", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1234);

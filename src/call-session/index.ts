@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 import { randomInt } from "node:crypto";
 import dgram from "node:dgram";
-import EventEmitter from "node:events";
+import EventEmitter, { once } from "node:events";
 import { setTimeout as sleep } from "node:timers/promises";
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 import DTMF from "../dtmf.js";
@@ -72,23 +72,15 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
 
   public static async createBoundSocket() {
     const socket = dgram.createSocket("udp4");
-    return await new Promise<{ socket: dgram.Socket; port: number }>(
-      (resolve, reject) => {
-        const onError = (error: Error) => {
-          socket.removeListener("listening", onListening);
-          socket.close();
-          reject(error);
-        };
-        const onListening = () => {
-          socket.removeListener("error", onError);
-          const address = socket.address();
-          resolve({ socket, port: address.port });
-        };
-        socket.once("error", onError);
-        socket.once("listening", onListening);
-        socket.bind(0);
-      },
-    );
+    try {
+      const listening = once(socket, "listening");
+      socket.bind(0);
+      await listening;
+      return { socket, port: socket.address().port };
+    } catch (error) {
+      socket.close();
+      throw error;
+    }
   }
 
   public set remoteKey(key: string) {
