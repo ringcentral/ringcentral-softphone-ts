@@ -22,6 +22,11 @@ import Streamer from "./streamer.js";
 const isDtmfChar = (value: string): value is DtmfChar =>
   (DTMF.phoneChars as readonly string[]).includes(value);
 
+const isAudioDtmfPayload = (payload: Buffer) =>
+  payload.length === 4 &&
+  payload[0] < DTMF.phoneChars.length &&
+  payload.readUIntBE(1, 3) === 0x8a03c0;
+
 export const requireCallId = (message: InboundMessage): string => {
   const callId = message.getHeader("Call-ID")?.trim();
   if (!callId) {
@@ -178,18 +183,8 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
           this.emit("dtmf", char);
         }
       } else if (rtpPacket.header.payloadType === this.softphone.codec.id) {
-        if (
-          rtpPacket.payload.length === 4 &&
-          rtpPacket.payload[0] >= 0x00 &&
-          rtpPacket.payload[0] < 0x0c &&
-          rtpPacket.payload[1] === 0x8a &&
-          rtpPacket.payload[2] === 0x03 &&
-          rtpPacket.payload[3] === 0xc0
-        ) {
-          // special DTMF packet in audio format
-          // first byte 0x00 to 0x0c means DTMF 0 to 9, *, #
-          // we ignore it since DTMF is handled by `if (rtpPacket.header.payloadType === 101) {`
-          return; // ignore it
+        if (isAudioDtmfPayload(rtpPacket.payload)) {
+          return; // DTMF is handled through RTP payload type 101
         }
         try {
           rtpPacket.payload = this.decoder.decode(rtpPacket.payload);

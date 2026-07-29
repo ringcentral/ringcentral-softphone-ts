@@ -1,5 +1,5 @@
 import type Softphone from "../index.js";
-import { type InboundMessage, OutboundMessage } from "../sip-message.js";
+import { type InboundMessage, ResponseMessage } from "../sip-message.js";
 import CallSession from "./index.js";
 
 class InboundCallSession extends CallSession {
@@ -20,14 +20,10 @@ class InboundCallSession extends CallSession {
     this.socket = socket;
     const answerSDP = this.softphone.createSdp(port);
     this.sdp = answerSDP;
-    const newMessage = new OutboundMessage(
-      "SIP/2.0 200 OK",
+    const response = new ResponseMessage(
+      this.sipMessage,
+      "200 OK",
       {
-        Via: this.sipMessage.headers.Via,
-        "Call-ID": this.sipMessage.getHeader("Call-ID"),
-        From: this.sipMessage.headers.From,
-        To: this.sipMessage.headers.To,
-        CSeq: this.sipMessage.headers.CSeq,
         Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
         Allow:
           "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",
@@ -38,7 +34,7 @@ class InboundCallSession extends CallSession {
       },
       answerSDP,
     );
-    const ackMessage = await this.softphone.send(newMessage, true);
+    const ackMessage = await this.softphone.send(response, true);
 
     // for inbound call from call queue, ack message may HAVE body (while invite message has no body)
     if (ackMessage.body.length > 0) {

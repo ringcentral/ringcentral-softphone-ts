@@ -7,7 +7,7 @@ import OutboundCallSession from "./call-session/outbound.js";
 import Codec from "./codec.js";
 import {
   InboundMessage,
-  OutboundMessage,
+  type OutboundMessage,
   RequestMessage,
   ResponseMessage,
 } from "./sip-message.js";
@@ -76,16 +76,14 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
       }
 
       // received two empty body messages
-      const tempMessages = cache
+      const messages = cache
         .split("\r\nContent-Length: 0\r\n\r\n")
         .filter((message) => message.trim() !== "");
       cache = "";
-      for (let i = 0; i < tempMessages.length; i++) {
-        if (!tempMessages[i].includes("Content-Length: ")) {
-          tempMessages[i] = `${tempMessages[i]}\r\nContent-Length: 0`;
+      for (let message of messages) {
+        if (!message.includes("Content-Length: ")) {
+          message += "\r\nContent-Length: 0";
         }
-      }
-      for (const message of tempMessages) {
         this.emit("message", InboundMessage.fromString(message));
       }
     });
@@ -160,15 +158,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
       if (!inboundMessage.subject.startsWith("INVITE sip:")) {
         return;
       }
-      const outboundMessage = new OutboundMessage("SIP/2.0 100 Trying", {
-        Via: inboundMessage.headers.Via,
-        "Call-ID": inboundMessage.getHeader("Call-ID"),
-        From: inboundMessage.headers.From,
-        To: inboundMessage.headers.To,
-        CSeq: inboundMessage.headers.CSeq,
-        "Content-Length": "0",
-      });
-      this.send(outboundMessage);
+      this.send(new ResponseMessage(inboundMessage, "100 Trying"));
       this.emit("invite", inboundMessage as unknown as InboundInvite);
     });
   }

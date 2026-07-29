@@ -66,7 +66,7 @@ describe("SIP messages", () => {
     expect(fork.headers.Via).toMatch(/;branch=.+$/);
   });
 
-  test.each(["200 OK", "603 Decline"])(
+  test.each(["100 Trying", "200 OK", "603 Decline"])(
     "creates the %s response status line",
     (status) => {
       const response = new ResponseMessage(new InboundMessage(), status);

@@ -1,5 +1,7 @@
 import { branch, uuid } from "./utils.js";
 
+const responseHeaders = new Set(["via", "from", "to", "call-id", "cseq"]);
+
 export class SipMessage {
   public subject: string;
   public headers: Record<string, string>;
@@ -95,18 +97,9 @@ export class ResponseMessage extends OutboundMessage {
     body = "",
   ) {
     super(`SIP/2.0 ${status}`, { ...headers }, body);
-    const requiredKeys = new Set(["via", "from", "to", "call-id", "cseq"]);
-    const allKeys = Object.keys(inboundMessage.headers).reduce(
-      (acc, key) => {
-        acc[key.toLowerCase()] = key;
-        return acc;
-      },
-      {} as Record<string, string>,
-    );
-    for (const key of requiredKeys) {
-      if (allKeys[key]) {
-        const originalKey = allKeys[key];
-        this.headers[originalKey] = inboundMessage.headers[originalKey];
+    for (const [key, value] of Object.entries(inboundMessage.headers)) {
+      if (responseHeaders.has(key.toLowerCase())) {
+        this.headers[key] = value;
       }
     }
   }
