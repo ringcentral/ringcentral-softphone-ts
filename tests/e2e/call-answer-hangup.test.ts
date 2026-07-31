@@ -1,4 +1,3 @@
-import "dotenv-override-true/config";
 import { once } from "node:events";
 import process from "node:process";
 import { describe, expect, test } from "vitest";

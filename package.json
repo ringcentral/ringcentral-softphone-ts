@@ -23,11 +23,11 @@
     }
   },
   "scripts": {
-    "in": "rm -f -- *.wav *.raw && tsx -r dotenv-override-true/config demos/inbound-call.ts",
-    "out": "rm -f -- *.wav *.raw && tsx -r dotenv-override-true/config demos/outbound-call.ts",
-    "join": "rm -f -- *.wav *.raw && tsx -r dotenv-override-true/config demos/join-rcv-meeting.ts",
-    "multi-call": "tsx -r dotenv-override-true/config demos/multiple-calls-sequentially.ts",
-    "multi-inst": "tsx -r dotenv-override-true/config demos/multi-instances.ts",
+    "in": "rm -f -- *.wav *.raw && tsx --import ./demos/load-env.ts demos/inbound-call.ts",
+    "out": "rm -f -- *.wav *.raw && tsx --import ./demos/load-env.ts demos/outbound-call.ts",
+    "join": "rm -f -- *.wav *.raw && tsx --import ./demos/load-env.ts demos/join-rcv-meeting.ts",
+    "multi-call": "tsx --import ./demos/load-env.ts demos/multiple-calls-sequentially.ts",
+    "multi-inst": "tsx --import ./demos/load-env.ts demos/multi-instances.ts",
     "test": "vitest run --exclude 'tests/e2e/**'",
     "test:e2e": "vitest run tests/e2e",
     "validate": "biome check . && tsc -p demos/tsconfig.json && tsc -p tests/tsconfig.json && pnpm run test && pnpm run build && tsc -p tests/package/tsconfig.json && node tests/package/runtime.mjs && node tests/package/runtime.cjs",
@@ -42,7 +42,6 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.5",
     "@types/node": "^25.9.5",
-    "dotenv-override-true": "^6.2.2",
     "tsdown": "^0.22.14",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2",
