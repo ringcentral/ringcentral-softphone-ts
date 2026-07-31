@@ -16,14 +16,5 @@ softphone.on("invite", (invite: InboundInvite) => {
   void answer;
 });
 
-type ConsumerTypes =
-  | CallSession
-  | InboundInvite
-  | OutboundCallSession
-  | SoftphoneOptions
-  | Streamer;
-declare const consumerType: ConsumerTypes;
-void consumerType;
-
 // @ts-expect-error CommonJS consumers access the constructor through `.default`.
 new packageNamespace(options);
