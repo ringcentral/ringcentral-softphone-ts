@@ -1,3 +1,5 @@
+import { once } from "node:events";
+
 import Softphone from "../src/index.js";
 
 const softphone = new Softphone({
@@ -9,19 +11,11 @@ const softphone = new Softphone({
 });
 softphone.enableDebugMode(); // print all SIP messages
 
-const call = async () => {
-  const callSession = await softphone.call(process.env.CALLEE_FOR_TESTING!);
-  return new Promise<void>((resolve) => {
-    callSession.once("disposed", () => {
-      resolve();
-    });
-  });
-};
-
 await softphone.register();
 for (let i = 0; i < 10; i++) {
   console.log(`Starting call ${i + 1}`);
-  await call();
+  const callSession = await softphone.call(process.env.CALLEE_FOR_TESTING!);
+  await once(callSession, "disposed");
   console.log(`Call ${i + 1} ended`);
 }
 softphone.revoke();
