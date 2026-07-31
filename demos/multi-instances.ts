@@ -1,5 +1,3 @@
-import process from "node:process";
-
 import Softphone from "../src/index.js";
 
 const newSoftphoneInstance = async (name: string) => {

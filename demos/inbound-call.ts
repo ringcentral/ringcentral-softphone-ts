@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import process from "node:process";
 // import { setTimeout as sleep } from "node:timers/promises";
 
 import Softphone from "../src/index.js";
