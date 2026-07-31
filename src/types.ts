@@ -96,11 +96,9 @@ const parseEndpoint = (value: string) => {
 };
 
 const hasUrlExtras = (url: URL) =>
-  url.username !== "" ||
-  url.password !== "" ||
-  url.pathname !== "" ||
-  url.search !== "" ||
-  url.hash !== "";
+  [url.username, url.password, url.pathname, url.search, url.hash].some(
+    Boolean,
+  );
 
 /** @internal */
 export const normalizeSoftphoneOptions = (
