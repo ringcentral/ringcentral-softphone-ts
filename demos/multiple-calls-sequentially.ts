@@ -18,14 +18,10 @@ const call = async () => {
   });
 };
 
-const main = async () => {
-  await softphone.register();
-  for (let i = 0; i < 10; i++) {
-    console.log(`Starting call ${i + 1}`);
-    await call();
-    console.log(`Call ${i + 1} ended`);
-  }
-  softphone.revoke();
-};
-
-main();
+await softphone.register();
+for (let i = 0; i < 10; i++) {
+  console.log(`Starting call ${i + 1}`);
+  await call();
+  console.log(`Call ${i + 1} ended`);
+}
+softphone.revoke();

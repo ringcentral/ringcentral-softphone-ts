@@ -17,12 +17,9 @@ const newSoftphoneInstance = async (name: string) => {
   await softphone.register();
 };
 
-const main = async () => {
-  for (let i = 1; i <= 10; i++) {
-    await newSoftphoneInstance(`Softphone ${i}`);
-  }
-};
-main();
+for (let i = 1; i <= 10; i++) {
+  await newSoftphoneInstance(`Softphone ${i}`);
+}
 
 /*
 You can create multiple instances using same credentials.
