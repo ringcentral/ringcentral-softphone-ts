@@ -11,7 +11,7 @@ vi.mock("node:timers/promises", () => ({
 }));
 
 import CallSession from "../src/call-session/index.js";
-import DTMF from "../src/dtmf.js";
+import * as DTMF from "../src/dtmf.js";
 import Softphone from "../src/index.js";
 import { InboundMessage } from "../src/sip-message.js";
 import { localKey } from "../src/utils.js";

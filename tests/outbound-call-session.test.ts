@@ -6,7 +6,7 @@ import CallSession from "../src/call-session/index.js";
 import Softphone from "../src/index.js";
 import { InboundMessage, type OutboundMessage } from "../src/sip-message.js";
 
-const remoteKey = Buffer.alloc(30, 1).toString("base64").replace(/=+$/, "");
+const remoteKey = Buffer.alloc(30, 1).toString("base64");
 const validSdp = [
   "v=0",
   "c=IN IP4 127.0.0.1",

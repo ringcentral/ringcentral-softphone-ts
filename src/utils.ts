@@ -29,7 +29,4 @@ export const branch = () => `z9hG4bK-${uuid()}`;
 export const withoutTag = (s: string) => s.replace(/;tag=.*$/, "");
 export const extractAddress = (s: string) => s.match(/<(sip:.+?)>/)?.[1];
 
-export const localKey = crypto
-  .randomBytes(30)
-  .toString("base64")
-  .replace(/=+$/, "");
+export const localKey = crypto.randomBytes(30).toString("base64");

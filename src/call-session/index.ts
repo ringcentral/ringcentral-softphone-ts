@@ -3,7 +3,7 @@ import dgram from "node:dgram";
 import EventEmitter, { once } from "node:events";
 import { setTimeout as sleep } from "node:timers/promises";
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
-import DTMF from "../dtmf.js";
+import * as DTMF from "../dtmf.js";
 import type Softphone from "../index.js";
 import {
   type InboundMessage,
@@ -120,9 +120,8 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   }
 
   public sendDTMF(char: DtmfChar) {
-    const payloads = DTMF.charToPayloads(char);
     const timestamp = this.timestamp;
-    for (const [index, payload] of payloads.entries()) {
+    for (const [index, payload] of DTMF.charToPayloads(char).entries()) {
       const rtpHeader = new RtpHeader({
         marker: index === 0,
         payloadType: 101,
@@ -248,8 +247,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         if (!inboundMessage.subject.startsWith("NOTIFY ")) {
           return;
         }
-        const responseMessage = new ResponseMessage(inboundMessage, "200 OK");
-        this.softphone.send(responseMessage);
+        this.softphone.send(new ResponseMessage(inboundMessage, "200 OK"));
         if (inboundMessage.body.trim() === "SIP/2.0 200 OK") {
           this.softphone.off("message", notifyHandler);
           resolve();

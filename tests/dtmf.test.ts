@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import DTMF from "../src/dtmf.js";
+import * as DTMF from "../src/dtmf.js";
 
 describe("DTMF", () => {
   test.each(["0", "9", "*", "#"])("accepts %s", (char) => {
