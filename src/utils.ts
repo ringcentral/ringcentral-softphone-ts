@@ -13,17 +13,14 @@ export const generateAuthorization = (
     `${sipInfo.authorizationId}:${sipInfo.domain}:${sipInfo.password}`,
   );
   const ha2 = md5(`${method}:sip:${sipInfo.domain}`);
-  const authObj = {
-    "Digest algorithm": "MD5",
-    username: sipInfo.authorizationId,
-    realm: sipInfo.domain,
-    nonce,
-    uri: `sip:${sipInfo.domain}`,
-    response: md5(`${ha1}:${nonce}:${ha2}`),
-  };
-  return Object.entries(authObj)
-    .map(([key, value]) => `${key}="${value}"`)
-    .join(", ");
+  return [
+    'Digest algorithm="MD5"',
+    `username="${sipInfo.authorizationId}"`,
+    `realm="${sipInfo.domain}"`,
+    `nonce="${nonce}"`,
+    `uri="sip:${sipInfo.domain}"`,
+    `response="${md5(`${ha1}:${nonce}:${ha2}`)}"`,
+  ].join(", ");
 };
 
 export const uuid = () => crypto.randomUUID();

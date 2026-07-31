@@ -26,10 +26,9 @@ export class SipMessage {
   }
 
   public getHeader(key: string): string | undefined {
-    const foundKey = Object.keys(this.headers).find(
-      (k) => k.toLowerCase() === key.toLowerCase(),
-    );
-    return foundKey ? this.headers[foundKey] : undefined;
+    return Object.entries(this.headers).find(
+      ([header]) => header.toLowerCase() === key.toLowerCase(),
+    )?.[1];
   }
 }
 
