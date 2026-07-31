@@ -107,13 +107,12 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
     }
 
     const sipRegister = async () => {
-      const fromTag = uuid();
       const requestMessage = new RequestMessage(
         `REGISTER sip:${this.sipInfo.domain} SIP/2.0`,
         {
           Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
           "Max-Forwards": "70",
-          From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${fromTag}`,
+          From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
           To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
           "Call-ID": this.registerCallId,
           Contact: `<sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,

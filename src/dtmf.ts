@@ -26,9 +26,8 @@ const DTMF = {
       throw new Error("invalid phone char");
     }
     return payloads.map((payload) => {
-      const temp = payload + index * 0x01000000;
       const buffer = Buffer.alloc(4);
-      buffer.writeIntBE(temp, 0, 4);
+      buffer.writeIntBE(payload + index * 0x01000000, 0, 4);
       return buffer;
     });
   },
