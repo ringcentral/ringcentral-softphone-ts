@@ -23,9 +23,9 @@
     }
   },
   "scripts": {
-    "in": "rm -f -- *.wav *.raw && tsx --import ./demos/load-env.ts demos/inbound-call.ts",
-    "out": "rm -f -- *.wav *.raw && tsx --import ./demos/load-env.ts demos/outbound-call.ts",
-    "join": "rm -f -- *.wav *.raw && tsx --import ./demos/load-env.ts demos/join-rcv-meeting.ts",
+    "in": "tsx --import ./demos/load-env.ts demos/inbound-call.ts",
+    "out": "tsx --import ./demos/load-env.ts demos/outbound-call.ts",
+    "join": "tsx --import ./demos/load-env.ts demos/join-rcv-meeting.ts",
     "multi-call": "tsx --import ./demos/load-env.ts demos/multiple-calls-sequentially.ts",
     "multi-inst": "tsx --import ./demos/load-env.ts demos/multi-instances.ts",
     "test": "vitest run --exclude 'tests/e2e/**'",

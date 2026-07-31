@@ -24,9 +24,7 @@ softphone.on("invite", async (inviteMessage) => {
   const callSession = await softphone.answer(inviteMessage);
 
   // receive audio
-  const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, {
-    flags: "a",
-  });
+  const writeStream = fs.createWriteStream("audio.raw");
   callSession.on("audio", (audio) => {
     writeStream.write(audio);
   });

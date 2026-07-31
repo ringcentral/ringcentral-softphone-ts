@@ -25,9 +25,7 @@ callSession.on("busy", () => {
 // callee answers the call
 callSession.once("answered", async () => {
   // receive audio
-  const writeStream = fs.createWriteStream(`${callSession.callId}.raw`, {
-    flags: "a",
-  });
+  const writeStream = fs.createWriteStream("audio.raw");
   callSession.on("audio", (audio) => {
     writeStream.write(audio);
   });
