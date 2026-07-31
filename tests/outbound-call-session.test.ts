@@ -1,8 +1,7 @@
-import type dgram from "node:dgram";
+import dgram from "node:dgram";
 import EventEmitter from "node:events";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { MediaTransport } from "../src/call-session/media.js";
 import Softphone from "../src/index.js";
 import { InboundMessage, type OutboundMessage } from "../src/sip-message.js";
 
@@ -35,6 +34,8 @@ const response = (
 
 const setupCall = (progress: (cseq: string) => InboundMessage) => {
   const socket = Object.assign(new EventEmitter(), {
+    bind: vi.fn(() => socket.emit("listening")),
+    address: vi.fn(() => ({ port: 4000 })),
     send: vi.fn(),
     close: vi.fn(),
   });
@@ -64,6 +65,8 @@ const setupCall = (progress: (cseq: string) => InboundMessage) => {
     codec: {
       id: 109,
       name: "OPUS/16000",
+      packetSize: 640,
+      timestampInterval: 320,
       createEncoder: () => ({ encode: (input: Buffer) => input }),
       createDecoder: () => ({ decode: (input: Buffer) => input }),
     },
@@ -77,10 +80,9 @@ const setupCall = (progress: (cseq: string) => InboundMessage) => {
     send,
   }) as unknown as Softphone;
 
-  vi.spyOn(MediaTransport, "createBoundSocket").mockResolvedValue({
-    socket: socket as unknown as dgram.Socket,
-    port: 4000,
-  });
+  vi.spyOn(dgram, "createSocket").mockReturnValue(
+    socket as unknown as dgram.Socket,
+  );
 
   return { softphone, socket, send, progressCseq: () => progressCseq };
 };
@@ -97,12 +99,21 @@ describe("outbound call responses", () => {
     const session = await fixture.softphone.call("1002");
     const answered = vi.fn();
     session.on("answered", answered);
+    expect(() => session.sendDTMF("1")).toThrow(
+      "Media transport has not started",
+    );
+    expect(fixture.socket.send).not.toHaveBeenCalled();
 
     const ok = response("200 OK", fixture.progressCseq());
     fixture.softphone.emit("message", ok);
     fixture.softphone.emit("message", ok);
 
     expect(answered).toHaveBeenCalledOnce();
+    expect(fixture.socket.send).toHaveBeenCalledWith(
+      "hello",
+      4000,
+      "127.0.0.1",
+    );
     const ack = fixture.send.mock.calls[2][0];
     expect(ack.subject).toMatch(/^ACK /);
     expect(ack.headers.CSeq).toBe(
@@ -137,6 +148,16 @@ describe("outbound call responses", () => {
     await expect(fixture.softphone.call("1002")).rejects.toThrow(
       "183 Session Progress did not contain usable SDP",
     );
+    expect(fixture.socket.close).toHaveBeenCalledOnce();
+  });
+
+  test("closes bound media when SIP setup fails", async () => {
+    const fixture = setupCall((cseq) =>
+      response("183 Session Progress", cseq, validSdp),
+    );
+    fixture.send.mockRejectedValueOnce(new Error("send failed"));
+
+    await expect(fixture.softphone.call("1002")).rejects.toThrow("send failed");
     expect(fixture.socket.close).toHaveBeenCalledOnce();
   });
 

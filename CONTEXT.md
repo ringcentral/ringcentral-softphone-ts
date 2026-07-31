@@ -9,7 +9,7 @@ A live inbound or outbound phone call that exposes call controls and call-level 
 _Avoid_: Media session
 
 **Media transport**:
-The per-call channel that carries audio and DTMF between the Softphone SDK and the remote peer.
+The per-call channel that owns the bound UDP and SRTP lifecycle carrying audio and DTMF between the Softphone SDK and the remote peer.
 _Avoid_: Media session
 
 **Streamer**:

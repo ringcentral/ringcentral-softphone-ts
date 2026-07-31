@@ -14,7 +14,7 @@ import type {
   Streamer as PublicStreamer,
 } from "../types.js";
 import { branch, extractAddress } from "../utils.js";
-import { MediaTransport } from "./media.js";
+import type { MediaTransport } from "./media.js";
 
 const isDtmfChar = (value: string): value is DtmfChar =>
   (DTMF.phoneChars as readonly string[]).includes(value);
@@ -38,23 +38,16 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
 
   private byeHandler?: (message: InboundMessage) => void;
 
-  public constructor(softphone: Softphone, sipMessage: InboundMessage) {
+  public constructor(
+    softphone: Softphone,
+    sipMessage: InboundMessage,
+    media: MediaTransport,
+  ) {
     super();
     this.softphone = softphone;
-    this.media = new MediaTransport(softphone.codec, (event, value) =>
-      this.emit(event, value),
-    );
+    this.media = media;
     this.sipMessage = sipMessage;
     this.callId = requireCallId(sipMessage);
-
-    // inbound call from call queue, invite message may not have body
-    if (this.sipMessage.body.length > 0) {
-      this.media.remoteIP = this.sipMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-      this.media.remotePort = parseInt(
-        this.sipMessage.body.match(/m=audio (\d+) /)![1],
-        10,
-      );
-    }
   }
 
   public async hangup() {
@@ -96,8 +89,8 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     this.media.sendPacket(rtpPacket);
   }
 
-  protected startLocalServices() {
-    this.media.start();
+  protected startLocalServices(sdp: string) {
+    this.media.start(sdp, (event, value) => this.emit(event as string, value));
 
     this.byeHandler = (inboundMessage: InboundMessage) => {
       if (inboundMessage.getHeader("Call-ID") !== this.callId) {
@@ -111,17 +104,15 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   }
 
   protected dispose() {
-    if (this.media.disposed) {
+    if (!this.media.dispose()) {
       return;
     }
-    this.media.disposed = true;
     this.emit("disposed");
     this.removeAllListeners();
     if (this.byeHandler) {
       this.softphone.off("message", this.byeHandler);
       this.byeHandler = undefined;
     }
-    this.media.close();
   }
 
   public async transfer(transferTo: string) {

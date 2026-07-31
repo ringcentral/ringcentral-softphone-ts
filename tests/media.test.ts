@@ -4,11 +4,25 @@ import EventEmitter from "node:events";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
+const randomInt = vi.hoisted(() => vi.fn(() => 1));
+vi.mock("node:crypto", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:crypto")>()),
+  randomInt,
+}));
+
 import { MediaTransport, Streamer } from "../src/call-session/media.js";
 import type Codec from "../src/codec.js";
 import * as DTMF from "../src/dtmf.js";
+import { localKey } from "../src/utils.js";
 
 const packetSize = 4;
+const remoteKey = Buffer.alloc(30, 1).toString("base64");
+const validSdp = [
+  "v=0",
+  "c=IN IP4 127.0.0.1",
+  "m=audio 4000 RTP/SAVP 0",
+  `a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${remoteKey}`,
+].join("\r\n");
 
 const codec = (
   encode = vi.fn((buffer: Buffer) => buffer),
@@ -23,60 +37,79 @@ const codec = (
     createDecoder: () => ({ decode }),
   }) as Codec;
 
-const createMedia = () => {
-  const media = new MediaTransport(codec(), vi.fn());
+const socket = (event: "listening" | "error" = "listening", error?: Error) => {
+  const udpSocket = Object.assign(new EventEmitter(), {
+    bind: vi.fn(() => udpSocket.emit(event, error)),
+    address: vi.fn(() => ({ port: 4321 })),
+    send: vi.fn(),
+    close: vi.fn(),
+  });
+  return udpSocket;
+};
+
+const bindMedia = async (selectedCodec = codec(), udpSocket = socket()) => {
+  vi.spyOn(dgram, "createSocket").mockReturnValue(
+    udpSocket as unknown as dgram.Socket,
+  );
+  const media = await MediaTransport.bind(selectedCodec);
+  return { media, udpSocket };
+};
+
+const startMedia = async (
+  selectedCodec = codec(),
+  emit = vi.fn(),
+  udpSocket = socket(),
+) => {
+  const bound = await bindMedia(selectedCodec, udpSocket);
+  bound.media.start(validSdp, emit);
+  bound.udpSocket.send.mockClear();
+  return { ...bound, emit };
+};
+
+const createSrtpSession = () => {
+  const localKeyBuffer = Buffer.from(localKey, "base64");
+  const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
+  return new SrtpSession({
+    profile: 0x0001,
+    keys: {
+      localMasterKey: localKeyBuffer.subarray(0, 16),
+      localMasterSalt: localKeyBuffer.subarray(16, 30),
+      remoteMasterKey: remoteKeyBuffer.subarray(0, 16),
+      remoteMasterSalt: remoteKeyBuffer.subarray(16, 30),
+    },
+  });
+};
+
+const createRemoteSrtpSession = () => {
+  const localKeyBuffer = Buffer.from(localKey, "base64");
+  const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
+  return new SrtpSession({
+    profile: 0x0001,
+    keys: {
+      localMasterKey: remoteKeyBuffer.subarray(0, 16),
+      localMasterSalt: remoteKeyBuffer.subarray(16, 30),
+      remoteMasterKey: localKeyBuffer.subarray(0, 16),
+      remoteMasterSalt: localKeyBuffer.subarray(16, 30),
+    },
+  });
+};
+
+const createMedia = async () => {
+  const { media } = await startMedia();
   const sendAudio = vi.spyOn(media, "sendAudio").mockImplementation(() => {});
   return { media, sendAudio };
 };
 
-const socket = () =>
-  Object.assign(new EventEmitter(), {
-    send: vi.fn(),
-    close: vi.fn(),
-  });
-
-const bindingSocket = (event: "listening" | "error", error?: Error) => {
-  const udpSocket = Object.assign(new EventEmitter(), {
-    bind: vi.fn(() => {
-      queueMicrotask(() => udpSocket.emit(event, error));
-    }),
-    address: vi.fn(() => ({ port: 4321 })),
-    close: vi.fn(),
-  });
-  vi.spyOn(dgram, "createSocket").mockReturnValue(
-    udpSocket as unknown as dgram.Socket,
-  );
-  return udpSocket;
-};
-
-const createSrtpSession = () =>
-  new SrtpSession({
-    profile: 0x0001,
-    keys: {
-      localMasterKey: Buffer.alloc(16, 1),
-      localMasterSalt: Buffer.alloc(14, 2),
-      remoteMasterKey: Buffer.alloc(16, 3),
-      remoteMasterSalt: Buffer.alloc(14, 4),
-    },
-  });
-
-const incomingMedia = (
+const incomingMedia = async (
   decode = vi.fn((buffer: Buffer) => Buffer.from(buffer)),
 ) => {
-  const emit = vi.fn();
-  const udpSocket = socket();
-  const media = new MediaTransport(codec(undefined, decode), emit);
-  media.socket = udpSocket as unknown as dgram.Socket;
-  media.remoteIP = "127.0.0.1";
-  media.remotePort = 4000;
-  media.srtpSession = {
-    decrypt: (message: Buffer) => message,
-  } as SrtpSession;
-  media.start();
-  return { decode, emit, media, udpSocket };
+  const started = await startMedia(codec(undefined, decode));
+  return { ...started, remoteSrtp: createRemoteSrtpSession() };
 };
 
 beforeEach(() => {
+  randomInt.mockReset();
+  randomInt.mockReturnValue(1);
   vi.useFakeTimers();
 });
 
@@ -87,14 +120,12 @@ afterEach(() => {
 });
 
 describe("MediaTransport", () => {
-  test("returns the bound socket after it starts listening", async () => {
-    vi.useRealTimers();
-    const udpSocket = bindingSocket("listening");
+  test("binds its socket and exposes the assigned local port", async () => {
+    const udpSocket = socket();
 
-    await expect(MediaTransport.createBoundSocket()).resolves.toEqual({
-      socket: udpSocket,
-      port: 4321,
-    });
+    const { media } = await bindMedia(codec(), udpSocket);
+
+    expect(media.localPort).toBe(4321);
     expect(udpSocket.bind).toHaveBeenCalledWith(0);
     expect(udpSocket.close).not.toHaveBeenCalled();
     expect(udpSocket.listenerCount("listening")).toBe(0);
@@ -102,34 +133,81 @@ describe("MediaTransport", () => {
   });
 
   test("closes the socket when binding fails", async () => {
-    vi.useRealTimers();
     const error = new Error("bind failed");
-    const udpSocket = bindingSocket("error", error);
+    const udpSocket = socket("error", error);
+    vi.spyOn(dgram, "createSocket").mockReturnValue(
+      udpSocket as unknown as dgram.Socket,
+    );
 
-    await expect(MediaTransport.createBoundSocket()).rejects.toBe(error);
+    await expect(MediaTransport.bind(codec())).rejects.toBe(error);
     expect(udpSocket.close).toHaveBeenCalledOnce();
     expect(udpSocket.listenerCount("listening")).toBe(0);
     expect(udpSocket.listenerCount("error")).toBe(0);
   });
 
-  test("encodes, encrypts, and sends audio while advancing RTP counters", () => {
-    const encode = vi.fn(() => Buffer.from("encoded"));
-    const media = new MediaTransport(codec(encode), vi.fn());
-    const udpSocket = socket();
-    const encrypt = vi.fn(() => Buffer.from("encrypted"));
-    media.socket = udpSocket as unknown as dgram.Socket;
-    media.remoteIP = "127.0.0.1";
-    media.remotePort = 4000;
-    media.srtpSession = { encrypt } as unknown as SrtpSession;
-    media.sequenceNumber = 65535;
-    media.timestamp = 10;
-    media.ssrc = 20;
+  test("starts from negotiated SDP and rejects repeated startup", async () => {
+    const emit = vi.fn();
+    const { media, udpSocket } = await bindMedia();
 
+    media.start(validSdp, emit);
+
+    expect(udpSocket.send).toHaveBeenCalledWith("hello", 4000, "127.0.0.1");
+    expect(udpSocket.listenerCount("message")).toBe(1);
+    expect(() => media.start(validSdp, emit)).toThrow(
+      "Media transport has already started",
+    );
+  });
+
+  test.each([
+    validSdp.replace("c=IN IP4 127.0.0.1", ""),
+    validSdp.replace("m=audio 4000 RTP/SAVP 0", ""),
+    validSdp.replace(
+      `a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${remoteKey}`,
+      "",
+    ),
+  ])("disposes when negotiated SDP is incomplete", async (sdp) => {
+    const { media, udpSocket } = await bindMedia();
+
+    expect(() => media.start(sdp, vi.fn())).toThrow(
+      "negotiated SDP did not contain a remote IP, audio port, and SRTP key",
+    );
+    expect(media.disposed).toBe(true);
+    expect(udpSocket.close).toHaveBeenCalledOnce();
+  });
+
+  test("rejects media operations before startup", async () => {
+    const { media } = await bindMedia();
+    const packet = new RtpPacket(new RtpHeader(), Buffer.alloc(0));
+
+    expect(() => media.sendDTMF("1")).toThrow(
+      "Media transport has not started",
+    );
+    expect(() => media.sendPacket(packet)).toThrow(
+      "Media transport has not started",
+    );
+    expect(() => media.streamAudio(Buffer.alloc(0))).toThrow(
+      "Media transport has not started",
+    );
+  });
+
+  test("encodes, encrypts, and sends audio while rolling RTP counters", async () => {
+    randomInt
+      .mockReturnValueOnce(65535)
+      .mockReturnValueOnce(10)
+      .mockReturnValueOnce(20);
+    const encode = vi.fn(() => Buffer.from("encoded"));
+    const encrypt = vi
+      .spyOn(SrtpSession.prototype, "encrypt")
+      .mockReturnValue(Buffer.from("encrypted"));
+    const { media, udpSocket } = await startMedia(codec(encode));
     const pcm = Buffer.alloc(packetSize);
+
+    media.sendAudio(pcm);
     media.sendAudio(pcm);
 
     expect(encode).toHaveBeenCalledWith(pcm);
-    expect(encrypt).toHaveBeenCalledWith(
+    expect(encrypt).toHaveBeenNthCalledWith(
+      1,
       Buffer.from("encoded"),
       expect.objectContaining({
         payloadType: 0,
@@ -138,28 +216,28 @@ describe("MediaTransport", () => {
         ssrc: 20,
       }),
     );
+    expect(encrypt).toHaveBeenNthCalledWith(
+      2,
+      Buffer.from("encoded"),
+      expect.objectContaining({
+        sequenceNumber: 0,
+        timestamp: 14,
+      }),
+    );
     expect(udpSocket.send).toHaveBeenCalledWith(
       Buffer.from("encrypted"),
       4000,
       "127.0.0.1",
     );
-    expect(media.sequenceNumber).toBe(0);
-    expect(media.timestamp).toBe(14);
   });
 
-  test("keeps the DTMF RTP and SRTP output unchanged", () => {
-    const media = new MediaTransport(codec(), vi.fn());
-    const udpSocket = socket();
-    const actualSrtp = createSrtpSession();
+  test("keeps the DTMF RTP and SRTP output unchanged", async () => {
+    randomInt
+      .mockReturnValueOnce(42)
+      .mockReturnValueOnce(1234)
+      .mockReturnValueOnce(5678);
+    const { media, udpSocket } = await startMedia();
     const legacySrtp = createSrtpSession();
-    const encrypt = vi.spyOn(actualSrtp, "encrypt");
-    media.socket = udpSocket as unknown as dgram.Socket;
-    media.remoteIP = "127.0.0.1";
-    media.remotePort = 4000;
-    media.srtpSession = actualSrtp;
-    media.sequenceNumber = 42;
-    media.timestamp = 1234;
-    media.ssrc = 5678;
 
     media.sendDTMF("5");
 
@@ -184,32 +262,22 @@ describe("MediaTransport", () => {
       expect(udpSocket.send.mock.calls[index]?.[0]).toEqual(
         legacySrtp.encrypt(payload, header),
       );
-      expect(encrypt).toHaveBeenNthCalledWith(
-        index + 1,
-        payload,
-        expect.objectContaining({
-          marker: index === 0,
-          payloadType: 101,
-          sequenceNumber: 42 + index,
-          timestamp: 1234,
-          ssrc: 5678,
-        }),
-      );
     }
-    expect(media.sequenceNumber).toBe(48);
-    expect(media.timestamp).toBe(2034);
   });
 
-  test("emits raw and decoded audio events in order", () => {
+  test("emits raw and decoded audio events in order", async () => {
     const decoded = Buffer.from("decoded");
     const decode = vi.fn(() => decoded);
-    const { emit, udpSocket } = incomingMedia(decode);
+    const { emit, remoteSrtp, udpSocket } = await incomingMedia(decode);
     const packet = new RtpPacket(
       new RtpHeader({ payloadType: 0 }),
       Buffer.from("encoded"),
     );
 
-    udpSocket.emit("message", packet.serialize());
+    udpSocket.emit(
+      "message",
+      remoteSrtp.encrypt(packet.payload, packet.header),
+    );
 
     expect(decode).toHaveBeenCalledWith(Buffer.from("encoded"));
     expect(emit.mock.calls.map(([event]) => event)).toEqual([
@@ -220,14 +288,17 @@ describe("MediaTransport", () => {
     expect(emit).toHaveBeenLastCalledWith("audio", decoded);
   });
 
-  test("emits raw and decoded DTMF events in order", () => {
-    const { emit, udpSocket } = incomingMedia();
+  test("emits raw and decoded DTMF events in order", async () => {
+    const { emit, remoteSrtp, udpSocket } = await incomingMedia();
     const packet = new RtpPacket(
       new RtpHeader({ payloadType: 101 }),
       DTMF.charToPayloads("5")[0],
     );
 
-    udpSocket.emit("message", packet.serialize());
+    udpSocket.emit(
+      "message",
+      remoteSrtp.encrypt(packet.payload, packet.header),
+    );
 
     expect(emit.mock.calls.map(([event]) => event)).toEqual([
       "rtpPacket",
@@ -237,21 +308,23 @@ describe("MediaTransport", () => {
     expect(emit).toHaveBeenLastCalledWith("dtmf", "5");
   });
 
-  test("ignores embedded audio DTMF after the raw packet event", () => {
-    const { decode, emit, udpSocket } = incomingMedia();
+  test("ignores embedded audio DTMF after the raw packet event", async () => {
+    const { emit, remoteSrtp, udpSocket } = await incomingMedia();
     const payload = Buffer.alloc(4);
     payload.writeUIntBE(0x8a03c0, 1, 3);
     const packet = new RtpPacket(new RtpHeader({ payloadType: 0 }), payload);
 
-    udpSocket.emit("message", packet.serialize());
+    udpSocket.emit(
+      "message",
+      remoteSrtp.encrypt(packet.payload, packet.header),
+    );
 
-    expect(decode).not.toHaveBeenCalled();
     expect(emit.mock.calls.map(([event]) => event)).toEqual(["rtpPacket"]);
   });
 
-  test("reports decode failures without emitting decoded audio", () => {
+  test("reports decode failures without decoded audio events", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { emit, udpSocket } = incomingMedia(
+    const { emit, remoteSrtp, udpSocket } = await incomingMedia(
       vi.fn(() => {
         throw new Error("decode failed");
       }),
@@ -261,20 +334,23 @@ describe("MediaTransport", () => {
       Buffer.from("encoded"),
     );
 
-    udpSocket.emit("message", packet.serialize());
+    udpSocket.emit(
+      "message",
+      remoteSrtp.encrypt(packet.payload, packet.header),
+    );
 
     expect(error).toHaveBeenCalledOnce();
     expect(emit.mock.calls.map(([event]) => event)).toEqual(["rtpPacket"]);
   });
 
-  test("removes socket listeners and closes the socket", () => {
-    const media = new MediaTransport(codec(), vi.fn());
-    const udpSocket = socket();
+  test("disposes once and cleans up the socket", async () => {
+    const { media, udpSocket } = await startMedia();
     const removeAllListeners = vi.spyOn(udpSocket, "removeAllListeners");
-    media.socket = udpSocket as unknown as dgram.Socket;
 
-    media.close();
+    expect(media.dispose()).toBe(true);
+    expect(media.dispose()).toBe(false);
 
+    expect(media.disposed).toBe(true);
     expect(removeAllListeners).toHaveBeenCalledOnce();
     expect(udpSocket.close).toHaveBeenCalledOnce();
   });
@@ -286,7 +362,7 @@ describe("Streamer", () => {
     { name: "sub-packet", size: packetSize - 1, sends: 0 },
     { name: "one-packet", size: packetSize, sends: 1 },
   ])("finishes $name input asynchronously", async ({ size, sends }) => {
-    const { media, sendAudio } = createMedia();
+    const { media, sendAudio } = await createMedia();
     const streamer = new Streamer(media, Buffer.alloc(size));
     const finished = vi.fn();
 
@@ -305,7 +381,7 @@ describe("Streamer", () => {
   });
 
   test("paces complete packets 20 ms apart and finishes once", async () => {
-    const { media, sendAudio } = createMedia();
+    const { media, sendAudio } = await createMedia();
     const streamer = new Streamer(media, Buffer.alloc(packetSize * 3 + 1));
     const finished = vi.fn();
     streamer.on("finished", finished);
@@ -330,7 +406,7 @@ describe("Streamer", () => {
   });
 
   test("pauses one run and ignores repeated pause and resume calls", async () => {
-    const { media, sendAudio } = createMedia();
+    const { media, sendAudio } = await createMedia();
     const streamer = new Streamer(media, Buffer.alloc(packetSize * 3));
     const finished = vi.fn();
     streamer.once("finished", finished);
@@ -352,7 +428,7 @@ describe("Streamer", () => {
   });
 
   test("stops permanently until start restarts the original buffer", async () => {
-    const { media, sendAudio } = createMedia();
+    const { media, sendAudio } = await createMedia();
     const streamer = new Streamer(media, Buffer.alloc(packetSize * 2));
     const finished = vi.fn();
     streamer.on("finished", finished);
@@ -381,14 +457,14 @@ describe("Streamer", () => {
   });
 
   test("does not send or finish after disposal", async () => {
-    const { media, sendAudio } = createMedia();
+    const { media, sendAudio } = await createMedia();
     const streamer = new Streamer(media, Buffer.alloc(packetSize * 2));
     const finished = vi.fn();
     streamer.once("finished", finished);
 
     streamer.start();
     await vi.advanceTimersByTimeAsync(0);
-    media.disposed = true;
+    media.dispose();
     await vi.advanceTimersByTimeAsync(20);
 
     expect(sendAudio).toHaveBeenCalledOnce();
@@ -401,12 +477,12 @@ describe("Streamer", () => {
   });
 
   test("does not finish when disposed during the final send", async () => {
-    const { media, sendAudio } = createMedia();
+    const { media, sendAudio } = await createMedia();
     const streamer = new Streamer(media, Buffer.alloc(packetSize));
     const finished = vi.fn();
     streamer.once("finished", finished);
     sendAudio.mockImplementationOnce(() => {
-      media.disposed = true;
+      media.dispose();
     });
 
     streamer.start();

@@ -1,8 +1,8 @@
-import type dgram from "node:dgram";
 import type Softphone from "../index.js";
 import { type InboundMessage, RequestMessage } from "../sip-message.js";
 import { extractAddress, withoutTag } from "../utils.js";
 import CallSession from "./index.js";
+import type { MediaTransport } from "./media.js";
 
 // ponytail: RingCentral sends 183 with SDP before 200; add a state machine only if that contract changes.
 const requireProgressMessage = (message: InboundMessage) => {
@@ -34,15 +34,11 @@ class OutboundCallSession extends CallSession {
   public constructor(
     softphone: Softphone,
     answerMessage: InboundMessage,
-    socket: dgram.Socket,
+    media: MediaTransport,
   ) {
-    super(softphone, requireProgressMessage(answerMessage));
-    this.media.socket = socket;
+    super(softphone, requireProgressMessage(answerMessage), media);
     this.localPeer = answerMessage.headers.From;
     this.remotePeer = answerMessage.headers.To;
-    this.media.remoteKey = answerMessage.body.match(
-      /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
-    )![1];
     this.init();
   }
 
@@ -76,7 +72,7 @@ class OutboundCallSession extends CallSession {
       this.softphone.send(ackMessage);
     };
     this.softphone.on("message", answerHandler);
-    this.once("answered", () => this.startLocalServices());
+    this.once("answered", () => this.startLocalServices(this.sipMessage.body));
   }
 
   public async cancel() {

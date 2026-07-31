@@ -237,12 +237,19 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
   }
 
   public async answer(invite: InboundInvite): Promise<PublicCallSession> {
-    const inboundCallSession = new InboundCallSession(
-      this,
-      invite as unknown as InboundMessage,
-    );
-    await inboundCallSession.answer();
-    return inboundCallSession;
+    const media = await MediaTransport.bind(this.codec);
+    try {
+      const inboundCallSession = new InboundCallSession(
+        this,
+        invite as unknown as InboundMessage,
+        media,
+      );
+      await inboundCallSession.answer();
+      return inboundCallSession;
+    } catch (error) {
+      media.dispose();
+      throw error;
+    }
   }
 
   // decline an inbound call
@@ -253,49 +260,48 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
   }
 
   public async call(callee: string): Promise<PublicOutboundCallSession> {
-    const { socket, port } = await MediaTransport.createBoundSocket();
-    const offerSDP = this.createSdp(port);
-    const inviteMessage = new RequestMessage(
-      `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
-      {
-        Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
-        "Max-Forwards": 70,
-        From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
-        To: `<sip:${callee}@${this.sipInfo.domain}>`,
-        Contact: ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
-        "Call-ID": uuid(),
-        Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
-        Allow: `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
-        Supported: `replaces, 100rel, timer, norefersub`,
-        "Session-Expires": 1800,
-        "Min-SE": 90,
-        "Content-Type": "application/sdp",
-      },
-      offerSDP,
-    );
-    const inboundMessage = await this.send(inviteMessage, true);
-    const proxyAuthenticate = inboundMessage.getHeader("Proxy-Authenticate")!;
-    const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];
-    const newMessage = inviteMessage.fork();
-    newMessage.headers["Proxy-Authorization"] = generateAuthorization(
-      this.sipInfo,
-      nonce,
-      "INVITE",
-    );
-    const progressMessage = await this.send(newMessage, true);
-    let outboundCallSession: OutboundCallSession;
+    const media = await MediaTransport.bind(this.codec);
     try {
-      outboundCallSession = new OutboundCallSession(
+      const offerSDP = this.createSdp(media.localPort);
+      const inviteMessage = new RequestMessage(
+        `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
+        {
+          Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
+          "Max-Forwards": 70,
+          From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
+          To: `<sip:${callee}@${this.sipInfo.domain}>`,
+          Contact: ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
+          "Call-ID": uuid(),
+          Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
+          Allow: `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
+          Supported: `replaces, 100rel, timer, norefersub`,
+          "Session-Expires": 1800,
+          "Min-SE": 90,
+          "Content-Type": "application/sdp",
+        },
+        offerSDP,
+      );
+      const inboundMessage = await this.send(inviteMessage, true);
+      const proxyAuthenticate = inboundMessage.getHeader("Proxy-Authenticate")!;
+      const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];
+      const newMessage = inviteMessage.fork();
+      newMessage.headers["Proxy-Authorization"] = generateAuthorization(
+        this.sipInfo,
+        nonce,
+        "INVITE",
+      );
+      const progressMessage = await this.send(newMessage, true);
+      const outboundCallSession = new OutboundCallSession(
         this,
         progressMessage,
-        socket,
+        media,
       );
+      outboundCallSession.sdp = offerSDP;
+      return outboundCallSession;
     } catch (error) {
-      socket.close();
+      media.dispose();
       throw error;
     }
-    outboundCallSession.sdp = offerSDP;
-    return outboundCallSession;
   }
 }
 

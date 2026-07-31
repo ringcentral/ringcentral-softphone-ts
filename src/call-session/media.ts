@@ -14,37 +14,62 @@ const isAudioDtmfPayload = (payload: Buffer) =>
   payload[0] < DTMF.phoneChars.length &&
   payload.readUIntBE(1, 3) === 0x8a03c0;
 
-type EmitMediaEvent = (event: string, value: unknown) => void;
+type MediaEventMap = {
+  rtpPacket: RtpPacket;
+  dtmfPacket: RtpPacket;
+  dtmf: DtmfChar;
+  audioPacket: RtpPacket;
+  audio: Buffer;
+};
+
+type EmitMediaEvent = <Event extends keyof MediaEventMap>(
+  event: Event,
+  value: MediaEventMap[Event],
+) => void;
+
+const parseSdp = (sdp: string) => {
+  const remoteIP = sdp.match(/c=IN IP4 ([\d.]+)/)?.[1];
+  const remotePort = Number(sdp.match(/m=audio (\d+) /)?.[1]);
+  const remoteKey = sdp.match(/AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/)?.[1];
+  if (!remoteIP || !remotePort || !remoteKey) {
+    throw new Error(
+      "Failed to start media: negotiated SDP did not contain a remote IP, audio port, and SRTP key",
+    );
+  }
+  return { remoteIP, remotePort, remoteKey };
+};
 
 export class MediaTransport {
-  public socket!: dgram.Socket;
-  public remoteIP!: string;
-  public remotePort!: number;
-  public disposed = false;
-  public srtpSession!: SrtpSession;
-  public encoder: { encode: (pcm: Buffer) => Buffer };
-  public decoder: { decode: (audio: Buffer) => Buffer };
-  public sequenceNumber = randomInt(2 ** 16);
-  public timestamp = randomInt(2 ** 32);
-  public ssrc = randomInt(2 ** 32);
+  public readonly localPort: number;
 
+  private socket: dgram.Socket;
   private codec: Codec;
-  private emit: EmitMediaEvent;
+  private encoder: { encode: (pcm: Buffer) => Buffer };
+  private decoder: { decode: (audio: Buffer) => Buffer };
+  private remoteIP?: string;
+  private remotePort?: number;
+  private srtpSession?: SrtpSession;
+  private sequenceNumber = randomInt(2 ** 16);
+  private timestamp = randomInt(2 ** 32);
+  private ssrc = randomInt(2 ** 32);
+  private started = false;
+  private disposedState = false;
 
-  public constructor(codec: Codec, emit: EmitMediaEvent) {
+  private constructor(codec: Codec, socket: dgram.Socket, localPort: number) {
     this.codec = codec;
-    this.emit = emit;
+    this.socket = socket;
+    this.localPort = localPort;
     this.encoder = codec.createEncoder();
     this.decoder = codec.createDecoder();
   }
 
-  public static async createBoundSocket() {
+  public static async bind(codec: Codec) {
     const socket = dgram.createSocket("udp4");
     try {
       const listening = once(socket, "listening");
       socket.bind(0);
       await listening;
-      return { socket, port: socket.address().port };
+      return new MediaTransport(codec, socket, socket.address().port);
     } catch (error) {
       socket.close();
       throw error;
@@ -55,21 +80,69 @@ export class MediaTransport {
     return this.codec.packetSize;
   }
 
-  public set remoteKey(key: string) {
-    const localKeyBuffer = Buffer.from(localKey, "base64");
-    const remoteKeyBuffer = Buffer.from(key, "base64");
-    this.srtpSession = new SrtpSession({
-      profile: 0x0001,
-      keys: {
-        localMasterKey: localKeyBuffer.subarray(0, 16),
-        localMasterSalt: localKeyBuffer.subarray(16, 30),
-        remoteMasterKey: remoteKeyBuffer.subarray(0, 16),
-        remoteMasterSalt: remoteKeyBuffer.subarray(16, 30),
-      },
-    });
+  public get disposed() {
+    return this.disposedState;
+  }
+
+  public start(sdp: string, emit: EmitMediaEvent) {
+    if (this.started) {
+      throw new Error("Media transport has already started");
+    }
+    if (this.disposed) {
+      throw new Error("Media transport is disposed");
+    }
+
+    try {
+      const { remoteIP, remotePort, remoteKey } = parseSdp(sdp);
+      const localKeyBuffer = Buffer.from(localKey, "base64");
+      const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
+      this.remoteIP = remoteIP;
+      this.remotePort = remotePort;
+      this.srtpSession = new SrtpSession({
+        profile: 0x0001,
+        keys: {
+          localMasterKey: localKeyBuffer.subarray(0, 16),
+          localMasterSalt: localKeyBuffer.subarray(16, 30),
+          remoteMasterKey: remoteKeyBuffer.subarray(0, 16),
+          remoteMasterSalt: remoteKeyBuffer.subarray(16, 30),
+        },
+      });
+      this.started = true;
+      this.socket.on("message", (message) => {
+        const packet = RtpPacket.deSerialize(
+          this.srtpSession!.decrypt(message),
+        );
+        emit("rtpPacket", packet);
+        if (packet.header.payloadType === 101) {
+          emit("dtmfPacket", packet);
+          const char = DTMF.payloadToChar(packet.payload);
+          if (char) {
+            emit("dtmf", char);
+          }
+        } else if (packet.header.payloadType === this.codec.id) {
+          if (isAudioDtmfPayload(packet.payload)) {
+            return; // DTMF is handled through RTP payload type 101
+          }
+          try {
+            packet.payload = this.decoder.decode(packet.payload);
+            emit("audioPacket", packet);
+            emit("audio", packet.payload);
+          } catch {
+            console.error("Audio packet decode failed", packet);
+          }
+        }
+      });
+      this.send("hello");
+    } catch (error) {
+      this.dispose();
+      throw error;
+    }
   }
 
   public sendDTMF(char: DtmfChar) {
+    if (!this.ready()) {
+      return;
+    }
     const timestamp = this.timestamp;
     for (const [index, payload] of DTMF.charToPayloads(char).entries()) {
       const header = new RtpHeader({
@@ -79,25 +152,31 @@ export class MediaTransport {
         timestamp,
         ssrc: this.ssrc,
       });
-      this.send(this.srtpSession.encrypt(payload, header));
+      this.send(this.srtpSession!.encrypt(payload, header));
       this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
     }
     this.timestamp += 800;
   }
 
   public streamAudio(input: Buffer) {
+    if (!this.disposed) {
+      this.requireStarted();
+    }
     const streamer = new Streamer(this, input);
     streamer.start();
     return streamer;
   }
 
   public sendPacket(packet: RtpPacket) {
-    if (!this.disposed) {
-      this.send(this.srtpSession.encrypt(packet.payload, packet.header));
+    if (this.ready()) {
+      this.send(this.srtpSession!.encrypt(packet.payload, packet.header));
     }
   }
 
   public sendAudio(pcm: Buffer) {
+    if (!this.ready()) {
+      return;
+    }
     const payload = this.encoder.encode(pcm);
     const header = new RtpHeader({
       payloadType: this.codec.id,
@@ -105,49 +184,37 @@ export class MediaTransport {
       timestamp: this.timestamp,
       ssrc: this.ssrc,
     });
-    this.send(this.srtpSession.encrypt(payload, header));
+    this.send(this.srtpSession!.encrypt(payload, header));
     this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
     this.timestamp += this.codec.timestampInterval;
   }
 
-  public start() {
-    if (!this.socket) {
-      throw new Error(
-        "RTP socket is not initialized; expected pre-bound socket from SDP setup",
-      );
+  public dispose() {
+    if (this.disposed) {
+      return false;
     }
-    this.socket.on("message", (message) => {
-      const packet = RtpPacket.deSerialize(this.srtpSession.decrypt(message));
-      this.emit("rtpPacket", packet);
-      if (packet.header.payloadType === 101) {
-        this.emit("dtmfPacket", packet);
-        const char = DTMF.payloadToChar(packet.payload);
-        if (char) {
-          this.emit("dtmf", char);
-        }
-      } else if (packet.header.payloadType === this.codec.id) {
-        if (isAudioDtmfPayload(packet.payload)) {
-          return; // DTMF is handled through RTP payload type 101
-        }
-        try {
-          packet.payload = this.decoder.decode(packet.payload);
-          this.emit("audioPacket", packet);
-          this.emit("audio", packet.payload);
-        } catch {
-          console.error("Audio packet decode failed", packet);
-        }
-      }
-    });
-    this.send("hello");
+    this.disposedState = true;
+    this.socket.removeAllListeners();
+    this.socket.close();
+    return true;
   }
 
-  public close() {
-    this.socket?.removeAllListeners();
-    this.socket?.close();
+  private requireStarted() {
+    if (!this.started) {
+      throw new Error("Media transport has not started");
+    }
+  }
+
+  private ready() {
+    if (this.disposed) {
+      return false;
+    }
+    this.requireStarted();
+    return true;
   }
 
   private send(data: string | Buffer) {
-    this.socket.send(data, this.remotePort, this.remoteIP);
+    this.socket.send(data, this.remotePort!, this.remoteIP!);
   }
 }
 
