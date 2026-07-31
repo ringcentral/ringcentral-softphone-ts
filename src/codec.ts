@@ -21,33 +21,29 @@ class Codec {
   constructor(name: "OPUS/16000" | "OPUS/48000/2" | "PCMU/8000") {
     this.name = name;
     switch (name) {
-      case "OPUS/16000": {
+      case "OPUS/16000":
         this.createEncoder = () => createOpusEncoder(1, 16000);
         this.createDecoder = () => createOpusDecoder(1, 16000);
         this.id = 109;
         this.packetSize = 640;
         this.timestampInterval = 320;
         break;
-      }
-      case "OPUS/48000/2": {
+      case "OPUS/48000/2":
         this.createEncoder = () => createOpusEncoder(2, 48000);
         this.createDecoder = () => createOpusDecoder(2, 48000);
         this.id = 111;
         this.packetSize = 3840;
         this.timestampInterval = 960;
         break;
-      }
-      case "PCMU/8000": {
+      case "PCMU/8000":
         this.createEncoder = () => ({ encode: (pcm: Buffer) => pcm });
         this.createDecoder = () => ({ decode: (audio: Buffer) => audio });
         this.id = 0;
         this.packetSize = 160;
         this.timestampInterval = 160;
         break;
-      }
-      default: {
+      default:
         throw new Error(`unsupported codec: ${name}`);
-      }
     }
   }
 }
