@@ -12,6 +12,8 @@ const phoneChars = [
   "*",
   "#",
 ] as const;
+export type DtmfChar = (typeof phoneChars)[number];
+
 const payloads = [
   0x00060000, 0x000600a0, 0x00060140, 0x00860320, 0x00860320, 0x00860320,
 ];

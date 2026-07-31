@@ -1,6 +1,10 @@
 import type { Buffer } from "node:buffer";
 import type EventEmitter from "node:events";
 
+import type { DtmfChar } from "./dtmf.js";
+
+export type { DtmfChar };
+
 export type SoftphoneOptions = {
   domain: string;
   outboundProxy: string;
@@ -16,20 +20,6 @@ declare const inboundInviteBrand: unique symbol;
 export type InboundInvite = {
   readonly [inboundInviteBrand]: never;
 };
-
-export type DtmfChar =
-  | "0"
-  | "1"
-  | "2"
-  | "3"
-  | "4"
-  | "5"
-  | "6"
-  | "7"
-  | "8"
-  | "9"
-  | "*"
-  | "#";
 
 export type SoftphoneEventMap = {
   invite: [invite: InboundInvite];

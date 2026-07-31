@@ -122,10 +122,9 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   public sendDTMF(char: DtmfChar) {
     const payloads = DTMF.charToPayloads(char);
     const timestamp = this.timestamp;
-    let first = true;
-    for (const payload of payloads) {
+    for (const [index, payload] of payloads.entries()) {
       const rtpHeader = new RtpHeader({
-        marker: first,
+        marker: index === 0,
         payloadType: 101,
         sequenceNumber: this.sequenceNumber,
         timestamp,
@@ -133,7 +132,6 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
       });
       this.send(this.srtpSession.encrypt(payload, rtpHeader));
       this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
-      first = false;
     }
     this.timestamp += 800;
   }
