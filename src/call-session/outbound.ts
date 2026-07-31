@@ -37,10 +37,10 @@ class OutboundCallSession extends CallSession {
     socket: dgram.Socket,
   ) {
     super(softphone, requireProgressMessage(answerMessage));
-    this.socket = socket;
+    this.media.socket = socket;
     this.localPeer = answerMessage.headers.From;
     this.remotePeer = answerMessage.headers.To;
-    this.remoteKey = answerMessage.body.match(
+    this.media.remoteKey = answerMessage.body.match(
       /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
     )![1];
     this.init();

@@ -2,7 +2,7 @@ import type dgram from "node:dgram";
 import EventEmitter from "node:events";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import CallSession from "../src/call-session/index.js";
+import { MediaTransport } from "../src/call-session/media.js";
 import Softphone from "../src/index.js";
 import { InboundMessage, type OutboundMessage } from "../src/sip-message.js";
 
@@ -77,7 +77,7 @@ const setupCall = (progress: (cseq: string) => InboundMessage) => {
     send,
   }) as unknown as Softphone;
 
-  vi.spyOn(CallSession, "createBoundSocket").mockResolvedValue({
+  vi.spyOn(MediaTransport, "createBoundSocket").mockResolvedValue({
     socket: socket as unknown as dgram.Socket,
     port: 4000,
   });

@@ -2,7 +2,7 @@ import EventEmitter, { once } from "node:events";
 import tls, { type TLSSocket } from "node:tls";
 
 import InboundCallSession from "./call-session/inbound.js";
-import CallSession from "./call-session/index.js";
+import { MediaTransport } from "./call-session/media.js";
 import OutboundCallSession from "./call-session/outbound.js";
 import Codec from "./codec.js";
 import {
@@ -253,7 +253,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
   }
 
   public async call(callee: string): Promise<PublicOutboundCallSession> {
-    const { socket, port } = await CallSession.createBoundSocket();
+    const { socket, port } = await MediaTransport.createBoundSocket();
     const offerSDP = this.createSdp(port);
     const inviteMessage = new RequestMessage(
       `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,

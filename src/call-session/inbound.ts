@@ -1,6 +1,7 @@
 import type Softphone from "../index.js";
 import { type InboundMessage, ResponseMessage } from "../sip-message.js";
 import CallSession from "./index.js";
+import { MediaTransport } from "./media.js";
 
 class InboundCallSession extends CallSession {
   public constructor(softphone: Softphone, inviteMessage: InboundMessage) {
@@ -9,15 +10,15 @@ class InboundCallSession extends CallSession {
     this.remotePeer = inviteMessage.headers.From;
     // inbound call from call queue, invite message may not have body
     if (inviteMessage.body.length > 0) {
-      this.remoteKey = inviteMessage.body.match(
+      this.media.remoteKey = inviteMessage.body.match(
         /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
       )![1];
     }
   }
 
   public async answer() {
-    const { socket, port } = await CallSession.createBoundSocket();
-    this.socket = socket;
+    const { socket, port } = await MediaTransport.createBoundSocket();
+    this.media.socket = socket;
     this.sdp = this.softphone.createSdp(port);
     const response = new ResponseMessage(
       this.sipMessage,
@@ -37,12 +38,12 @@ class InboundCallSession extends CallSession {
 
     // for inbound call from call queue, ack message may HAVE body (while invite message has no body)
     if (ackMessage.body.length > 0) {
-      this.remoteIP = ackMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
-      this.remotePort = parseInt(
+      this.media.remoteIP = ackMessage.body.match(/c=IN IP4 ([\d.]+)/)![1];
+      this.media.remotePort = parseInt(
         ackMessage.body.match(/m=audio (\d+) /)![1],
         10,
       );
-      this.remoteKey = ackMessage.body.match(
+      this.media.remoteKey = ackMessage.body.match(
         /AES_CM_128_HMAC_SHA1_80 inline:([\w+/]+)/,
       )![1];
     }

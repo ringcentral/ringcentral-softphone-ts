@@ -1,7 +1,7 @@
-import dgram from "node:dgram";
+import type dgram from "node:dgram";
 import EventEmitter from "node:events";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { RtpHeader, SrtpSession } from "werift-rtp";
+import { RtpHeader, RtpPacket, type SrtpSession } from "werift-rtp";
 
 vi.mock("node:timers/promises", () => ({
   setTimeout: (delay: number) =>
@@ -11,12 +11,15 @@ vi.mock("node:timers/promises", () => ({
 }));
 
 import CallSession from "../src/call-session/index.js";
-import * as DTMF from "../src/dtmf.js";
 import Softphone from "../src/index.js";
 import { InboundMessage } from "../src/sip-message.js";
 import { localKey } from "../src/utils.js";
 
-class TestCallSession extends CallSession {}
+class TestCallSession extends CallSession {
+  public startMedia() {
+    this.startLocalServices();
+  }
+}
 
 const message = () =>
   InboundMessage.fromString(
@@ -38,38 +41,16 @@ const socket = () => ({
   close: vi.fn(),
 });
 
-const bindingSocket = (event: "listening" | "error", error?: Error) => {
-  const udpSocket = Object.assign(new EventEmitter(), {
-    bind: vi.fn(() => {
-      queueMicrotask(() => udpSocket.emit(event, error));
-    }),
-    address: vi.fn(() => ({ port: 4321 })),
-    close: vi.fn(),
-  });
-  vi.spyOn(dgram, "createSocket").mockReturnValue(
-    udpSocket as unknown as dgram.Socket,
-  );
-  return udpSocket;
-};
-
-const createSrtpSession = () =>
-  new SrtpSession({
-    profile: 0x0001,
-    keys: {
-      localMasterKey: Buffer.alloc(16, 1),
-      localMasterSalt: Buffer.alloc(14, 2),
-      remoteMasterKey: Buffer.alloc(16, 3),
-      remoteMasterSalt: Buffer.alloc(14, 4),
-    },
-  });
-
 const softphone = (send: ReturnType<typeof vi.fn>) =>
-  ({
+  Object.assign(new EventEmitter(), {
     sipInfo: { domain: "example.com" },
     fakeDomain: "client.invalid",
     codec: {
-      createEncoder: () => ({ encode: vi.fn() }),
-      createDecoder: () => ({ decode: vi.fn() }),
+      id: 0,
+      packetSize: 160,
+      timestampInterval: 160,
+      createEncoder: () => ({ encode: (input: Buffer) => input }),
+      createDecoder: () => ({ decode: (input: Buffer) => input }),
     },
     send,
   }) as unknown as Softphone;
@@ -80,29 +61,6 @@ afterEach(() => {
 });
 
 describe("CallSession lifecycle", () => {
-  test("returns the bound socket after it starts listening", async () => {
-    const udpSocket = bindingSocket("listening");
-
-    await expect(CallSession.createBoundSocket()).resolves.toEqual({
-      socket: udpSocket,
-      port: 4321,
-    });
-    expect(udpSocket.bind).toHaveBeenCalledWith(0);
-    expect(udpSocket.close).not.toHaveBeenCalled();
-    expect(udpSocket.listenerCount("listening")).toBe(0);
-    expect(udpSocket.listenerCount("error")).toBe(0);
-  });
-
-  test("closes the socket when binding fails", async () => {
-    const error = new Error("bind failed");
-    const udpSocket = bindingSocket("error", error);
-
-    await expect(CallSession.createBoundSocket()).rejects.toBe(error);
-    expect(udpSocket.close).toHaveBeenCalledOnce();
-    expect(udpSocket.listenerCount("listening")).toBe(0);
-    expect(udpSocket.listenerCount("error")).toBe(0);
-  });
-
   test("creates the shared SDP body", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1234);
@@ -133,7 +91,7 @@ describe("CallSession lifecycle", () => {
     const sipMessage = message();
     const session = new TestCallSession(softphone(send), sipMessage);
     const udpSocket = socket();
-    session.socket = udpSocket as unknown as dgram.Socket;
+    session.media.socket = udpSocket as unknown as dgram.Socket;
     session.localPeer = "<sip:1001@example.com>;tag=local";
     session.remotePeer = "<sip:1002@example.com>;tag=remote";
     const disposed = vi.fn();
@@ -144,7 +102,7 @@ describe("CallSession lifecycle", () => {
     await session.hangup();
     await session.hangup();
 
-    expect(session.disposed).toBe(true);
+    expect(session.media.disposed).toBe(true);
     expect(disposed).toHaveBeenCalledOnce();
     expect(udpSocket.removeAllListeners).toHaveBeenCalledOnce();
     expect(udpSocket.close).toHaveBeenCalledOnce();
@@ -155,12 +113,12 @@ describe("CallSession lifecycle", () => {
       softphone(vi.fn(async () => Promise.reject(new Error("send failed")))),
       message(),
     );
-    session.socket = socket() as unknown as dgram.Socket;
+    session.media.socket = socket() as unknown as dgram.Socket;
     session.localPeer = "<sip:1001@example.com>;tag=local";
     session.remotePeer = "<sip:1002@example.com>;tag=remote";
 
     await expect(session.hangup()).rejects.toThrow("send failed");
-    expect(session.disposed).toBe(false);
+    expect(session.media.disposed).toBe(false);
   });
 
   test("keeps the delay after each DTMF character", async () => {
@@ -185,54 +143,33 @@ describe("CallSession lifecycle", () => {
     expect(finished).toBe(true);
   });
 
-  test("keeps the DTMF RTP and SRTP output unchanged", () => {
+  test("forwards media events through the call session", () => {
     const session = new TestCallSession(softphone(vi.fn()), message());
-    const udpSocket = socket();
-    const actualSrtp = createSrtpSession();
-    const legacySrtp = createSrtpSession();
-    const encrypt = vi.spyOn(actualSrtp, "encrypt");
-    session.socket = udpSocket as unknown as dgram.Socket;
-    session.srtpSession = actualSrtp;
-    session.sequenceNumber = 42;
-    session.timestamp = 1234;
-    session.ssrc = 5678;
+    const udpSocket = Object.assign(new EventEmitter(), {
+      send: vi.fn(),
+      close: vi.fn(),
+    });
+    session.media.socket = udpSocket as unknown as dgram.Socket;
+    session.media.remoteIP = "127.0.0.1";
+    session.media.remotePort = 4000;
+    session.media.srtpSession = {
+      decrypt: (input: Buffer) => input,
+    } as SrtpSession;
+    const raw = vi.fn();
+    const audio = vi.fn();
+    session.on("rtpPacket", raw);
+    session.on("audio", audio);
 
-    session.sendDTMF("5");
+    session.startMedia();
+    udpSocket.emit(
+      "message",
+      new RtpPacket(
+        new RtpHeader({ payloadType: 0 }),
+        Buffer.from("audio"),
+      ).serialize(),
+    );
 
-    for (const [index, payload] of DTMF.charToPayloads("5").entries()) {
-      const header = new RtpHeader({
-        version: 2,
-        padding: false,
-        paddingSize: 0,
-        extension: false,
-        marker: index === 0,
-        payloadOffset: 12,
-        payloadType: 101,
-        sequenceNumber: 42 + index,
-        timestamp: 1234,
-        ssrc: 5678,
-        csrcLength: 0,
-        csrc: [],
-        extensionProfile: 48862,
-        extensionLength: undefined,
-        extensions: [],
-      });
-      expect(udpSocket.send.mock.calls[index]?.[0]).toEqual(
-        legacySrtp.encrypt(payload, header),
-      );
-      expect(encrypt).toHaveBeenNthCalledWith(
-        index + 1,
-        payload,
-        expect.objectContaining({
-          marker: index === 0,
-          payloadType: 101,
-          sequenceNumber: 42 + index,
-          timestamp: 1234,
-          ssrc: 5678,
-        }),
-      );
-    }
-    expect(session.sequenceNumber).toBe(48);
-    expect(session.timestamp).toBe(2034);
+    expect(raw).toHaveBeenCalledOnce();
+    expect(audio).toHaveBeenCalledWith(Buffer.from("audio"));
   });
 });
