@@ -18,8 +18,7 @@ class InboundCallSession extends CallSession {
   public async answer() {
     const { socket, port } = await CallSession.createBoundSocket();
     this.socket = socket;
-    const answerSDP = this.softphone.createSdp(port);
-    this.sdp = answerSDP;
+    this.sdp = this.softphone.createSdp(port);
     const response = new ResponseMessage(
       this.sipMessage,
       "200 OK",
@@ -32,7 +31,7 @@ class InboundCallSession extends CallSession {
         Require: "timer",
         "Content-Type": "application/sdp",
       },
-      answerSDP,
+      this.sdp,
     );
     const ackMessage = await this.softphone.send(response, true);
 
