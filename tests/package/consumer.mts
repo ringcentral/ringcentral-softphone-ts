@@ -1,4 +1,3 @@
-import { Buffer } from "node:buffer";
 import Softphone, {
   type CallSession,
   type InboundInvite,

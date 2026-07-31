@@ -1,4 +1,3 @@
-import { Buffer } from "node:buffer";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type CallSession from "../src/call-session/index.js";

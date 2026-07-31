@@ -1,4 +1,3 @@
-import { Buffer } from "node:buffer";
 import { Decoder, Encoder } from "@evan/opus";
 
 const createOpusEncoder = (channels: 1 | 2, sampleRate: 16000 | 48000) => {

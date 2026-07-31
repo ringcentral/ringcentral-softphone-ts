@@ -87,13 +87,7 @@ export type NormalizedSoftphoneOptions = SoftphoneOptions & {
   ignoreTlsCertErrors: boolean;
 };
 
-const parseEndpoint = (value: string) => {
-  try {
-    return new URL(`tls://${value}`);
-  } catch {
-    return undefined;
-  }
-};
+const parseEndpoint = (value: string) => URL.parse(`tls://${value}`);
 
 const hasUrlExtras = (url: URL) =>
   [url.username, url.password, url.pathname, url.search, url.hash].some(
@@ -124,14 +118,11 @@ export const normalizeSoftphoneOptions = (
   }
 
   const outboundProxy = parseEndpoint(options.outboundProxy);
-  const port = Number(outboundProxy?.port);
   if (
     !outboundProxy?.hostname ||
     hasUrlExtras(outboundProxy) ||
     outboundProxy.port === "" ||
-    !Number.isInteger(port) ||
-    port < 1 ||
-    port > 65535
+    Number(outboundProxy.port) < 1
   ) {
     throw new Error("outboundProxy must be a hostname and port");
   }

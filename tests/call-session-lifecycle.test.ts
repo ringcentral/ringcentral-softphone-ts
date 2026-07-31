@@ -1,4 +1,3 @@
-import { Buffer } from "node:buffer";
 import dgram from "node:dgram";
 import EventEmitter from "node:events";
 import { afterEach, describe, expect, test, vi } from "vitest";

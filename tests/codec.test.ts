@@ -1,4 +1,3 @@
-import { Buffer } from "node:buffer";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const { Decoder, Encoder } = vi.hoisted(() => ({

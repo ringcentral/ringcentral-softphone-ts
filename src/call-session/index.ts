@@ -1,4 +1,3 @@
-import { Buffer } from "node:buffer";
 import { randomInt } from "node:crypto";
 import dgram from "node:dgram";
 import EventEmitter, { once } from "node:events";
