@@ -263,10 +263,6 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   }
 
   public async toggleReceive(toReceive: boolean) {
-    let newSDP = this.sdp;
-    if (!toReceive) {
-      newSDP = newSDP.replace(/a=sendrecv/, "a=sendonly");
-    }
     const requestMessage = new RequestMessage(
       `INVITE ${extractAddress(this.remotePeer)} SIP/2.0`,
       {
@@ -277,7 +273,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         "Content-Type": "application/sdp",
         Contact: ` <sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
       },
-      newSDP,
+      toReceive ? this.sdp : this.sdp.replace(/a=sendrecv/, "a=sendonly"),
     );
     const replyMessage = await this.softphone.send(requestMessage, true);
     const ackMessage = new RequestMessage(
