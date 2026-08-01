@@ -36,7 +36,11 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   public sdp!: string;
   public readonly callId: string;
 
-  private byeHandler?: (message: InboundMessage) => void;
+  private disposedState = false;
+  private pendingTransfer?: {
+    resolve: () => void;
+    reject: (error: Error) => void;
+  };
 
   public constructor(
     softphone: Softphone,
@@ -48,6 +52,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     this.media = media;
     this.sipMessage = sipMessage;
     this.callId = requireCallId(sipMessage);
+    this.softphone.signaling.on("message", this.signalingHandler);
   }
 
   public async hangup() {
@@ -91,31 +96,25 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
 
   protected startLocalServices(sdp: string) {
     this.media.start(sdp, (event, value) => this.emit(event as string, value));
-
-    this.byeHandler = (inboundMessage: InboundMessage) => {
-      if (inboundMessage.getHeader("Call-ID") !== this.callId) {
-        return;
-      }
-      if (inboundMessage.headers.CSeq.endsWith(" BYE")) {
-        this.dispose();
-      }
-    };
-    this.softphone.on("message", this.byeHandler);
   }
 
   protected dispose() {
-    if (!this.media.dispose()) {
+    if (this.disposedState) {
       return;
     }
+    this.disposedState = true;
+    this.media.dispose();
     this.emit("disposed");
     this.removeAllListeners();
-    if (this.byeHandler) {
-      this.softphone.off("message", this.byeHandler);
-      this.byeHandler = undefined;
-    }
+    this.softphone.signaling.off("message", this.signalingHandler);
+    this.pendingTransfer?.reject(new Error("Call session was disposed"));
+    this.pendingTransfer = undefined;
   }
 
   public async transfer(transferTo: string) {
+    if (this.pendingTransfer) {
+      throw new Error("A call transfer is already pending");
+    }
     const requestMessage = new RequestMessage(
       `REFER sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.outboundProxy};transport=tls SIP/2.0`,
       {
@@ -134,24 +133,18 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         "Referred-By": `<sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.domain}>`,
       },
     );
-    this.softphone.signaling.send(requestMessage);
-
-    return new Promise<void>((resolve) => {
-      const notifyHandler = (inboundMessage: InboundMessage) => {
-        if (!inboundMessage.subject.startsWith("NOTIFY ")) {
-          return;
-        }
-        this.softphone.signaling.send(
-          new ResponseMessage(inboundMessage, "200 OK"),
-        );
-        if (inboundMessage.body.trim() === "SIP/2.0 200 OK") {
-          this.softphone.off("message", notifyHandler);
-          resolve();
-        }
-      };
-      this.softphone.on("message", notifyHandler);
+    return new Promise<void>((resolve, reject) => {
+      this.pendingTransfer = { resolve, reject };
+      try {
+        this.softphone.signaling.send(requestMessage);
+      } catch (error) {
+        this.pendingTransfer = undefined;
+        reject(error);
+      }
     });
   }
+
+  protected handleSignalingMessage(_message: InboundMessage) {}
 
   public async toggleReceive(toReceive: boolean) {
     const requestMessage = new RequestMessage(
@@ -187,6 +180,26 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   public async unhold() {
     return this.toggleReceive(true);
   }
+
+  private signalingHandler = (message: InboundMessage) => {
+    if (message.getHeader("Call-ID") !== this.callId) {
+      return;
+    }
+    if (message.getHeader("CSeq")?.endsWith(" BYE")) {
+      this.dispose();
+      return;
+    }
+    if (this.pendingTransfer && message.subject.startsWith("NOTIFY ")) {
+      this.softphone.signaling.send(new ResponseMessage(message, "200 OK"));
+      if (message.body.trim() === "SIP/2.0 200 OK") {
+        const { resolve } = this.pendingTransfer;
+        this.pendingTransfer = undefined;
+        resolve();
+      }
+      return;
+    }
+    this.handleSignalingMessage(message);
+  };
 }
 
 export default CallSession;

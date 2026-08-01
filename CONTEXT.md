@@ -5,7 +5,7 @@ The Softphone SDK places and receives phone calls while carrying their audio and
 ## Language
 
 **Call session**:
-A live inbound or outbound phone call that exposes call controls and call-level events.
+A live inbound or outbound phone call that owns its per-call SIP policy, coordinates its media transport, and exposes call controls and call-level events.
 _Avoid_: Media session
 
 **Media transport**:

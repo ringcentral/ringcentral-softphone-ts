@@ -1,4 +1,3 @@
-import dgram from "node:dgram";
 import EventEmitter from "node:events";
 
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -11,13 +10,17 @@ vi.mock("node:timers/promises", () => ({
     }),
 }));
 
-import CallSession from "../src/call-session/index.js";
-import { MediaTransport } from "../src/call-session/media.js";
-import type Codec from "../src/codec.js";
-import Softphone from "../src/index.js";
-import { InboundMessage } from "../src/sip-message.js";
+import type InboundCallSession from "../src/call-session/inbound.js";
+import { InboundMessage, type OutboundMessage } from "../src/sip-message.js";
 import type { InboundInvite } from "../src/types.js";
 import { localKey } from "../src/utils.js";
+import {
+  createSignaling,
+  createSocket,
+  createSoftphone,
+  signalingMessage,
+  useSocket,
+} from "./call-session-fixture.js";
 
 const remoteKey = Buffer.alloc(30, 1).toString("base64");
 const sdp = (ip = "127.0.0.1", port = 4000) =>
@@ -27,6 +30,19 @@ const sdp = (ip = "127.0.0.1", port = 4000) =>
     `m=audio ${port} RTP/SAVP 0`,
     `a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${remoteKey}`,
   ].join("\r\n");
+
+const invite = (body: string, callId = "call-123") =>
+  new InboundMessage(
+    "INVITE sip:1001@example.com SIP/2.0",
+    {
+      "Call-ID": callId,
+      From: "<sip:1002@example.com>;tag=remote",
+      To: "<sip:1001@example.com>;tag=local",
+      Via: "SIP/2.0/TLS remote.example.com;branch=branch",
+      CSeq: "1 INVITE",
+    },
+    body,
+  );
 
 const createRemoteSrtpSession = () => {
   const localKeyBuffer = Buffer.from(localKey, "base64");
@@ -42,89 +58,25 @@ const createRemoteSrtpSession = () => {
   });
 };
 
-const testCodec = {
-  id: 0,
-  name: "PCMU/8000",
-  packetSize: 160,
-  timestampInterval: 160,
-  createEncoder: () => ({ encode: (input: Buffer) => input }),
-  createDecoder: () => ({ decode: (input: Buffer) => input }),
-} as Codec;
-
-class TestCallSession extends CallSession {
-  public startMedia(body = sdp()) {
-    this.startLocalServices(body);
-  }
-}
-
-const message = (body = "") =>
-  InboundMessage.fromString(
-    [
-      "SIP/2.0 200 OK",
-      "Call-ID: call-123",
-      "From: <sip:1001@example.com>;tag=local",
-      "To: <sip:1002@example.com>;tag=remote",
-      "CSeq: 1 INVITE",
-      `Content-Length: ${Buffer.byteLength(body)}`,
-      "",
-      body,
-    ].join("\r\n"),
-  );
-
-const invite = (body: string) =>
-  new InboundMessage(
-    "INVITE sip:1001@example.com SIP/2.0",
-    {
-      "Call-ID": "call-123",
-      From: "<sip:1002@example.com>;tag=remote",
-      To: "<sip:1001@example.com>;tag=local",
-      Via: "SIP/2.0/TLS remote.example.com;branch=branch",
-      CSeq: "1 INVITE",
-    },
-    body,
-  );
-
-const socket = () => {
-  const udpSocket = Object.assign(new EventEmitter(), {
-    bind: vi.fn(() => udpSocket.emit("listening")),
-    address: vi.fn(() => ({ port: 4321 })),
-    send: vi.fn(),
-    close: vi.fn(),
-  });
-  return udpSocket;
-};
-
-const softphone = (send: ReturnType<typeof vi.fn>) =>
-  Object.assign(new EventEmitter(), {
-    sipInfo: { domain: "example.com", username: "1001" },
-    fakeDomain: "client.invalid",
-    codec: testCodec,
-    signaling: {
-      localAddress: "192.0.2.1",
-      localPort: 5061,
-      request: send,
-      send,
-    },
-    createSdp: Softphone.prototype.createSdp,
-  }) as unknown as Softphone;
-
-const bindMedia = async (phone: Softphone, udpSocket = socket()) => {
-  vi.spyOn(dgram, "createSocket").mockReturnValue(
-    udpSocket as unknown as dgram.Socket,
-  );
-  return {
-    media: await MediaTransport.bind(phone.codec),
-    udpSocket,
-  };
-};
-
-const createSession = async (send: ReturnType<typeof vi.fn>) => {
-  const phone = softphone(send);
-  const bound = await bindMedia(phone);
-  const session = new TestCallSession(phone, message(), bound.media);
-  session.localPeer = "<sip:1001@example.com>;tag=local";
-  session.remotePeer = "<sip:1002@example.com>;tag=remote";
-  return { phone, session, ...bound };
+const createAnsweredSession = async ({
+  inviteSdp = sdp(),
+  ackSdp = "",
+  request = vi.fn(async (_outbound: OutboundMessage) =>
+    signalingMessage({
+      subject: "ACK sip:1001@example.com SIP/2.0",
+      cseq: "1 ACK",
+      body: ackSdp,
+    }),
+  ),
+} = {}) => {
+  const signaling = createSignaling(request);
+  const softphone = createSoftphone(signaling);
+  const socket = createSocket();
+  useSocket(socket);
+  const session = (await softphone.answer(
+    invite(inviteSdp) as unknown as InboundInvite,
+  )) as InboundCallSession;
+  return { request, session, signaling, socket, softphone };
 };
 
 afterEach(() => {
@@ -136,12 +88,10 @@ describe("CallSession lifecycle", () => {
   test("creates the shared SDP body", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1234);
-    const phone = {
-      signaling: { localAddress: "192.0.2.1" },
-      codec: { id: 109, name: "OPUS/16000" },
-    } as Softphone;
+    const signaling = createSignaling();
+    const softphone = createSoftphone(signaling, { codec: "OPUS/16000" });
 
-    expect(Softphone.prototype.createSdp.call(phone, 4000)).toBe(
+    expect(softphone.createSdp(4000)).toBe(
       [
         "v=0",
         "o=- 1234 0 IN IP4 192.0.2.1",
@@ -158,41 +108,39 @@ describe("CallSession lifecycle", () => {
     );
   });
 
-  test("disposes media before emitting disposed", async () => {
-    const fixture = await createSession(vi.fn());
-    const removeAllListeners = vi.spyOn(
-      fixture.udpSocket,
-      "removeAllListeners",
-    );
+  test("disposes media before emitting disposed and removes signaling", async () => {
+    const fixture = await createAnsweredSession();
     const disposed = vi.fn(() => {
       expect(fixture.session.media.disposed).toBe(true);
-      expect(fixture.udpSocket.close).toHaveBeenCalledOnce();
+      expect(fixture.socket.close).toHaveBeenCalledOnce();
     });
     fixture.session.on("disposed", disposed);
 
     expect(fixture.session).toBeInstanceOf(EventEmitter);
+    expect(fixture.signaling.listenerCount("message")).toBe(2);
     await fixture.session.hangup();
     await fixture.session.hangup();
 
+    expect(fixture.signaling.send.mock.calls[0][0].subject).toMatch(/^BYE /);
     expect(disposed).toHaveBeenCalledOnce();
-    expect(removeAllListeners).toHaveBeenCalledOnce();
-    expect(fixture.udpSocket.close).toHaveBeenCalledOnce();
+    expect(fixture.socket.close).toHaveBeenCalledOnce();
+    expect(fixture.signaling.listenerCount("message")).toBe(1);
   });
 
   test("does not dispose when the local hangup request fails", async () => {
-    const fixture = await createSession(
-      vi.fn(() => {
-        throw new Error("send failed");
-      }),
-    );
+    const fixture = await createAnsweredSession();
+    fixture.signaling.send.mockImplementationOnce(() => {
+      throw new Error("send failed");
+    });
 
     await expect(fixture.session.hangup()).rejects.toThrow("send failed");
     expect(fixture.session.media.disposed).toBe(false);
+    expect(fixture.signaling.listenerCount("message")).toBe(2);
   });
 
   test("keeps the delay after each DTMF character", async () => {
     vi.useFakeTimers();
-    const fixture = await createSession(vi.fn());
+    const fixture = await createAnsweredSession();
     const sendDTMF = vi
       .spyOn(fixture.session, "sendDTMF")
       .mockImplementation(() => {});
@@ -214,26 +162,125 @@ describe("CallSession lifecycle", () => {
     expect(finished).toBe(true);
   });
 
-  test("forwards media events through the call session", async () => {
-    const fixture = await createSession(vi.fn());
+  test("forwards media events through the real call session", async () => {
+    const fixture = await createAnsweredSession();
     const remoteSrtp = createRemoteSrtpSession();
     const raw = vi.fn();
     const audio = vi.fn();
     fixture.session.on("rtpPacket", raw);
     fixture.session.on("audio", audio);
 
-    fixture.session.startMedia();
     const packet = new RtpPacket(
       new RtpHeader({ payloadType: 0 }),
       Buffer.from("audio"),
     );
-    fixture.udpSocket.emit(
+    fixture.socket.emit(
       "message",
       remoteSrtp.encrypt(packet.payload, packet.header),
     );
 
     expect(raw).toHaveBeenCalledOnce();
     expect(audio).toHaveBeenCalledWith(Buffer.from("audio"));
+  });
+
+  test("handles remote BYE independently of Softphone listeners", async () => {
+    const fixture = await createAnsweredSession();
+    const raw = vi.fn();
+    const disposed = vi.fn();
+    fixture.softphone.on("message", raw);
+    fixture.session.on("disposed", disposed);
+
+    fixture.signaling.emit(
+      "message",
+      signalingMessage({
+        subject: "BYE sip:1001@example.com SIP/2.0",
+        callId: "another-call",
+        cseq: "2 BYE",
+      }),
+    );
+    expect(raw).toHaveBeenCalledOnce();
+    expect(disposed).not.toHaveBeenCalled();
+
+    fixture.softphone.removeAllListeners();
+    fixture.signaling.emit(
+      "message",
+      signalingMessage({
+        subject: "BYE sip:1001@example.com SIP/2.0",
+        cseq: "2 BYE",
+      }),
+    );
+
+    expect(disposed).toHaveBeenCalledOnce();
+    expect(fixture.signaling.listenerCount("message")).toBe(1);
+  });
+
+  test("matches transfer NOTIFY by call and rejects overlapping transfers", async () => {
+    const fixture = await createAnsweredSession();
+    const transfer = fixture.session.transfer("1003");
+
+    await expect(fixture.session.transfer("1004")).rejects.toThrow(
+      "A call transfer is already pending",
+    );
+    expect(fixture.signaling.send.mock.calls[0][0].subject).toMatch(/^REFER /);
+
+    fixture.signaling.emit(
+      "message",
+      signalingMessage({
+        subject: "NOTIFY sip:1001@example.com SIP/2.0",
+        callId: "another-call",
+        cseq: "2 NOTIFY",
+        body: "SIP/2.0 200 OK",
+      }),
+    );
+    expect(fixture.signaling.send).toHaveBeenCalledOnce();
+
+    fixture.signaling.emit(
+      "message",
+      signalingMessage({
+        subject: "NOTIFY sip:1001@example.com SIP/2.0",
+        cseq: "2 NOTIFY",
+        body: "SIP/2.0 200 OK",
+      }),
+    );
+    await transfer;
+
+    expect(fixture.signaling.send).toHaveBeenCalledTimes(2);
+    expect(fixture.signaling.send.mock.calls[1][0].subject).toBe(
+      "SIP/2.0 200 OK",
+    );
+  });
+
+  test("rejects a pending transfer when the call is disposed", async () => {
+    const fixture = await createAnsweredSession();
+    const transfer = fixture.session.transfer("1003");
+    const rejected = expect(transfer).rejects.toThrow(
+      "Call session was disposed",
+    );
+
+    await fixture.session.hangup();
+    await rejected;
+  });
+
+  test("sends re-INVITE and ACK for hold and unhold", async () => {
+    const request = vi.fn(async (outbound: OutboundMessage) => {
+      if (request.mock.calls.length === 1) {
+        return signalingMessage({
+          subject: "ACK sip:1001@example.com SIP/2.0",
+          cseq: "1 ACK",
+        });
+      }
+      return signalingMessage({ cseq: outbound.headers.CSeq });
+    });
+    const fixture = await createAnsweredSession({ request });
+
+    await fixture.session.hold();
+    await fixture.session.unhold();
+
+    expect(request.mock.calls[1][0].body).toContain("a=sendonly");
+    expect(request.mock.calls[2][0].body).toContain("a=sendrecv");
+    expect(fixture.signaling.send).toHaveBeenCalledTimes(2);
+    expect(fixture.signaling.send.mock.calls[0][0].subject).toMatch(/^ACK /);
+    expect(fixture.signaling.send.mock.calls[1][0].subject).toMatch(/^ACK /);
   });
 });
 
@@ -254,38 +301,32 @@ describe("inbound media setup", () => {
       expectedPort: 4000,
     },
   ])("$name", async ({ inviteSdp, ackSdp, expectedIP, expectedPort }) => {
-    const udpSocket = socket();
-    vi.spyOn(dgram, "createSocket").mockReturnValue(
-      udpSocket as unknown as dgram.Socket,
-    );
-    const ack = message(ackSdp);
-    const phone = softphone(vi.fn(async () => ack));
+    const fixture = await createAnsweredSession({ inviteSdp, ackSdp });
 
-    await Softphone.prototype.answer.call(
-      phone,
-      invite(inviteSdp) as unknown as InboundInvite,
-    );
-
-    expect(udpSocket.send).toHaveBeenCalledWith(
+    expect(fixture.socket.send).toHaveBeenCalledWith(
       "hello",
       expectedPort,
       expectedIP,
     );
   });
 
-  test("closes bound media when inbound setup fails", async () => {
-    const udpSocket = socket();
-    vi.spyOn(dgram, "createSocket").mockReturnValue(
-      udpSocket as unknown as dgram.Socket,
+  test("closes media and signaling listener when inbound setup fails", async () => {
+    const signaling = createSignaling(
+      vi.fn(async () =>
+        signalingMessage({
+          subject: "ACK sip:1001@example.com SIP/2.0",
+          cseq: "1 ACK",
+        }),
+      ),
     );
-    const phone = softphone(vi.fn(async () => message()));
+    const softphone = createSoftphone(signaling);
+    const socket = createSocket();
+    useSocket(socket);
 
     await expect(
-      Softphone.prototype.answer.call(
-        phone,
-        invite("") as unknown as InboundInvite,
-      ),
+      softphone.answer(invite("") as unknown as InboundInvite),
     ).rejects.toThrow("negotiated SDP did not contain");
-    expect(udpSocket.close).toHaveBeenCalledOnce();
+    expect(socket.close).toHaveBeenCalledOnce();
+    expect(signaling.listenerCount("message")).toBe(1);
   });
 });
