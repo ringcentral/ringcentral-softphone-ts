@@ -45,8 +45,8 @@ class InboundCallSession extends CallSession {
     media: MediaTransport,
   ) {
     super(softphone, inviteMessage, media);
-    this.localPeer = inviteMessage.headers.To;
-    this.remotePeer = inviteMessage.headers.From;
+    this.localPeer = inviteMessage.getHeader("To")!;
+    this.remotePeer = inviteMessage.getHeader("From")!;
   }
 }
 

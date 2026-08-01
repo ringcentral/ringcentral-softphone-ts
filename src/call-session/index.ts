@@ -20,11 +20,10 @@ const isDtmfChar = (value: string): value is DtmfChar =>
   (DTMF.phoneChars as readonly string[]).includes(value);
 
 export const requireCallId = (message: InboundMessage): string => {
-  const callId = message.getHeader("Call-ID")?.trim();
-  if (!callId) {
+  if (message.callId === undefined) {
     throw new Error("Cannot create call session without a Call-ID header");
   }
-  return callId;
+  return message.callId;
 };
 
 abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
@@ -166,8 +165,8 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         "Call-Id": this.callId,
         From: this.localPeer,
         To: this.remotePeer,
-        Via: replyMessage.headers.Via,
-        CSeq: replyMessage.headers.CSeq.replace(" INVITE", " ACK"),
+        Via: replyMessage.getHeader("Via"),
+        CSeq: replyMessage.cseqFor("ACK"),
       },
     );
     this.softphone.signaling.send(ackMessage);
@@ -182,14 +181,14 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   }
 
   private signalingHandler = (message: InboundMessage) => {
-    if (message.getHeader("Call-ID") !== this.callId) {
+    if (message.callId !== this.callId) {
       return;
     }
     if (message.getHeader("CSeq")?.endsWith(" BYE")) {
       this.dispose();
       return;
     }
-    if (this.pendingTransfer && message.subject.startsWith("NOTIFY ")) {
+    if (this.pendingTransfer && message.method === "NOTIFY") {
       this.softphone.signaling.send(new ResponseMessage(message, "200 OK"));
       if (message.body.trim() === "SIP/2.0 200 OK") {
         const { resolve } = this.pendingTransfer;

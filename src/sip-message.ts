@@ -30,6 +30,31 @@ export class SipMessage {
       ([header]) => header.toLowerCase() === key.toLowerCase(),
     )?.[1];
   }
+
+  public get method(): string | undefined {
+    return this.subject.match(/^(\S+) \S+ SIP\/2\.0$/)?.[1];
+  }
+
+  public get statusCode(): number | undefined {
+    const statusCode = this.subject.match(/^SIP\/2\.0 (\d{3}) /)?.[1];
+    return statusCode === undefined ? undefined : Number(statusCode);
+  }
+
+  public get callId(): string | undefined {
+    return this.getHeader("Call-ID")?.trim() || undefined;
+  }
+
+  public get cseqNumber(): string | undefined {
+    return this.getHeader("CSeq")?.match(/^\s*(\d+)\b/)?.[1];
+  }
+
+  public cseqFor(method: string): string {
+    const number = this.cseqNumber;
+    if (number === undefined) {
+      throw new Error("Cannot create SIP CSeq without a valid CSeq header");
+    }
+    return `${number} ${method}`;
+  }
 }
 
 export class InboundMessage extends SipMessage {

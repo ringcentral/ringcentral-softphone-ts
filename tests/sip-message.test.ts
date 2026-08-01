@@ -46,6 +46,41 @@ describe("SIP messages", () => {
     expect(outbound.headers["User-Agent"]).toBe("ringcentral-softphone-ts");
   });
 
+  test("derives semantic values from the current message", () => {
+    const message = new SipMessage("INVITE sip:1001@example.com SIP/2.0", {
+      "call-id": " call-123 ",
+      cSeQ: " 0042 INVITE",
+    });
+
+    expect(message.method).toBe("INVITE");
+    expect(message.statusCode).toBeUndefined();
+    expect(message.callId).toBe("call-123");
+    expect(message.cseqNumber).toBe("0042");
+    expect(message.cseqFor("ACK")).toBe("0042 ACK");
+
+    message.subject = "SIP/2.0 200 OK";
+    message.headers.cSeQ = "43 INVITE";
+
+    expect(message.method).toBeUndefined();
+    expect(message.statusCode).toBe(200);
+    expect(message.cseqNumber).toBe("43");
+  });
+
+  test("returns undefined for unusable semantic values", () => {
+    const message = new SipMessage("invalid", {
+      "Call-ID": " ",
+      CSeq: "invalid",
+    });
+
+    expect(message.method).toBeUndefined();
+    expect(message.statusCode).toBeUndefined();
+    expect(message.callId).toBeUndefined();
+    expect(message.cseqNumber).toBeUndefined();
+    expect(() => message.cseqFor("ACK")).toThrow(
+      "Cannot create SIP CSeq without a valid CSeq header",
+    );
+  });
+
   test("generates a CSeq and updates it and the Via branch when forking", () => {
     const message = new RequestMessage(
       "INVITE sip:1001@example.com SIP/2.0",

@@ -26,12 +26,11 @@ type ReadyWaiter = {
 
 const headerSeparator = Buffer.from("\r\n\r\n");
 const transactionKey = (message: SipMessage) => {
-  const callId = message.getHeader("Call-ID")?.trim();
-  const cseq = message.getHeader("CSeq")?.match(/^\s*(\d+)\b/)?.[1];
-  if (!callId || !cseq) {
+  const { callId, cseqNumber } = message;
+  if (callId === undefined || cseqNumber === undefined) {
     throw new Error("Cannot correlate SIP message without Call-ID and CSeq");
   }
-  return `${callId}\0${cseq}`;
+  return `${callId}\0${cseqNumber}`;
 };
 
 export class SipTransport extends EventEmitter<SipTransportEventMap> {
@@ -179,7 +178,7 @@ export class SipTransport extends EventEmitter<SipTransportEventMap> {
         // Uncorrelatable messages remain observable to signaling consumers.
       }
       const pending = key ? this.pending.get(key) : undefined;
-      if (pending && !message.subject.startsWith("SIP/2.0 100 ")) {
+      if (pending && message.statusCode !== 100) {
         this.pending.delete(key!);
         pending.resolve(message);
       }

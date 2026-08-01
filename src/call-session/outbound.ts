@@ -12,7 +12,7 @@ import { MediaTransport } from "./media.js";
 
 // ponytail: RingCentral sends 183 with SDP before 200; add a state machine only if that contract changes.
 const requireProgressMessage = (message: InboundMessage) => {
-  if (!message.subject.startsWith("SIP/2.0 183 ")) {
+  if (message.statusCode !== 183) {
     throw new Error(
       `Failed to start call: expected 183 Session Progress, received ${message.subject}`,
     );
@@ -91,8 +91,8 @@ class OutboundCallSession extends CallSession {
     media: MediaTransport,
   ) {
     super(softphone, requireProgressMessage(answerMessage), media);
-    this.localPeer = answerMessage.headers.From;
-    this.remotePeer = answerMessage.headers.To;
+    this.localPeer = answerMessage.getHeader("From")!;
+    this.remotePeer = answerMessage.getHeader("To")!;
   }
 
   public async cancel() {
@@ -102,8 +102,8 @@ class OutboundCallSession extends CallSession {
         "Call-ID": this.callId,
         From: this.localPeer,
         To: withoutTag(this.remotePeer),
-        Via: this.sipMessage.headers.Via,
-        CSeq: this.sipMessage.headers.CSeq.replace(" INVITE", " CANCEL"),
+        Via: this.sipMessage.getHeader("Via"),
+        CSeq: this.sipMessage.cseqFor("CANCEL"),
       },
     );
     this.softphone.signaling.send(requestMessage);
@@ -127,12 +127,12 @@ class OutboundCallSession extends CallSession {
     if (
       !this.waitingForAnswer ||
       message.getHeader("CSeq") !== this.sipMessage.getHeader("CSeq") ||
-      !message.subject.startsWith("SIP/2.0 ")
+      message.statusCode === undefined
     ) {
       return;
     }
     this.waitingForAnswer = false;
-    if (!message.subject.startsWith("SIP/2.0 200 ")) {
+    if (message.statusCode !== 200) {
       this.emit("busy");
       this.dispose();
       return;
@@ -146,8 +146,8 @@ class OutboundCallSession extends CallSession {
         "Call-ID": this.callId,
         From: this.localPeer,
         To: this.remotePeer,
-        Via: this.sipMessage.headers.Via,
-        CSeq: this.sipMessage.headers.CSeq.replace(" INVITE", " ACK"),
+        Via: this.sipMessage.getHeader("Via"),
+        CSeq: this.sipMessage.cseqFor("ACK"),
       },
     );
     this.softphone.signaling.send(ackMessage);

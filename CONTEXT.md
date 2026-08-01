@@ -15,6 +15,9 @@ _Avoid_: Media session
 **SIP signaling connection**:
 The TLS connection carrying registration and call-control messages for one Softphone instance, separately from per-call media.
 
+**SIP message**:
+A mutable SIP request or response exchanged through the SIP signaling connection.
+
 **Streamer**:
 A controller that sends one PCM audio buffer through a call's media transport at the required pace.
 _Avoid_: Player

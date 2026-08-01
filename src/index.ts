@@ -82,11 +82,11 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
         },
       );
       const inboundMessage = await this.signaling.request(requestMessage);
-      if (inboundMessage.subject.startsWith("SIP/2.0 200 ")) {
+      if (inboundMessage.statusCode === 200) {
         // sometimes the server will return 200 OK directly
         return;
       }
-      if (!inboundMessage.subject.startsWith("SIP/2.0 401 ")) {
+      if (inboundMessage.statusCode !== 401) {
         throw new Error(`Failed to register: ${inboundMessage.subject}`);
       }
       const wwwAuth = inboundMessage.getHeader("Www-Authenticate")!;
@@ -98,7 +98,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
         "REGISTER",
       );
       const message = await this.signaling.request(newMessage);
-      if (!message.subject.startsWith("SIP/2.0 200 ")) {
+      if (message.statusCode !== 200) {
         throw new Error(`Failed to register: ${message.subject}`);
       }
     };
@@ -114,7 +114,10 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
     }, 30 * 1000);
 
     this.on("message", (inboundMessage: InboundMessage) => {
-      if (!inboundMessage.subject.startsWith("INVITE sip:")) {
+      if (
+        inboundMessage.method !== "INVITE" ||
+        !inboundMessage.subject.startsWith("INVITE sip:")
+      ) {
         return;
       }
       this.signaling.send(new ResponseMessage(inboundMessage, "100 Trying"));
