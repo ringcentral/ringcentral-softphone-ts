@@ -60,7 +60,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         Via: `SIP/2.0/TLS ${this.softphone.fakeDomain};branch=${branch()}`,
       },
     );
-    await this.softphone.send(requestMessage);
+    this.softphone.signaling.send(requestMessage);
     this.dispose();
   }
 
@@ -119,11 +119,11 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     const requestMessage = new RequestMessage(
       `REFER sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.outboundProxy};transport=tls SIP/2.0`,
       {
-        Via: `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
+        Via: `SIP/2.0/TLS ${this.softphone.signaling.localAddress}:${this.softphone.signaling.localPort};rport;branch=${branch()};alias`,
         "Max-Forwards": 70,
         From: this.localPeer,
         To: this.remotePeer,
-        Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+        Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.signaling.localAddress}:${this.softphone.signaling.localPort};transport=TLS;ob>`,
         "Call-ID": this.callId,
         Event: "refer",
         Expires: 600,
@@ -134,14 +134,16 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         "Referred-By": `<sip:${this.softphone.sipInfo.username}@${this.softphone.sipInfo.domain}>`,
       },
     );
-    await this.softphone.send(requestMessage);
+    this.softphone.signaling.send(requestMessage);
 
     return new Promise<void>((resolve) => {
       const notifyHandler = (inboundMessage: InboundMessage) => {
         if (!inboundMessage.subject.startsWith("NOTIFY ")) {
           return;
         }
-        this.softphone.send(new ResponseMessage(inboundMessage, "200 OK"));
+        this.softphone.signaling.send(
+          new ResponseMessage(inboundMessage, "200 OK"),
+        );
         if (inboundMessage.body.trim() === "SIP/2.0 200 OK") {
           this.softphone.off("message", notifyHandler);
           resolve();
@@ -158,13 +160,13 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         "Call-Id": this.callId,
         From: this.localPeer,
         To: this.remotePeer,
-        Via: `SIP/2.0/TLS ${this.softphone.client.localAddress}:${this.softphone.client.localPort};rport;branch=${branch()};alias`,
+        Via: `SIP/2.0/TLS ${this.softphone.signaling.localAddress}:${this.softphone.signaling.localPort};rport;branch=${branch()};alias`,
         "Content-Type": "application/sdp",
-        Contact: ` <sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+        Contact: ` <sip:${this.softphone.sipInfo.username}@${this.softphone.signaling.localAddress}:${this.softphone.signaling.localPort};transport=TLS;ob>`,
       },
       toReceive ? this.sdp : this.sdp.replace(/a=sendrecv/, "a=sendonly"),
     );
-    const replyMessage = await this.softphone.send(requestMessage, true);
+    const replyMessage = await this.softphone.signaling.request(requestMessage);
     const ackMessage = new RequestMessage(
       `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
       {
@@ -175,7 +177,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         CSeq: replyMessage.headers.CSeq.replace(" INVITE", " ACK"),
       },
     );
-    await this.softphone.send(ackMessage);
+    this.softphone.signaling.send(ackMessage);
   }
 
   public async hold() {

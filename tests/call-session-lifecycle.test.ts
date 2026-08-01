@@ -99,9 +99,13 @@ const softphone = (send: ReturnType<typeof vi.fn>) =>
     sipInfo: { domain: "example.com", username: "1001" },
     fakeDomain: "client.invalid",
     codec: testCodec,
-    client: { localAddress: "192.0.2.1", localPort: 5061 },
+    signaling: {
+      localAddress: "192.0.2.1",
+      localPort: 5061,
+      request: send,
+      send,
+    },
     createSdp: Softphone.prototype.createSdp,
-    send,
   }) as unknown as Softphone;
 
 const bindMedia = async (phone: Softphone, udpSocket = socket()) => {
@@ -133,7 +137,7 @@ describe("CallSession lifecycle", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1234);
     const phone = {
-      client: { localAddress: "192.0.2.1" },
+      signaling: { localAddress: "192.0.2.1" },
       codec: { id: 109, name: "OPUS/16000" },
     } as Softphone;
 
@@ -155,7 +159,7 @@ describe("CallSession lifecycle", () => {
   });
 
   test("disposes media before emitting disposed", async () => {
-    const fixture = await createSession(vi.fn(async () => {}));
+    const fixture = await createSession(vi.fn());
     const removeAllListeners = vi.spyOn(
       fixture.udpSocket,
       "removeAllListeners",
@@ -177,7 +181,9 @@ describe("CallSession lifecycle", () => {
 
   test("does not dispose when the local hangup request fails", async () => {
     const fixture = await createSession(
-      vi.fn(async () => Promise.reject(new Error("send failed"))),
+      vi.fn(() => {
+        throw new Error("send failed");
+      }),
     );
 
     await expect(fixture.session.hangup()).rejects.toThrow("send failed");

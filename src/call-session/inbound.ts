@@ -20,7 +20,7 @@ class InboundCallSession extends CallSession {
       this.sipMessage,
       "200 OK",
       {
-        Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.client.localAddress}:${this.softphone.client.localPort};transport=TLS;ob>`,
+        Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.signaling.localAddress}:${this.softphone.signaling.localPort};transport=TLS;ob>`,
         Allow:
           "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",
         Supported: "replaces, 100rel, timer, norefersub",
@@ -30,7 +30,7 @@ class InboundCallSession extends CallSession {
       },
       this.sdp,
     );
-    const ackMessage = await this.softphone.send(response, true);
+    const ackMessage = await this.softphone.signaling.request(response);
 
     // for inbound call from call queue, ack message may HAVE body (while invite message has no body)
     this.startLocalServices(ackMessage.body || this.sipMessage.body);

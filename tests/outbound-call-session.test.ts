@@ -40,9 +40,9 @@ const setupCall = (progress: (cseq: string) => InboundMessage) => {
     close: vi.fn(),
   });
   let progressCseq = "";
-  const send = vi.fn(
+  const request = vi.fn(
     async (message: OutboundMessage): Promise<InboundMessage | undefined> => {
-      if (send.mock.calls.length === 1) {
+      if (request.mock.calls.length === 1) {
         return response(
           "407 Proxy Authentication Required",
           message.headers.CSeq,
@@ -52,16 +52,22 @@ const setupCall = (progress: (cseq: string) => InboundMessage) => {
           },
         );
       }
-      if (send.mock.calls.length === 2) {
+      if (request.mock.calls.length === 2) {
         progressCseq = message.headers.CSeq;
         return progress(progressCseq);
       }
     },
   );
+  const send = vi.fn();
   const softphone = Object.assign(new EventEmitter(), {
     call: Softphone.prototype.call,
     createSdp: Softphone.prototype.createSdp,
-    client: { localAddress: "127.0.0.1", localPort: 5061 },
+    signaling: {
+      localAddress: "127.0.0.1",
+      localPort: 5061,
+      request,
+      send,
+    },
     codec: {
       id: 109,
       name: "OPUS/16000",
@@ -77,14 +83,19 @@ const setupCall = (progress: (cseq: string) => InboundMessage) => {
       password: "secret",
       authorizationId: "1001",
     },
-    send,
   }) as unknown as Softphone;
 
   vi.spyOn(dgram, "createSocket").mockReturnValue(
     socket as unknown as dgram.Socket,
   );
 
-  return { softphone, socket, send, progressCseq: () => progressCseq };
+  return {
+    softphone,
+    socket,
+    request,
+    send,
+    progressCseq: () => progressCseq,
+  };
 };
 
 afterEach(() => {
@@ -114,7 +125,7 @@ describe("outbound call responses", () => {
       4000,
       "127.0.0.1",
     );
-    const ack = fixture.send.mock.calls[2][0];
+    const ack = fixture.send.mock.calls[0][0];
     expect(ack.subject).toMatch(/^ACK /);
     expect(ack.headers.CSeq).toBe(
       fixture.progressCseq().replace(" INVITE", " ACK"),
@@ -155,7 +166,7 @@ describe("outbound call responses", () => {
     const fixture = setupCall((cseq) =>
       response("183 Session Progress", cseq, validSdp),
     );
-    fixture.send.mockRejectedValueOnce(new Error("send failed"));
+    fixture.request.mockRejectedValueOnce(new Error("send failed"));
 
     await expect(fixture.softphone.call("1002")).rejects.toThrow("send failed");
     expect(fixture.socket.close).toHaveBeenCalledOnce();

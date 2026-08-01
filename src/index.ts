@@ -1,16 +1,15 @@
-import EventEmitter, { once } from "node:events";
-import tls, { type TLSSocket } from "node:tls";
+import EventEmitter from "node:events";
 
 import InboundCallSession from "./call-session/inbound.js";
 import { MediaTransport } from "./call-session/media.js";
 import OutboundCallSession from "./call-session/outbound.js";
 import Codec from "./codec.js";
 import {
-  InboundMessage,
-  type OutboundMessage,
+  type InboundMessage,
   RequestMessage,
   ResponseMessage,
 } from "./sip-message.js";
+import { SipTransport } from "./sip-transport.js";
 import {
   type InboundInvite,
   type NormalizedSoftphoneOptions,
@@ -34,7 +33,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   /** @internal */
   public sipInfo: NormalizedSoftphoneOptions;
   /** @internal */
-  public client: TLSSocket;
+  public signaling: SipTransport;
   /** @internal */
   public codec: Codec;
 
@@ -42,7 +41,6 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   public fakeDomain = `${uuid()}.invalid`;
 
   private intervalHandle?: NodeJS.Timeout;
-  private connected = false;
   private instanceId = uuid();
   private registerCallId = uuid();
 
@@ -51,77 +49,40 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
     this.sipInfo = normalizeSoftphoneOptions(sipInfo);
     this.codec = new Codec(this.sipInfo.codec);
 
-    const proxy = new URL(`tls://${this.sipInfo.outboundProxy}`);
-    this.client = tls.connect(
-      {
-        host: proxy.hostname.replace(/^\[(.*)]$/, "$1"),
-        port: Number(proxy.port),
-        rejectUnauthorized: !this.sipInfo.ignoreTlsCertErrors,
-      },
-      () => {
-        this.connected = true;
-      },
+    this.signaling = SipTransport.connect(this.sipInfo);
+    this.signaling.on("message", (message) => this.emit("message", message));
+    this.signaling.on("outboundMessage", (message) =>
+      this.emit("outboundMessage", message),
     );
-    const tlsWrite = this.client.write.bind(this.client);
-    this.client.write = (message) => {
-      this.emit("outboundMessage", message.toString());
-      return tlsWrite(message);
-    };
-
-    let cache = "";
-    this.client.on("data", (data) => {
-      cache += data.toString("utf-8");
-      if (!cache.endsWith("\r\n")) {
-        return; // haven't received a complete message yet
-      }
-
-      // received two empty body messages
-      const messages = cache
-        .split("\r\nContent-Length: 0\r\n\r\n")
-        .filter((message) => message.trim() !== "");
-      cache = "";
-      for (let message of messages) {
-        if (!message.includes("Content-Length: ")) {
-          message += "\r\nContent-Length: 0";
-        }
-        this.emit("message", InboundMessage.fromString(message));
-      }
-    });
   }
 
   public async register(): Promise<void> {
-    if (!this.connected) {
-      const signal = AbortSignal.timeout(10_000);
-      try {
-        await once(this.client, "secureConnect", { signal });
-      } catch (error) {
-        if (
-          signal.aborted &&
-          error instanceof Error &&
-          error.name === "AbortError"
-        ) {
-          throw new Error("Failed to register: connect to TLS timeout");
-        }
-        throw error;
+    const signal = AbortSignal.timeout(10_000);
+    try {
+      await this.signaling.ready(signal);
+    } catch (error) {
+      if (signal.aborted) {
+        throw new Error("Failed to register: connect to TLS timeout");
       }
+      throw error;
     }
 
     const sipRegister = async () => {
       const requestMessage = new RequestMessage(
         `REGISTER sip:${this.sipInfo.domain} SIP/2.0`,
         {
-          Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
+          Via: `SIP/2.0/TLS ${this.signaling.localAddress}:${this.signaling.localPort};rport;branch=${branch()};alias`,
           "Max-Forwards": "70",
           From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
           To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
           "Call-ID": this.registerCallId,
-          Contact: `<sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
+          Contact: `<sip:${this.sipInfo.username}@${this.signaling.localAddress}:${this.signaling.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
           Expires: 3600,
           Allow:
             "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",
         },
       );
-      const inboundMessage = await this.send(requestMessage, true);
+      const inboundMessage = await this.signaling.request(requestMessage);
       if (inboundMessage.subject.startsWith("SIP/2.0 200 ")) {
         // sometimes the server will return 200 OK directly
         return;
@@ -137,7 +98,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
         nonce,
         "REGISTER",
       );
-      const message = await this.send(newMessage, true);
+      const message = await this.signaling.request(newMessage);
       if (!message.subject.startsWith("SIP/2.0 200 ")) {
         throw new Error(`Failed to register: ${message.subject}`);
       }
@@ -157,7 +118,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
       if (!inboundMessage.subject.startsWith("INVITE sip:")) {
         return;
       }
-      this.send(new ResponseMessage(inboundMessage, "100 Trying"));
+      this.signaling.send(new ResponseMessage(inboundMessage, "100 Trying"));
       this.emit("invite", inboundMessage as unknown as InboundInvite);
     });
   }
@@ -181,51 +142,16 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   public revoke(): void {
     clearInterval(this.intervalHandle);
     this.removeAllListeners();
-    this.client.removeAllListeners();
-    this.client.destroy();
-  }
-
-  /** @internal */
-  public send(
-    message: OutboundMessage,
-    waitForReply?: true,
-  ): Promise<InboundMessage>;
-  /** @internal */
-  public send(
-    message: OutboundMessage,
-    waitForReply?: false,
-  ): Promise<undefined>;
-  public send(message: OutboundMessage, waitForReply = false) {
-    this.client.write(message.toString());
-    if (!waitForReply) {
-      return Promise.resolve(undefined);
-    }
-    return new Promise<InboundMessage>((resolve) => {
-      const messageListerner = (inboundMessage: InboundMessage) => {
-        // "12563 INVITE" vs "12563 ACK"
-        if (
-          inboundMessage.headers.CSeq.trim().split(/\s+/)[0] !==
-          message.headers.CSeq.trim().split(/\s+/)[0]
-        ) {
-          return;
-        }
-        if (inboundMessage.subject.startsWith("SIP/2.0 100 ")) {
-          return; // ignore
-        }
-        this.off("message", messageListerner);
-        resolve(inboundMessage);
-      };
-      this.on("message", messageListerner);
-    });
+    this.signaling.dispose();
   }
 
   /** @internal */
   public createSdp(port: number): string {
     return `
 v=0
-o=- ${Date.now()} 0 IN IP4 ${this.client.localAddress}
+o=- ${Date.now()} 0 IN IP4 ${this.signaling.localAddress}
 s=rc-softphone-ts
-c=IN IP4 ${this.client.localAddress}
+c=IN IP4 ${this.signaling.localAddress}
 t=0 0
 m=audio ${port} RTP/SAVP ${this.codec.id} 101
 a=rtpmap:${this.codec.id} ${this.codec.name}
@@ -254,7 +180,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
 
   // decline an inbound call
   public async decline(invite: InboundInvite): Promise<void> {
-    await this.send(
+    this.signaling.send(
       new ResponseMessage(invite as unknown as InboundMessage, "603 Decline"),
     );
   }
@@ -266,11 +192,11 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
       const inviteMessage = new RequestMessage(
         `INVITE sip:${callee}@${this.sipInfo.domain} SIP/2.0`,
         {
-          Via: `SIP/2.0/TLS ${this.client.localAddress}:${this.client.localPort};rport;branch=${branch()};alias`,
+          Via: `SIP/2.0/TLS ${this.signaling.localAddress}:${this.signaling.localPort};rport;branch=${branch()};alias`,
           "Max-Forwards": 70,
           From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
           To: `<sip:${callee}@${this.sipInfo.domain}>`,
-          Contact: ` <sip:${this.sipInfo.username}@${this.client.localAddress}:${this.client.localPort};transport=TLS;ob>`,
+          Contact: ` <sip:${this.sipInfo.username}@${this.signaling.localAddress}:${this.signaling.localPort};transport=TLS;ob>`,
           "Call-ID": uuid(),
           Route: `<sip:${this.sipInfo.outboundProxy};transport=tls;lr>`,
           Allow: `PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS`,
@@ -281,7 +207,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
         },
         offerSDP,
       );
-      const inboundMessage = await this.send(inviteMessage, true);
+      const inboundMessage = await this.signaling.request(inviteMessage);
       const proxyAuthenticate = inboundMessage.getHeader("Proxy-Authenticate")!;
       const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];
       const newMessage = inviteMessage.fork();
@@ -290,7 +216,7 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
         nonce,
         "INVITE",
       );
-      const progressMessage = await this.send(newMessage, true);
+      const progressMessage = await this.signaling.request(newMessage);
       const outboundCallSession = new OutboundCallSession(
         this,
         progressMessage,

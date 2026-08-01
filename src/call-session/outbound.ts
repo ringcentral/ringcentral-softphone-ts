@@ -69,7 +69,7 @@ class OutboundCallSession extends CallSession {
           CSeq: this.sipMessage.headers.CSeq.replace(" INVITE", " ACK"),
         },
       );
-      this.softphone.send(ackMessage);
+      this.softphone.signaling.send(ackMessage);
     };
     this.softphone.on("message", answerHandler);
     this.once("answered", () => this.startLocalServices(this.sipMessage.body));
@@ -86,7 +86,7 @@ class OutboundCallSession extends CallSession {
         CSeq: this.sipMessage.headers.CSeq.replace(" INVITE", " CANCEL"),
       },
     );
-    await this.softphone.send(requestMessage);
+    this.softphone.signaling.send(requestMessage);
   }
 
   public get sessionId() {

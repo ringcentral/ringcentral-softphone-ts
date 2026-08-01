@@ -29,21 +29,15 @@ const fakeSocket = () =>
 
 const mockRegistrationResponse = (softphone: Softphone) =>
   vi
-    .spyOn(
-      softphone as unknown as { send: () => Promise<InboundMessage> },
-      "send",
-    )
+    .spyOn(softphone.signaling, "request")
     .mockResolvedValue(new InboundMessage("SIP/2.0 200 OK"));
 
 let socket: ReturnType<typeof fakeSocket>;
 
 beforeEach(() => {
   connect.mockReset();
-  connect.mockImplementation((_options: unknown, callback?: () => void) => {
+  connect.mockImplementation(() => {
     socket = fakeSocket();
-    if (callback) {
-      socket.once("secureConnect", callback);
-    }
     return socket;
   });
 });
@@ -146,7 +140,6 @@ describe("Softphone options", () => {
 
     expect(connect).toHaveBeenLastCalledWith(
       expect.objectContaining({ host: "::1", port: 5096 }),
-      expect.any(Function),
     );
   });
 });
