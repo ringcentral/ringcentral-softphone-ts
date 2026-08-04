@@ -1,8 +1,8 @@
 import EventEmitter from "node:events";
 import { setTimeout as sleep } from "node:timers/promises";
-import type { RtpPacket } from "werift-rtp";
 import * as DTMF from "../dtmf.js";
 import type Softphone from "../index.js";
+import type { RtpPacket } from "../rtp/index.js";
 import {
   type InboundMessage,
   RequestMessage,

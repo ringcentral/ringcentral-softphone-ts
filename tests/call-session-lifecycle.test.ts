@@ -1,7 +1,6 @@
 import EventEmitter from "node:events";
 
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
 vi.mock("node:timers/promises", () => ({
   setTimeout: (delay: number) =>
@@ -11,6 +10,7 @@ vi.mock("node:timers/promises", () => ({
 }));
 
 import type InboundCallSession from "../src/call-session/inbound.js";
+import { type RtpPacket, SrtpSession } from "../src/rtp/index.js";
 import { InboundMessage, type OutboundMessage } from "../src/sip-message.js";
 import type { InboundInvite } from "../src/types.js";
 import { localKey } from "../src/utils.js";
@@ -47,15 +47,18 @@ const invite = (body: string, callId = "call-123") =>
 const createRemoteSrtpSession = () => {
   const localKeyBuffer = Buffer.from(localKey, "base64");
   const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
-  return new SrtpSession({
-    profile: 0x0001,
-    keys: {
-      localMasterKey: remoteKeyBuffer.subarray(0, 16),
-      localMasterSalt: remoteKeyBuffer.subarray(16, 30),
-      remoteMasterKey: localKeyBuffer.subarray(0, 16),
-      remoteMasterSalt: localKeyBuffer.subarray(16, 30),
-    },
-  });
+  return new SrtpSession(remoteKeyBuffer, localKeyBuffer);
+};
+
+const audioPacket: RtpPacket = {
+  header: {
+    marker: false,
+    payloadType: 0,
+    sequenceNumber: 0,
+    timestamp: 0,
+    ssrc: 0,
+  },
+  payload: Buffer.from("audio"),
 };
 
 const createAnsweredSession = async ({
@@ -170,13 +173,9 @@ describe("CallSession lifecycle", () => {
     fixture.session.on("rtpPacket", raw);
     fixture.session.on("audio", audio);
 
-    const packet = new RtpPacket(
-      new RtpHeader({ payloadType: 0 }),
-      Buffer.from("audio"),
-    );
     fixture.socket.emit(
       "message",
-      remoteSrtp.encrypt(packet.payload, packet.header),
+      remoteSrtp.encrypt(audioPacket.payload, audioPacket.header),
     );
 
     expect(raw).toHaveBeenCalledOnce();

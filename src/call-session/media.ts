@@ -2,10 +2,9 @@ import { randomInt } from "node:crypto";
 import dgram from "node:dgram";
 import EventEmitter, { once } from "node:events";
 
-import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
-
 import type Codec from "../codec.js";
 import * as DTMF from "../dtmf.js";
+import { type RtpHeader, type RtpPacket, SrtpSession } from "../rtp/index.js";
 import type { DtmfChar, StreamerEventMap } from "../types.js";
 import { localKey } from "../utils.js";
 
@@ -98,20 +97,13 @@ export class MediaTransport {
       const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
       this.remoteIP = remoteIP;
       this.remotePort = remotePort;
-      this.srtpSession = new SrtpSession({
-        profile: 0x0001,
-        keys: {
-          localMasterKey: localKeyBuffer.subarray(0, 16),
-          localMasterSalt: localKeyBuffer.subarray(16, 30),
-          remoteMasterKey: remoteKeyBuffer.subarray(0, 16),
-          remoteMasterSalt: remoteKeyBuffer.subarray(16, 30),
-        },
-      });
+      this.srtpSession = new SrtpSession(localKeyBuffer, remoteKeyBuffer);
       this.started = true;
       this.socket.on("message", (message) => {
-        const packet = RtpPacket.deSerialize(
-          this.srtpSession!.decrypt(message),
-        );
+        const packet = this.srtpSession!.decrypt(message);
+        if (!packet) {
+          return;
+        }
         emit("rtpPacket", packet);
         if (packet.header.payloadType === 101) {
           emit("dtmfPacket", packet);
@@ -145,13 +137,13 @@ export class MediaTransport {
     }
     const timestamp = this.timestamp;
     for (const [index, payload] of DTMF.charToPayloads(char).entries()) {
-      const header = new RtpHeader({
+      const header: RtpHeader = {
         marker: index === 0,
         payloadType: 101,
         sequenceNumber: this.sequenceNumber,
         timestamp,
         ssrc: this.ssrc,
-      });
+      };
       this.send(this.srtpSession!.encrypt(payload, header));
       this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
     }
@@ -178,12 +170,13 @@ export class MediaTransport {
       return;
     }
     const payload = this.encoder.encode(pcm);
-    const header = new RtpHeader({
+    const header: RtpHeader = {
+      marker: false,
       payloadType: this.codec.id,
       sequenceNumber: this.sequenceNumber,
       timestamp: this.timestamp,
       ssrc: this.ssrc,
-    });
+    };
     this.send(this.srtpSession!.encrypt(payload, header));
     this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
     this.timestamp += this.codec.timestampInterval;

@@ -2,7 +2,6 @@ import dgram from "node:dgram";
 import EventEmitter from "node:events";
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { RtpHeader, RtpPacket, SrtpSession } from "werift-rtp";
 
 const randomInt = vi.hoisted(() => vi.fn(() => 1));
 vi.mock("node:crypto", async (importOriginal) => ({
@@ -13,6 +12,11 @@ vi.mock("node:crypto", async (importOriginal) => ({
 import { MediaTransport, Streamer } from "../src/call-session/media.js";
 import type Codec from "../src/codec.js";
 import * as DTMF from "../src/dtmf.js";
+import {
+  type RtpHeader,
+  type RtpPacket,
+  SrtpSession,
+} from "../src/rtp/index.js";
 import { localKey } from "../src/utils.js";
 
 const packetSize = 4;
@@ -66,33 +70,26 @@ const startMedia = async (
   return { ...bound, emit };
 };
 
-const createSrtpSession = () => {
-  const localKeyBuffer = Buffer.from(localKey, "base64");
-  const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
-  return new SrtpSession({
-    profile: 0x0001,
-    keys: {
-      localMasterKey: localKeyBuffer.subarray(0, 16),
-      localMasterSalt: localKeyBuffer.subarray(16, 30),
-      remoteMasterKey: remoteKeyBuffer.subarray(0, 16),
-      remoteMasterSalt: remoteKeyBuffer.subarray(16, 30),
-    },
-  });
-};
-
 const createRemoteSrtpSession = () => {
   const localKeyBuffer = Buffer.from(localKey, "base64");
   const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
-  return new SrtpSession({
-    profile: 0x0001,
-    keys: {
-      localMasterKey: remoteKeyBuffer.subarray(0, 16),
-      localMasterSalt: remoteKeyBuffer.subarray(16, 30),
-      remoteMasterKey: localKeyBuffer.subarray(0, 16),
-      remoteMasterSalt: localKeyBuffer.subarray(16, 30),
-    },
-  });
+  return new SrtpSession(remoteKeyBuffer, localKeyBuffer);
 };
+
+const rtpPacket = (
+  payload: Buffer,
+  header: Partial<RtpHeader> = {},
+): RtpPacket => ({
+  header: {
+    marker: false,
+    payloadType: 0,
+    sequenceNumber: 0,
+    timestamp: 0,
+    ssrc: 0,
+    ...header,
+  },
+  payload,
+});
 
 const createMedia = async () => {
   const { media } = await startMedia();
@@ -177,7 +174,7 @@ describe("MediaTransport", () => {
 
   test("rejects media operations before startup", async () => {
     const { media } = await bindMedia();
-    const packet = new RtpPacket(new RtpHeader(), Buffer.alloc(0));
+    const packet = rtpPacket(Buffer.alloc(0));
 
     expect(() => media.sendDTMF("1")).toThrow(
       "Media transport has not started",
@@ -237,31 +234,21 @@ describe("MediaTransport", () => {
       .mockReturnValueOnce(1234)
       .mockReturnValueOnce(5678);
     const { media, udpSocket } = await startMedia();
-    const legacySrtp = createSrtpSession();
+    const receiver = createRemoteSrtpSession();
 
     media.sendDTMF("5");
 
     for (const [index, payload] of DTMF.charToPayloads("5").entries()) {
-      const header = new RtpHeader({
-        version: 2,
-        padding: false,
-        paddingSize: 0,
-        extension: false,
-        marker: index === 0,
-        payloadOffset: 12,
-        payloadType: 101,
-        sequenceNumber: 42 + index,
-        timestamp: 1234,
-        ssrc: 5678,
-        csrcLength: 0,
-        csrc: [],
-        extensionProfile: 48862,
-        extensionLength: undefined,
-        extensions: [],
+      expect(receiver.decrypt(udpSocket.send.mock.calls[index]?.[0])).toEqual({
+        header: {
+          marker: index === 0,
+          payloadType: 101,
+          sequenceNumber: 42 + index,
+          timestamp: 1234,
+          ssrc: 5678,
+        },
+        payload,
       });
-      expect(udpSocket.send.mock.calls[index]?.[0]).toEqual(
-        legacySrtp.encrypt(payload, header),
-      );
     }
   });
 
@@ -269,10 +256,7 @@ describe("MediaTransport", () => {
     const decoded = Buffer.from("decoded");
     const decode = vi.fn(() => decoded);
     const { emit, remoteSrtp, udpSocket } = await incomingMedia(decode);
-    const packet = new RtpPacket(
-      new RtpHeader({ payloadType: 0 }),
-      Buffer.from("encoded"),
-    );
+    const packet = rtpPacket(Buffer.from("encoded"));
 
     udpSocket.emit(
       "message",
@@ -288,12 +272,19 @@ describe("MediaTransport", () => {
     expect(emit).toHaveBeenLastCalledWith("audio", decoded);
   });
 
+  test("silently discards invalid secure packets", async () => {
+    const { emit, udpSocket } = await incomingMedia();
+
+    udpSocket.emit("message", Buffer.alloc(22));
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+
   test("emits raw and decoded DTMF events in order", async () => {
     const { emit, remoteSrtp, udpSocket } = await incomingMedia();
-    const packet = new RtpPacket(
-      new RtpHeader({ payloadType: 101 }),
-      DTMF.charToPayloads("5")[0],
-    );
+    const packet = rtpPacket(DTMF.charToPayloads("5")[0], {
+      payloadType: 101,
+    });
 
     udpSocket.emit(
       "message",
@@ -312,7 +303,7 @@ describe("MediaTransport", () => {
     const { emit, remoteSrtp, udpSocket } = await incomingMedia();
     const payload = Buffer.alloc(4);
     payload.writeUIntBE(0x8a03c0, 1, 3);
-    const packet = new RtpPacket(new RtpHeader({ payloadType: 0 }), payload);
+    const packet = rtpPacket(payload);
 
     udpSocket.emit(
       "message",
@@ -329,10 +320,7 @@ describe("MediaTransport", () => {
         throw new Error("decode failed");
       }),
     );
-    const packet = new RtpPacket(
-      new RtpHeader({ payloadType: 0 }),
-      Buffer.from("encoded"),
-    );
+    const packet = rtpPacket(Buffer.from("encoded"));
 
     udpSocket.emit(
       "message",
