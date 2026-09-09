@@ -304,7 +304,9 @@ softphone.on("registrationError", (error) => {
 After a registered Softphone loses its SIP signaling connection, it reconnects
 and registers again automatically. Active UDP/SRTP media continues during
 recovery, but signaling operations fail immediately and are not replayed. A
-remote BYE sent entirely during the outage may be lost.
+server may keep an established dialog routed to the failed connection, so a
+remote BYE may not arrive even after registration recovers; see
+[issue #65](https://github.com/ringcentral/ringcentral-softphone-ts/issues/65).
 
 Custom debug prefixes can distinguish multiple instances:
 

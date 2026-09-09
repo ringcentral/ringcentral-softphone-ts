@@ -23,7 +23,7 @@ const sipConfigFromPrefix = (prefix: "SIP_A" | "SIP_B"): SoftphoneOptions => ({
 });
 
 describe("E2E call flow", () => {
-  test("one softphone calls the other, callee answers, caller hangs up", async () => {
+  test("callee preserves a call across signaling recovery", async () => {
     const callerOptions = sipConfigFromPrefix("SIP_A");
     const calleeOptions = sipConfigFromPrefix("SIP_B");
     const caller = new Softphone(callerOptions);
@@ -47,6 +47,15 @@ describe("E2E call flow", () => {
       expect(outboundSession.callId).not.toBe("");
       expect(inboundSession.callId).not.toBe("");
 
+      let outboundWasDisposed = false;
+      let inboundWasDisposed = false;
+      const outboundDisposed = once(outboundSession, "disposed").then(() => {
+        outboundWasDisposed = true;
+      });
+      const inboundDisposed = once(inboundSession, "disposed").then(() => {
+        inboundWasDisposed = true;
+      });
+
       const previousSignaling = callee.signaling;
       const reset = Object.assign(new Error("read ECONNRESET"), {
         code: "ECONNRESET",
@@ -60,11 +69,15 @@ describe("E2E call flow", () => {
         () => expect(callee.signaling).not.toBe(previousSignaling),
         { timeout: 30_000 },
       );
+      expect(outboundWasDisposed).toBe(false);
+      expect(inboundWasDisposed).toBe(false);
 
-      const outboundDisposed = once(outboundSession, "disposed");
-      const inboundDisposed = once(inboundSession, "disposed");
-      await outboundSession.hangup();
-      await Promise.all([outboundDisposed, inboundDisposed]);
+      await inboundSession.hangup();
+      await inboundDisposed;
+      if (!outboundWasDisposed) {
+        await outboundSession.hangup();
+      }
+      await outboundDisposed;
     } finally {
       caller.revoke();
       callee.revoke();
