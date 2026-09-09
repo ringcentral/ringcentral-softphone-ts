@@ -12,6 +12,7 @@ vi.mock("node:timers/promises", () => ({
 import type InboundCallSession from "../src/call-session/inbound.js";
 import { type RtpPacket, SrtpSession } from "../src/rtp/index.js";
 import { InboundMessage, type OutboundMessage } from "../src/sip-message.js";
+import { SipTransport } from "../src/sip-transport.js";
 import type { InboundInvite } from "../src/types.js";
 import { localKey } from "../src/utils.js";
 import {
@@ -120,14 +121,14 @@ describe("CallSession lifecycle", () => {
     fixture.session.on("disposed", disposed);
 
     expect(fixture.session).toBeInstanceOf(EventEmitter);
-    expect(fixture.signaling.listenerCount("message")).toBe(2);
+    expect(fixture.softphone.listenerCount("message")).toBe(1);
     await fixture.session.hangup();
     await fixture.session.hangup();
 
     expect(fixture.signaling.send.mock.calls[0][0].subject).toMatch(/^BYE /);
     expect(disposed).toHaveBeenCalledOnce();
     expect(fixture.socket.close).toHaveBeenCalledOnce();
-    expect(fixture.signaling.listenerCount("message")).toBe(1);
+    expect(fixture.softphone.listenerCount("message")).toBe(0);
   });
 
   test("does not dispose when the local hangup request fails", async () => {
@@ -138,7 +139,7 @@ describe("CallSession lifecycle", () => {
 
     await expect(fixture.session.hangup()).rejects.toThrow("send failed");
     expect(fixture.session.media.disposed).toBe(false);
-    expect(fixture.signaling.listenerCount("message")).toBe(2);
+    expect(fixture.softphone.listenerCount("message")).toBe(1);
   });
 
   test("keeps the delay after each DTMF character", async () => {
@@ -182,26 +183,34 @@ describe("CallSession lifecycle", () => {
     expect(audio).toHaveBeenCalledWith(Buffer.from("audio"));
   });
 
-  test("handles remote BYE independently of Softphone listeners", async () => {
-    const fixture = await createAnsweredSession();
-    const raw = vi.fn();
-    const disposed = vi.fn();
-    fixture.softphone.on("message", raw);
-    fixture.session.on("disposed", disposed);
-
-    fixture.signaling.emit(
-      "message",
-      signalingMessage({
-        subject: "BYE sip:1001@example.com SIP/2.0",
-        callId: "another-call",
-        cseq: "2 BYE",
-      }),
+  test("handles remote BYE from a replacement transport without stopping media", async () => {
+    const request = vi.fn(async () =>
+      request.mock.calls.length === 1
+        ? signalingMessage({
+            subject: "ACK sip:1001@example.com SIP/2.0",
+            cseq: "1 ACK",
+          })
+        : signalingMessage(),
     );
-    expect(raw).toHaveBeenCalledOnce();
-    expect(disposed).not.toHaveBeenCalled();
+    const fixture = await createAnsweredSession({ request });
+    const replacement = createSignaling(vi.fn(async () => signalingMessage()));
+    const disposed = vi.fn();
+    fixture.session.on("disposed", disposed);
+    fixture.softphone.on("registrationError", () => {});
+    vi.mocked(SipTransport.connect).mockReturnValueOnce(replacement as never);
+    await fixture.softphone.register();
 
-    fixture.softphone.removeAllListeners();
     fixture.signaling.emit(
+      "disconnected",
+      Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }),
+    );
+    expect(fixture.session.media.disposed).toBe(false);
+    await vi.waitFor(() =>
+      expect(fixture.softphone.signaling).toBe(replacement),
+    );
+    expect(fixture.softphone.listenerCount("message")).toBe(2);
+
+    replacement.emit(
       "message",
       signalingMessage({
         subject: "BYE sip:1001@example.com SIP/2.0",
@@ -210,7 +219,25 @@ describe("CallSession lifecycle", () => {
     );
 
     expect(disposed).toHaveBeenCalledOnce();
-    expect(fixture.signaling.listenerCount("message")).toBe(1);
+    expect(fixture.session.media.disposed).toBe(true);
+    expect(fixture.softphone.listenerCount("message")).toBe(1);
+  });
+
+  test("ignores signaling for another call through the Softphone", async () => {
+    const fixture = await createAnsweredSession();
+    const disposed = vi.fn();
+    fixture.session.on("disposed", disposed);
+
+    fixture.softphone.emit(
+      "message",
+      signalingMessage({
+        subject: "BYE sip:1001@example.com SIP/2.0",
+        callId: "another-call",
+        cseq: "2 BYE",
+      }),
+    );
+
+    expect(disposed).not.toHaveBeenCalled();
   });
 
   test("matches transfer NOTIFY by call and rejects overlapping transfers", async () => {

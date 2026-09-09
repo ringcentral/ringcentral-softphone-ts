@@ -301,6 +301,11 @@ softphone.on("registrationError", (error) => {
 });
 ```
 
+After a registered Softphone loses its SIP signaling connection, it reconnects
+and registers again automatically. Active UDP/SRTP media continues during
+recovery, but signaling operations fail immediately and are not replayed. A
+remote BYE sent entirely during the outage may be lost.
+
 Custom debug prefixes can distinguish multiple instances:
 
 ```ts

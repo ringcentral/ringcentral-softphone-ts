@@ -1,5 +1,5 @@
 import { once } from "node:events";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 import Softphone, {
   type InboundInvite,
@@ -46,6 +46,20 @@ describe("E2E call flow", () => {
       expect(invite).toBeDefined();
       expect(outboundSession.callId).not.toBe("");
       expect(inboundSession.callId).not.toBe("");
+
+      const previousSignaling = callee.signaling;
+      const reset = Object.assign(new Error("read ECONNRESET"), {
+        code: "ECONNRESET",
+      });
+      (
+        previousSignaling as unknown as {
+          socket: { destroy(error: Error): void };
+        }
+      ).socket.destroy(reset);
+      await vi.waitFor(
+        () => expect(callee.signaling).not.toBe(previousSignaling),
+        { timeout: 30_000 },
+      );
 
       const outboundDisposed = once(outboundSession, "disposed");
       const inboundDisposed = once(inboundSession, "disposed");

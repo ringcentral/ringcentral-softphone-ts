@@ -51,7 +51,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     this.media = media;
     this.sipMessage = sipMessage;
     this.callId = requireCallId(sipMessage);
-    this.softphone.signaling.on("message", this.signalingHandler);
+    this.softphone.on("message", this.signalingHandler);
   }
 
   public async hangup() {
@@ -105,7 +105,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     this.media.dispose();
     this.emit("disposed");
     this.removeAllListeners();
-    this.softphone.signaling.off("message", this.signalingHandler);
+    this.softphone.off("message", this.signalingHandler);
     this.pendingTransfer?.reject(new Error("Call session was disposed"));
     this.pendingTransfer = undefined;
   }

@@ -97,7 +97,7 @@ describe("outbound call responses", () => {
       }),
     );
     expect(raw).toHaveBeenCalledOnce();
-    fixture.softphone.removeAllListeners();
+    fixture.softphone.off("message", raw);
 
     const ok = signalingMessage({
       callId: fixture.callId(),
