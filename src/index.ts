@@ -40,6 +40,11 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   public fakeDomain = `${uuid()}.invalid`;
 
   private intervalHandle?: NodeJS.Timeout;
+  private reconnectHandle?: NodeJS.Timeout;
+  private recoveryTransport?: SipTransport;
+  private registered = false;
+  private revoked = false;
+  private recoveryAttempt = 0;
   private instanceId = uuid();
   private registerCallId = uuid();
 
@@ -48,17 +53,30 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
     this.sipInfo = normalizeSoftphoneOptions(sipInfo);
     this.codec = new Codec(this.sipInfo.codec);
 
-    this.signaling = SipTransport.connect(this.sipInfo);
-    this.signaling.on("message", (message) => this.emit("message", message));
-    this.signaling.on("outboundMessage", (message) =>
-      this.emit("outboundMessage", message),
-    );
+    this.signaling = this.createTransport();
   }
 
   public async register(): Promise<void> {
+    await this.registerTransport(this.signaling);
+    this.registered = true;
+    this.startRegistrationRefresh();
+
+    this.on("message", (inboundMessage: InboundMessage) => {
+      if (
+        inboundMessage.method !== "INVITE" ||
+        !inboundMessage.subject.startsWith("INVITE sip:")
+      ) {
+        return;
+      }
+      this.signaling.send(new ResponseMessage(inboundMessage, "100 Trying"));
+      this.emit("invite", inboundMessage as unknown as InboundInvite);
+    });
+  }
+
+  private async registerTransport(signaling: SipTransport): Promise<void> {
     const signal = AbortSignal.timeout(10_000);
     try {
-      await this.signaling.ready(signal);
+      await signaling.ready(signal);
     } catch (error) {
       if (signal.aborted) {
         throw new Error("Failed to register: connect to TLS timeout");
@@ -70,18 +88,18 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
       const requestMessage = new RequestMessage(
         `REGISTER sip:${this.sipInfo.domain} SIP/2.0`,
         {
-          Via: `SIP/2.0/TLS ${this.signaling.localAddress}:${this.signaling.localPort};rport;branch=${branch()};alias`,
+          Via: `SIP/2.0/TLS ${signaling.localAddress}:${signaling.localPort};rport;branch=${branch()};alias`,
           "Max-Forwards": "70",
           From: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>;tag=${uuid()}`,
           To: `<sip:${this.sipInfo.username}@${this.sipInfo.domain}>`,
           "Call-ID": this.registerCallId,
-          Contact: `<sip:${this.sipInfo.username}@${this.signaling.localAddress}:${this.signaling.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
+          Contact: `<sip:${this.sipInfo.username}@${signaling.localAddress}:${signaling.localPort};transport=TLS;ob>;reg-id=1;+sip.instance="<urn:uuid:${this.instanceId}>"`,
           Expires: 3600,
           Allow:
             "PRACK, INVITE, ACK, BYE, CANCEL, UPDATE, INFO, SUBSCRIBE, NOTIFY, REFER, MESSAGE, OPTIONS",
         },
       );
-      const inboundMessage = await this.signaling.request(requestMessage);
+      const inboundMessage = await signaling.request(requestMessage);
       if (inboundMessage.statusCode === 200) {
         // sometimes the server will return 200 OK directly
         return;
@@ -97,32 +115,86 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
         nonce,
         "REGISTER",
       );
-      const message = await this.signaling.request(newMessage);
+      const message = await signaling.request(newMessage);
       if (message.statusCode !== 200) {
         throw new Error(`Failed to register: ${message.subject}`);
       }
     };
 
     await sipRegister();
+  }
+
+  private createTransport(): SipTransport {
+    const signaling = SipTransport.connect(this.sipInfo);
+    signaling.on("message", (message) => this.emit("message", message));
+    signaling.on("outboundMessage", (message) =>
+      this.emit("outboundMessage", message),
+    );
+    signaling.once("disconnected", (error) =>
+      this.handleDisconnect(signaling, error),
+    );
+    return signaling;
+  }
+
+  private startRegistrationRefresh(): void {
+    clearInterval(this.intervalHandle);
     this.intervalHandle = setInterval(() => {
-      sipRegister().catch((error: unknown) => {
+      this.registerTransport(this.signaling).catch((error: unknown) => {
+        if (this.recoveryTransport) {
+          return;
+        }
         this.emit(
           "registrationError",
           error instanceof Error ? error : new Error(String(error)),
         );
       });
     }, 30 * 1000);
+  }
 
-    this.on("message", (inboundMessage: InboundMessage) => {
-      if (
-        inboundMessage.method !== "INVITE" ||
-        !inboundMessage.subject.startsWith("INVITE sip:")
-      ) {
+  private handleDisconnect(signaling: SipTransport, error: Error): void {
+    if (this.revoked || !this.registered || signaling !== this.signaling) {
+      return;
+    }
+    this.registered = false;
+    clearInterval(this.intervalHandle);
+    this.emit("registrationError", error);
+    void this.recover();
+  }
+
+  private async recover(): Promise<void> {
+    if (this.revoked || this.recoveryTransport) {
+      return;
+    }
+    const signaling = this.createTransport();
+    this.recoveryTransport = signaling;
+    try {
+      await this.registerTransport(signaling);
+      if (this.revoked || this.recoveryTransport !== signaling) {
+        signaling.dispose();
         return;
       }
-      this.signaling.send(new ResponseMessage(inboundMessage, "100 Trying"));
-      this.emit("invite", inboundMessage as unknown as InboundInvite);
-    });
+      this.signaling = signaling;
+      this.recoveryTransport = undefined;
+      this.recoveryAttempt = 0;
+      this.registered = true;
+      this.startRegistrationRefresh();
+    } catch (error) {
+      if (this.revoked || this.recoveryTransport !== signaling) {
+        return;
+      }
+      signaling.dispose();
+      this.recoveryTransport = undefined;
+      this.emit(
+        "registrationError",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+      const delays = [1, 2, 4, 8, 16, 30];
+      const delay = delays[Math.min(this.recoveryAttempt++, delays.length - 1)];
+      this.reconnectHandle = setTimeout(
+        () => void this.recover(),
+        delay * 1000,
+      );
+    }
   }
 
   public enableDebugMode(
@@ -142,7 +214,12 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   }
 
   public revoke(): void {
+    this.revoked = true;
+    this.registered = false;
     clearInterval(this.intervalHandle);
+    clearTimeout(this.reconnectHandle);
+    this.recoveryTransport?.dispose();
+    this.recoveryTransport = undefined;
     this.removeAllListeners();
     this.signaling.dispose();
   }

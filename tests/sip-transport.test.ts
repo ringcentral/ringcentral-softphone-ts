@@ -118,10 +118,16 @@ describe("SIP transport lifecycle", () => {
     const transport = createTransport();
     const ready = transport.ready(new AbortController().signal);
     const error = new Error("TLS failed");
+    const disconnected = vi.fn();
+    transport.on("disconnected", disconnected);
 
     socket.emit("error", error);
 
     await expect(ready).rejects.toBe(error);
+    expect(disconnected).toHaveBeenCalledOnce();
+    expect(disconnected).toHaveBeenCalledWith(error);
+    socket.emit("close");
+    expect(disconnected).toHaveBeenCalledOnce();
     expect(socket.destroy).toHaveBeenCalledOnce();
     expect(socket.eventNames()).toEqual([]);
     expect(transport.eventNames()).toEqual([]);
@@ -304,6 +310,8 @@ describe("SIP transactions", () => {
   test("disposes once and rejects subsequent operations", async () => {
     const transport = createReadyTransport();
     const pending = transport.request(outbound());
+    const disconnected = vi.fn();
+    transport.on("disconnected", disconnected);
 
     transport.dispose();
     transport.dispose();
@@ -314,5 +322,6 @@ describe("SIP transactions", () => {
     await expect(transport.request(outbound())).rejects.toThrow(
       "SIP transport closed",
     );
+    expect(disconnected).not.toHaveBeenCalled();
   });
 });

@@ -8,6 +8,7 @@ import {
 } from "./sip-message.js";
 
 type SipTransportEventMap = {
+  disconnected: [error: Error];
   message: [message: InboundMessage];
   outboundMessage: [message: string];
 };
@@ -130,7 +131,7 @@ export class SipTransport extends EventEmitter<SipTransportEventMap> {
   }
 
   public dispose(): void {
-    this.fail(new Error("SIP transport closed"));
+    this.fail(new Error("SIP transport closed"), true, false);
   }
 
   private assertReady() {
@@ -232,7 +233,7 @@ export class SipTransport extends EventEmitter<SipTransportEventMap> {
     return message;
   }
 
-  private fail(error: Error, destroy = true) {
+  private fail(error: Error, destroy = true, notify = true) {
     if (this.closed) {
       return;
     }
@@ -250,6 +251,9 @@ export class SipTransport extends EventEmitter<SipTransportEventMap> {
     }
     this.pending.clear();
 
+    if (notify) {
+      this.emit("disconnected", error);
+    }
     this.socket.removeAllListeners();
     this.removeAllListeners();
     if (destroy) {

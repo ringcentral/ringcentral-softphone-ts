@@ -164,6 +164,12 @@ softphone.on("invite", async (inviteMessage) => {
 await softphone.register();
 ```
 
+After a successful registration, the SDK automatically reconnects and
+registers again if its TLS SIP signaling connection fails. Connection and
+recovery failures are emitted as `registrationError`. Signaling operations
+attempted during recovery fail immediately; interrupted operations are not
+queued or replayed.
+
 To reject an invite instead, call `await softphone.decline(inviteMessage)`.
 
 ## Place a call
