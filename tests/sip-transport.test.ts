@@ -299,10 +299,16 @@ describe("SIP transactions", () => {
   test("rejects every request when the socket closes", async () => {
     const transport = createReadyTransport();
     const pending = transport.request(outbound());
+    const disconnected = vi.fn();
+    transport.on("disconnected", disconnected);
 
     socket.emit("close");
 
     await expect(pending).rejects.toThrow("SIP transport closed");
+    expect(disconnected).toHaveBeenCalledOnce();
+    expect(disconnected.mock.calls[0][0]).toMatchObject({
+      message: "SIP transport closed",
+    });
     expect(socket.destroy).not.toHaveBeenCalled();
     expect(socket.eventNames()).toEqual([]);
   });

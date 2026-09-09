@@ -170,7 +170,6 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
     try {
       await this.registerTransport(signaling);
       if (this.revoked || this.recoveryTransport !== signaling) {
-        signaling.dispose();
         return;
       }
       this.signaling = signaling;
