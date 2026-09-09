@@ -145,7 +145,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
 
   protected handleSignalingMessage(_message: InboundMessage) {}
 
-  public async toggleReceive(toReceive: boolean) {
+  private async reInvite(sdp: string) {
     const requestMessage = new RequestMessage(
       `INVITE ${extractAddress(this.remotePeer)} SIP/2.0`,
       {
@@ -156,28 +156,47 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
         "Content-Type": "application/sdp",
         Contact: ` <sip:${this.softphone.sipInfo.username}@${this.softphone.signaling.localAddress}:${this.softphone.signaling.localPort};transport=TLS;ob>`,
       },
-      toReceive ? this.sdp : this.sdp.replace(/a=sendrecv/, "a=sendonly"),
+      sdp,
     );
-    const replyMessage = await this.softphone.signaling.request(requestMessage);
+    const replyMessage = await this.softphone.signaling.request(
+      requestMessage,
+      (message) =>
+        message.statusCode !== undefined && message.statusCode >= 200,
+    );
+    if (
+      replyMessage.statusCode === undefined ||
+      replyMessage.statusCode < 200
+    ) {
+      throw new Error(`re-INVITE failed: ${replyMessage.subject}`);
+    }
     const ackMessage = new RequestMessage(
       `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
       {
         "Call-Id": this.callId,
         From: this.localPeer,
         To: this.remotePeer,
-        Via: replyMessage.getHeader("Via"),
+        Via:
+          replyMessage.statusCode < 300
+            ? requestMessage
+                .getHeader("Via")!
+                .replace(/;branch=[^;]+/, `;branch=${branch()}`)
+            : replyMessage.getHeader("Via"),
         CSeq: replyMessage.cseqFor("ACK"),
       },
     );
     this.softphone.signaling.send(ackMessage);
+    if (replyMessage.statusCode >= 300) {
+      throw new Error(`re-INVITE failed: ${replyMessage.subject}`);
+    }
+    this.sdp = sdp;
   }
 
   public async hold() {
-    return this.toggleReceive(false);
+    return this.reInvite(this.sdp.replace(/a=sendrecv/, "a=sendonly"));
   }
 
   public async unhold() {
-    return this.toggleReceive(true);
+    return this.reInvite(this.sdp.replace(/a=sendonly/, "a=sendrecv"));
   }
 
   private signalingHandler = (message: InboundMessage) => {

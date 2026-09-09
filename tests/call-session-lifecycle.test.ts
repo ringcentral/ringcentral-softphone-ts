@@ -300,13 +300,66 @@ describe("CallSession lifecycle", () => {
     const fixture = await createAnsweredSession({ request });
 
     await fixture.session.hold();
+    expect(fixture.session.sdp).toContain("a=sendonly");
     await fixture.session.unhold();
+    expect(fixture.session.sdp).toContain("a=sendrecv");
 
     expect(request.mock.calls[1][0].body).toContain("a=sendonly");
     expect(request.mock.calls[2][0].body).toContain("a=sendrecv");
     expect(fixture.signaling.send).toHaveBeenCalledTimes(2);
     expect(fixture.signaling.send.mock.calls[0][0].subject).toMatch(/^ACK /);
     expect(fixture.signaling.send.mock.calls[1][0].subject).toMatch(/^ACK /);
+    expect(fixture.signaling.send.mock.calls[0][0].getHeader("Via")).toMatch(
+      /^SIP\/2\.0\/TLS 192\.0\.2\.1:5061;rport;branch=.+;alias$/,
+    );
+  });
+
+  test("rejects a non-successful final response without changing SDP", async () => {
+    const subject = "SIP/2.0 503 Service Unavailable";
+    const request = vi.fn(async (outbound: OutboundMessage) => {
+      if (request.mock.calls.length === 1) {
+        return signalingMessage({
+          subject: "ACK sip:1001@example.com SIP/2.0",
+          cseq: "1 ACK",
+        });
+      }
+      return signalingMessage({
+        subject,
+        cseq: outbound.headers.CSeq,
+      });
+    });
+    const fixture = await createAnsweredSession({ request });
+    const currentSdp = fixture.session.sdp;
+
+    await expect(fixture.session.hold()).rejects.toThrow(
+      `re-INVITE failed: ${subject}`,
+    );
+
+    expect(fixture.session.sdp).toBe(currentSdp);
+    expect(fixture.signaling.send).toHaveBeenCalledOnce();
+    expect(fixture.signaling.send.mock.calls[0][0].subject).toMatch(/^ACK /);
+    expect(fixture.signaling.send.mock.calls[0][0].getHeader("Via")).toBe(
+      "SIP/2.0/TLS client.example.com;branch=branch",
+    );
+  });
+
+  test("leaves SDP unchanged when a re-INVITE request fails", async () => {
+    const request = vi.fn(async () => {
+      if (request.mock.calls.length === 1) {
+        return signalingMessage({
+          subject: "ACK sip:1001@example.com SIP/2.0",
+          cseq: "1 ACK",
+        });
+      }
+      throw new Error("transport failed");
+    });
+    const fixture = await createAnsweredSession({ request });
+    const currentSdp = fixture.session.sdp;
+
+    await expect(fixture.session.hold()).rejects.toThrow("transport failed");
+
+    expect(fixture.session.sdp).toBe(currentSdp);
+    expect(fixture.signaling.send).not.toHaveBeenCalled();
   });
 });
 

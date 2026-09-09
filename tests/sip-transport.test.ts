@@ -211,6 +211,26 @@ describe("SIP stream framing", () => {
 });
 
 describe("SIP transactions", () => {
+  test("can wait through provisional responses for a final response", async () => {
+    const transport = createReadyTransport();
+    let settled = false;
+    const pending = transport.request(
+      outbound(),
+      (message) =>
+        message.statusCode !== undefined && message.statusCode >= 200,
+    );
+    void pending.then(() => {
+      settled = true;
+    });
+
+    socket.emit("data", frame({ subject: "SIP/2.0 180 Ringing" }));
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    socket.emit("data", frame());
+    await expect(pending).resolves.toMatchObject({ subject: "SIP/2.0 200 OK" });
+  });
+
   test("matches exact Call-ID and numeric CSeq while emitting every message", async () => {
     const transport = createReadyTransport();
     const received = vi.fn();

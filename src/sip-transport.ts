@@ -16,6 +16,7 @@ type SipTransportEventMap = {
 type PendingRequest = {
   resolve: (message: InboundMessage) => void;
   reject: (error: unknown) => void;
+  accepts: (message: InboundMessage) => boolean;
 };
 
 type ReadyWaiter = {
@@ -110,7 +111,10 @@ export class SipTransport extends EventEmitter<SipTransportEventMap> {
     this.write(message);
   }
 
-  public async request(message: OutboundMessage): Promise<InboundMessage> {
+  public async request(
+    message: OutboundMessage,
+    accepts = (response: InboundMessage) => response.statusCode !== 100,
+  ): Promise<InboundMessage> {
     this.assertReady();
     const key = transactionKey(message);
     if (this.pending.has(key)) {
@@ -120,7 +124,7 @@ export class SipTransport extends EventEmitter<SipTransportEventMap> {
     }
 
     return new Promise((resolve, reject) => {
-      this.pending.set(key, { resolve, reject });
+      this.pending.set(key, { resolve, reject, accepts });
       try {
         this.write(message);
       } catch (error) {
@@ -179,7 +183,7 @@ export class SipTransport extends EventEmitter<SipTransportEventMap> {
         // Uncorrelatable messages remain observable to signaling consumers.
       }
       const pending = key ? this.pending.get(key) : undefined;
-      if (pending && message.statusCode !== 100) {
+      if (pending?.accepts(message)) {
         this.pending.delete(key!);
         pending.resolve(message);
       }
