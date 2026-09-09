@@ -1,6 +1,6 @@
 import EventEmitter from "node:events";
-
 import InboundCallSession from "./call-session/inbound.js";
+import type CallSession from "./call-session/index.js";
 import OutboundCallSession from "./call-session/outbound.js";
 import Codec from "./codec.js";
 import {
@@ -42,6 +42,8 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   private intervalHandle?: NodeJS.Timeout;
   private reconnectHandle?: NodeJS.Timeout;
   private recoveryTransport?: SipTransport;
+  private callSessions = new Set<CallSession>();
+  private recoveringSessions = new Set<CallSession>();
   private registered = false;
   private revoked = false;
   private recoveryAttempt = 0;
@@ -157,6 +159,10 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
     }
     this.registered = false;
     clearInterval(this.intervalHandle);
+    for (const session of this.callSessions) {
+      this.recoveringSessions.add(session);
+      session.startSignalingRecoveryDeadline();
+    }
     this.emit("registrationError", error);
     void this.recover();
   }
@@ -177,6 +183,11 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
       this.recoveryAttempt = 0;
       this.registered = true;
       this.startRegistrationRefresh();
+      const sessions = [...this.recoveringSessions];
+      this.recoveringSessions.clear();
+      for (const session of sessions) {
+        void session.reconcileDialog();
+      }
     } catch (error) {
       if (this.revoked || this.recoveryTransport !== signaling) {
         return;
@@ -219,8 +230,23 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
     clearTimeout(this.reconnectHandle);
     this.recoveryTransport?.dispose();
     this.recoveryTransport = undefined;
+    for (const session of this.recoveringSessions) {
+      session.cancelSignalingRecoveryDeadline();
+    }
+    this.recoveringSessions.clear();
     this.removeAllListeners();
     this.signaling.dispose();
+  }
+
+  /** @internal */
+  public addCallSession(session: CallSession): void {
+    this.callSessions.add(session);
+  }
+
+  /** @internal */
+  public removeCallSession(session: CallSession): void {
+    this.callSessions.delete(session);
+    this.recoveringSessions.delete(session);
   }
 
   /** @internal */

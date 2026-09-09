@@ -31,6 +31,7 @@ class InboundCallSession extends CallSession {
 
       // for inbound call from call queue, ack message may HAVE body (while invite message has no body)
       session.startLocalServices(ackMessage.body || inviteMessage.body);
+      softphone.addCallSession(session);
       return session;
     } catch (error) {
       session?.dispose();

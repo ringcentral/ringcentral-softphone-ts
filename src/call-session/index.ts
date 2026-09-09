@@ -36,6 +36,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   public readonly callId: string;
 
   private disposedState = false;
+  private signalingRecoveryDeadline?: NodeJS.Timeout;
   private pendingTransfer?: {
     resolve: () => void;
     reject: (error: Error) => void;
@@ -102,10 +103,12 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
       return;
     }
     this.disposedState = true;
+    this.cancelSignalingRecoveryDeadline();
     this.media.dispose();
     this.emit("disposed");
     this.removeAllListeners();
     this.softphone.off("message", this.signalingHandler);
+    this.softphone.removeCallSession(this);
     this.pendingTransfer?.reject(new Error("Call session was disposed"));
     this.pendingTransfer = undefined;
   }
@@ -188,7 +191,45 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     if (replyMessage.statusCode >= 300) {
       throw new Error(`re-INVITE failed: ${replyMessage.subject}`);
     }
-    this.sdp = sdp;
+    if (!this.disposedState) {
+      this.sdp = sdp;
+    }
+  }
+
+  /** @internal */
+  public startSignalingRecoveryDeadline(): void {
+    this.cancelSignalingRecoveryDeadline();
+    this.signalingRecoveryDeadline = setTimeout(
+      () => this.dispose(),
+      5 * 60 * 1000,
+    );
+  }
+
+  /** @internal */
+  public cancelSignalingRecoveryDeadline(): void {
+    clearTimeout(this.signalingRecoveryDeadline);
+    this.signalingRecoveryDeadline = undefined;
+  }
+
+  /** @internal */
+  public async reconcileDialog(): Promise<void> {
+    this.cancelSignalingRecoveryDeadline();
+    let timeout: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        this.reInvite(this.sdp),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error("re-INVITE timed out")),
+            32_000,
+          );
+        }),
+      ]);
+    } catch {
+      this.dispose();
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   public async hold() {

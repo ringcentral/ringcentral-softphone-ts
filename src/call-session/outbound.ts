@@ -139,6 +139,7 @@ class OutboundCallSession extends CallSession {
     }
 
     this.startLocalServices(this.sipMessage.body);
+    this.softphone.addCallSession(this);
     this.emit("answered");
     const ackMessage = new RequestMessage(
       `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,

@@ -303,10 +303,11 @@ softphone.on("registrationError", (error) => {
 
 After a registered Softphone loses its SIP signaling connection, it reconnects
 and registers again automatically. Active UDP/SRTP media continues during
-recovery, but signaling operations fail immediately and are not replayed. A
-server may keep an established dialog routed to the failed connection, so a
-remote BYE may not arrive even after registration recovers; see
-[issue #65](https://github.com/ringcentral/ringcentral-softphone-ts/issues/65).
+recovery for up to five minutes, but signaling operations fail immediately and
+are not replayed. After replacement registration, each pre-existing call sends
+an unchanged-SDP re-INVITE to reconcile its SIP dialog with the new connection.
+The call is disposed if that request fails or receives no final response within
+32 seconds. SIP dialog liveness and UDP/SRTP media liveness remain independent.
 
 Custom debug prefixes can distinguish multiple instances:
 

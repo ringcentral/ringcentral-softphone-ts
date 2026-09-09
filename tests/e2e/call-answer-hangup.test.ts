@@ -57,6 +57,10 @@ describe("E2E call flow", () => {
       });
 
       const previousSignaling = callee.signaling;
+      const reconciliationMessages: string[] = [];
+      callee.on("outboundMessage", (message) =>
+        reconciliationMessages.push(message),
+      );
       const reset = Object.assign(new Error("read ECONNRESET"), {
         code: "ECONNRESET",
       });
@@ -71,13 +75,27 @@ describe("E2E call flow", () => {
       );
       expect(outboundWasDisposed).toBe(false);
       expect(inboundWasDisposed).toBe(false);
+      await vi.waitFor(
+        () =>
+          expect(
+            reconciliationMessages.some((message) =>
+              message.startsWith("INVITE "),
+            ),
+          ).toBe(true),
+        { timeout: 30_000 },
+      );
+      await vi.waitFor(
+        () =>
+          expect(
+            reconciliationMessages.some((message) =>
+              message.startsWith("ACK "),
+            ),
+          ).toBe(true),
+        { timeout: 30_000 },
+      );
 
-      await inboundSession.hangup();
-      await inboundDisposed;
-      if (!outboundWasDisposed) {
-        await outboundSession.hangup();
-      }
-      await outboundDisposed;
+      await outboundSession.hangup();
+      await Promise.all([outboundDisposed, inboundDisposed]);
     } finally {
       caller.revoke();
       callee.revoke();

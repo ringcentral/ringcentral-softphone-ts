@@ -15,6 +15,9 @@ _Avoid_: Media session
 **SIP signaling connection**:
 The TLS connection carrying registration and call-control messages for one Softphone instance, separately from per-call media.
 
+**Dialog reconciliation**:
+An unchanged-SDP re-INVITE that refreshes a pre-existing call session's SIP routing after its signaling connection is replaced.
+
 **SIP message**:
 A mutable SIP request or response exchanged through the SIP signaling connection.
 

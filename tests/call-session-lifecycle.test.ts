@@ -11,7 +11,11 @@ vi.mock("node:timers/promises", () => ({
 
 import type InboundCallSession from "../src/call-session/inbound.js";
 import { type RtpPacket, SrtpSession } from "../src/rtp/index.js";
-import { InboundMessage, type OutboundMessage } from "../src/sip-message.js";
+import {
+  InboundMessage,
+  type OutboundMessage,
+  RequestMessage,
+} from "../src/sip-message.js";
 import { SipTransport } from "../src/sip-transport.js";
 import type { InboundInvite } from "../src/types.js";
 import { localKey } from "../src/utils.js";
@@ -49,6 +53,10 @@ const createRemoteSrtpSession = () => {
   const localKeyBuffer = Buffer.from(localKey, "base64");
   const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
   return new SrtpSession(remoteKeyBuffer, localKeyBuffer);
+};
+
+const flush = async () => {
+  for (let index = 0; index < 10; index++) await Promise.resolve();
 };
 
 const audioPacket: RtpPacket = {
@@ -221,6 +229,134 @@ describe("CallSession lifecycle", () => {
     expect(disposed).toHaveBeenCalledOnce();
     expect(fixture.session.media.disposed).toBe(true);
     expect(fixture.softphone.listenerCount("message")).toBe(1);
+  });
+
+  test("disposes a pre-existing call after five minutes without recovery", async () => {
+    vi.useFakeTimers();
+    const fixture = await createAnsweredSession();
+    const replacement = createSignaling();
+    replacement.ready.mockImplementation(() => new Promise<void>(() => {}));
+    vi.mocked(SipTransport.connect).mockReturnValueOnce(replacement as never);
+    fixture.request.mockResolvedValue(signalingMessage());
+    await fixture.softphone.register();
+
+    fixture.signaling.emit("disconnected", new Error("disconnected"));
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000 - 1);
+    expect(fixture.session.media.disposed).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fixture.session.media.disposed).toBe(true);
+    fixture.softphone.revoke();
+  });
+
+  test("disposes a call after reconciliation receives a non-2xx response", async () => {
+    vi.useFakeTimers();
+    const fixture = await createAnsweredSession();
+    const replacement = createSignaling(
+      vi
+        .fn()
+        .mockResolvedValueOnce(signalingMessage())
+        .mockImplementationOnce(async (outbound: OutboundMessage) =>
+          signalingMessage({
+            subject: "SIP/2.0 503 Service Unavailable",
+            callId: fixture.session.callId,
+            cseq: outbound.headers.CSeq,
+          }),
+        ),
+    );
+    vi.mocked(SipTransport.connect).mockReturnValueOnce(replacement as never);
+    fixture.request.mockResolvedValue(signalingMessage());
+    await fixture.softphone.register();
+
+    fixture.signaling.emit("disconnected", new Error("disconnected"));
+    await flush();
+
+    expect(fixture.session.media.disposed).toBe(true);
+    expect(replacement.send).toHaveBeenCalledOnce();
+    fixture.softphone.revoke();
+  });
+
+  test("gives reconciliation 32 seconds after registration succeeds", async () => {
+    vi.useFakeTimers();
+    const fixture = await createAnsweredSession();
+    const replacement = createSignaling(
+      vi
+        .fn(async () => signalingMessage())
+        .mockResolvedValueOnce(signalingMessage())
+        .mockReturnValueOnce(new Promise<InboundMessage>(() => {})),
+    );
+    vi.mocked(SipTransport.connect).mockReturnValueOnce(replacement as never);
+    fixture.request.mockResolvedValue(signalingMessage());
+    await fixture.softphone.register();
+
+    fixture.signaling.emit("disconnected", new Error("disconnected"));
+    await flush();
+    expect(replacement.request).toHaveBeenCalledTimes(2);
+    const newSession = (await fixture.softphone.answer(
+      invite(sdp(), "call-after-recovery") as unknown as InboundInvite,
+    )) as InboundCallSession;
+    expect(
+      replacement.request.mock.calls.filter(([message]) =>
+        message.subject.startsWith("INVITE "),
+      ),
+    ).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(31_999);
+    expect(fixture.session.media.disposed).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fixture.session.media.disposed).toBe(true);
+    expect(newSession.media.disposed).toBe(false);
+    fixture.softphone.revoke();
+  });
+
+  test("reconciles affected calls independently with unchanged SDP", async () => {
+    vi.useFakeTimers();
+    const fixture = await createAnsweredSession();
+    const secondSession = (await fixture.softphone.answer(
+      invite(sdp(), "call-456") as unknown as InboundInvite,
+    )) as InboundCallSession;
+    fixture.request.mockResolvedValue(signalingMessage());
+    await secondSession.hold();
+    await fixture.softphone.register();
+    const firstSdp = fixture.session.sdp;
+    const secondSdp = secondSession.sdp;
+    const replacement = createSignaling(
+      vi.fn(async (outbound: OutboundMessage) => {
+        if (outbound.subject.startsWith("REGISTER ")) {
+          return signalingMessage();
+        }
+        if (outbound.callId === fixture.session.callId) {
+          return new Promise<InboundMessage>(() => {});
+        }
+        return signalingMessage({
+          callId: secondSession.callId,
+          cseq: outbound.headers.CSeq,
+        });
+      }),
+    );
+    vi.mocked(SipTransport.connect).mockReturnValueOnce(replacement as never);
+
+    fixture.signaling.emit("disconnected", new Error("disconnected"));
+    await flush();
+
+    const reInvites = replacement.request.mock.calls
+      .map(([message]) => message)
+      .filter((message) => message.subject.startsWith("INVITE "));
+    expect(reInvites).toHaveLength(2);
+    expect(
+      reInvites.find((message) => message.callId === fixture.session.callId)
+        ?.body,
+    ).toBe(new RequestMessage("INVITE sip:test SIP/2.0", {}, firstSdp).body);
+    expect(
+      reInvites.find((message) => message.callId === secondSession.callId)
+        ?.body,
+    ).toBe(new RequestMessage("INVITE sip:test SIP/2.0", {}, secondSdp).body);
+    expect(secondSession.media.disposed).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(32_000);
+    expect(fixture.session.media.disposed).toBe(true);
+    expect(secondSession.media.disposed).toBe(false);
+    fixture.softphone.revoke();
   });
 
   test("ignores signaling for another call through the Softphone", async () => {
