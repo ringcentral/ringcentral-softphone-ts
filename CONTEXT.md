@@ -8,6 +8,9 @@ The Softphone SDK places and receives phone calls while carrying their audio and
 A live inbound or outbound phone call that owns its per-call SIP policy, coordinates its media transport, and exposes call controls and call-level events.
 _Avoid_: Media session
 
+**Hold**:
+A call state that isolates peer audio in both directions until unhold restores bidirectional peer audio. RingCentral-generated hold audio may be present but is not part of this SDK behavior contract.
+
 **Media transport**:
 The per-call channel that owns the bound UDP and SRTP lifecycle carrying audio and DTMF between the Softphone SDK and the remote peer.
 _Avoid_: Media session
