@@ -33,9 +33,11 @@ Check all five credential values:
 - Do not use a RingCentral app device (`SoftPhone` in the REST API).
 
 Call `softphone.enableDebugMode()` to inspect the SIP exchange. The initial
-`register()` call rejects on failure; later refresh failures emit
-`registrationError`. Debug output can contain identities, phone numbers, call
-metadata, and authentication material, so redact it before sharing.
+`register()` call rejects on failure; later signaling failures, such as a
+connection loss, a registration-refresh failure, or a failed recovery
+attempt, emit `signalingError`. Debug output can contain identities, phone
+numbers, call metadata, and authentication material, so redact it before
+sharing.
 
 ## Audio is distorted or silent
 

@@ -140,11 +140,12 @@ registration.
 ## Debug registration
 
 `register()` rejects when the initial registration fails. Listen for
-`registrationError` to handle a later registration refresh failure:
+`signalingError` to handle later signaling failures, such as a lost
+connection or a failed registration refresh:
 
 ```ts
-softphone.on("registrationError", (error) => {
-  console.error("Registration refresh failed", error);
+softphone.on("signalingError", (error) => {
+  console.error("Signaling failure", error);
 });
 
 softphone.enableDebugMode();

@@ -146,7 +146,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
           return;
         }
         this.emit(
-          "registrationError",
+          "signalingError",
           error instanceof Error ? error : new Error(String(error)),
         );
       });
@@ -163,7 +163,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
       this.recoveringSessions.add(session);
       session.startSignalingRecoveryDeadline();
     }
-    this.emit("registrationError", error);
+    this.emit("signalingError", error);
     void this.recover();
   }
 
@@ -195,7 +195,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
       signaling.dispose();
       this.recoveryTransport = undefined;
       this.emit(
-        "registrationError",
+        "signalingError",
         error instanceof Error ? error : new Error(String(error)),
       );
       const delays = [1, 2, 4, 8, 16, 30];

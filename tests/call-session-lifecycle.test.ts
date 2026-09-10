@@ -204,7 +204,7 @@ describe("CallSession lifecycle", () => {
     const replacement = createSignaling(vi.fn(async () => signalingMessage()));
     const disposed = vi.fn();
     fixture.session.on("disposed", disposed);
-    fixture.softphone.on("registrationError", () => {});
+    fixture.softphone.on("signalingError", () => {});
     vi.mocked(SipTransport.connect).mockReturnValueOnce(replacement as never);
     await fixture.softphone.register();
 

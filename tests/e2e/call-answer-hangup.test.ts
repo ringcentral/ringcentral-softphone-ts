@@ -61,6 +61,8 @@ describe("E2E call flow", () => {
       callee.on("outboundMessage", (message) =>
         reconciliationMessages.push(message),
       );
+      const signalingErrors: Error[] = [];
+      callee.on("signalingError", (error) => signalingErrors.push(error));
       const reset = Object.assign(new Error("read ECONNRESET"), {
         code: "ECONNRESET",
       });
@@ -71,6 +73,11 @@ describe("E2E call flow", () => {
       ).socket.destroy(reset);
       await vi.waitFor(
         () => expect(callee.signaling).not.toBe(previousSignaling),
+        { timeout: 30_000 },
+      );
+      await vi.waitFor(
+        () =>
+          expect(signalingErrors.some((error) => error === reset)).toBe(true),
         { timeout: 30_000 },
       );
       expect(outboundWasDisposed).toBe(false);

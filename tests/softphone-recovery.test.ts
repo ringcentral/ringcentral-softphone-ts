@@ -63,10 +63,8 @@ describe("Softphone signaling recovery", () => {
     const replacement = createTransport();
     connect.mockReturnValueOnce(original).mockReturnValueOnce(replacement);
     const softphone = new Softphone(options);
-    const registrationErrors: Error[] = [];
-    softphone.on("registrationError", (error) =>
-      registrationErrors.push(error),
-    );
+    const signalingErrors: Error[] = [];
+    softphone.on("signalingError", (error) => signalingErrors.push(error));
     await softphone.register();
 
     const error = Object.assign(new Error("read ECONNRESET"), {
@@ -78,7 +76,7 @@ describe("Softphone signaling recovery", () => {
     expect(connect).toHaveBeenCalledTimes(2);
     expect(replacement.request).toHaveBeenCalledOnce();
     expect(softphone.signaling).toBe(replacement);
-    expect(registrationErrors).toEqual([error]);
+    expect(signalingErrors).toEqual([error]);
     softphone.revoke();
   });
 
@@ -92,7 +90,8 @@ describe("Softphone signaling recovery", () => {
     connect.mockReturnValueOnce(original);
     for (const transport of failed) connect.mockReturnValueOnce(transport);
     const softphone = new Softphone(options);
-    softphone.on("registrationError", () => {});
+    const signalingErrors: Error[] = [];
+    softphone.on("signalingError", (error) => signalingErrors.push(error));
     await softphone.register();
 
     original.emit("disconnected", new Error("disconnected"));
@@ -103,6 +102,7 @@ describe("Softphone signaling recovery", () => {
       await vi.advanceTimersByTimeAsync(seconds * 1000);
       expect(connect).toHaveBeenCalledTimes(index + 3);
     }
+    expect(signalingErrors).toHaveLength(9);
     expect(
       failed
         .slice(0, 7)
@@ -133,7 +133,7 @@ describe("Softphone signaling recovery", () => {
       .mockReturnValueOnce(retry);
     const softphone = new Softphone(options);
     const errors: Error[] = [];
-    softphone.on("registrationError", (error) => errors.push(error));
+    softphone.on("signalingError", (error) => errors.push(error));
     await softphone.register();
     timeoutSpy.mockClear();
 
@@ -167,7 +167,7 @@ describe("Softphone signaling recovery", () => {
       .mockReturnValueOnce(retry);
     const softphone = new Softphone(options);
     const errors: Error[] = [];
-    softphone.on("registrationError", (error) => errors.push(error));
+    softphone.on("signalingError", (error) => errors.push(error));
     await softphone.register();
 
     original.emit("disconnected", new Error("disconnected"));
@@ -188,7 +188,7 @@ describe("Softphone signaling recovery", () => {
     const replacement = createTransport(vi.fn(() => registration.promise));
     connect.mockReturnValueOnce(original).mockReturnValueOnce(replacement);
     const softphone = new Softphone(options);
-    softphone.on("registrationError", () => {});
+    softphone.on("signalingError", () => {});
     await softphone.register();
     const error = new Error("read ECONNRESET");
     original.request.mockRejectedValue(error);
@@ -215,7 +215,7 @@ describe("Softphone signaling recovery", () => {
     connect.mockReturnValue(original);
     const softphone = new Softphone(options);
     const errors: Error[] = [];
-    softphone.on("registrationError", (error) => errors.push(error));
+    softphone.on("signalingError", (error) => errors.push(error));
     await softphone.register();
 
     await vi.advanceTimersByTimeAsync(30_000);
@@ -232,7 +232,7 @@ describe("Softphone signaling recovery", () => {
     const replacement = createTransport();
     connect.mockReturnValueOnce(original).mockReturnValueOnce(replacement);
     const softphone = new Softphone(options);
-    softphone.on("registrationError", () => {});
+    softphone.on("signalingError", () => {});
     await softphone.register();
 
     original.emit("disconnected", new Error("error"));
@@ -250,10 +250,13 @@ describe("Softphone signaling recovery", () => {
     );
     connect.mockReturnValue(initial);
     const softphone = new Softphone(options);
+    const signalingErrors: Error[] = [];
+    softphone.on("signalingError", (error) => signalingErrors.push(error));
 
     await expect(softphone.register()).rejects.toThrow("SIP/2.0 503");
     await vi.advanceTimersByTimeAsync(60_000);
     expect(connect).toHaveBeenCalledOnce();
+    expect(signalingErrors).toEqual([]);
     softphone.revoke();
   });
 
@@ -273,7 +276,7 @@ describe("Softphone signaling recovery", () => {
     const replacement = createTransport();
     connect.mockReturnValueOnce(original).mockReturnValueOnce(replacement);
     const softphone = new Softphone(options);
-    softphone.on("registrationError", () => {});
+    softphone.on("signalingError", () => {});
     await softphone.register();
     const interrupted = softphone.signaling.request(
       new RequestMessage("OPTIONS sip:example.com SIP/2.0"),
@@ -296,7 +299,7 @@ describe("Softphone signaling recovery", () => {
     );
     connect.mockReturnValueOnce(original).mockReturnValueOnce(failed);
     const softphone = new Softphone(options);
-    softphone.on("registrationError", () => {});
+    softphone.on("signalingError", () => {});
     await softphone.register();
 
     original.emit("disconnected", new Error("disconnected"));
@@ -322,16 +325,19 @@ describe("Softphone signaling recovery", () => {
           : createTransport(vi.fn(() => pending.promise.then(() => ok)));
       connect.mockReturnValueOnce(original).mockReturnValueOnce(replacement);
       const softphone = new Softphone(options);
-      softphone.on("registrationError", () => {});
+      const signalingErrors: Error[] = [];
+      softphone.on("signalingError", (error) => signalingErrors.push(error));
       await softphone.register();
 
-      original.emit("disconnected", new Error("disconnected"));
+      const disconnect = new Error("disconnected");
+      original.emit("disconnected", disconnect);
       await flush();
       softphone.revoke();
       pending.resolve();
       await flush();
       await vi.advanceTimersByTimeAsync(60_000);
 
+      expect(signalingErrors).toEqual([disconnect]);
       expect(replacement.dispose).toHaveBeenCalledOnce();
       expect(softphone.signaling).toBe(original);
       expect(connect).toHaveBeenCalledTimes(2);
@@ -345,7 +351,7 @@ describe("Softphone signaling recovery", () => {
     connect.mockReturnValueOnce(original).mockReturnValueOnce(replacement);
     const softphone = new Softphone(options);
     const errors: Error[] = [];
-    softphone.on("registrationError", (error) => errors.push(error));
+    softphone.on("signalingError", (error) => errors.push(error));
     await softphone.register();
 
     const disconnected = new Error("disconnected");
@@ -378,7 +384,7 @@ describe("Softphone signaling recovery", () => {
       .mockReturnValueOnce(failedAgain)
       .mockReturnValueOnce(recoveredAgain);
     const softphone = new Softphone(options);
-    softphone.on("registrationError", () => {});
+    softphone.on("signalingError", () => {});
     await softphone.register();
 
     original.emit("disconnected", new Error("first outage"));

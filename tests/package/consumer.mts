@@ -46,8 +46,9 @@ const handleInvite = async (invite: InboundInvite) => {
 };
 
 softphone.on("invite", handleInvite);
-softphone.once("registrationError", (error: Error) => {
-  void error;
+softphone.once("signalingError", (error) => {
+  const payload: Error = error;
+  void payload;
 });
 softphone.on("custom-event", () => {});
 softphone.eventNames();

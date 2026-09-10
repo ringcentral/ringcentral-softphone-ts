@@ -34,3 +34,12 @@ softphone.send;
 invite.subject;
 // @ts-expect-error SIP headers are not part of the opaque invite type.
 invite.headers;
+
+// The removed registrationError event has no compatibility alias: a
+// wrong-typed listener is only accepted because the event map does not know
+// the event name. A reintroduced alias would fail this line at compile time.
+softphone.on("registrationError", (error: number) => void error);
+
+// The signalingError event carries exactly one Error argument.
+// @ts-expect-error A non-Error argument does not satisfy the event map.
+softphone.emit("signalingError", "not an Error");

@@ -165,10 +165,10 @@ await softphone.register();
 ```
 
 After a successful registration, the SDK automatically reconnects and
-registers again if its TLS SIP signaling connection fails. Connection and
-recovery failures are emitted as `registrationError`. Signaling operations
-attempted during recovery fail immediately; interrupted operations are not
-queued or replayed.
+registers again if its TLS SIP signaling connection fails. The connection
+loss and each failed recovery attempt are emitted as `signalingError`.
+Signaling operations attempted during recovery fail immediately; interrupted
+operations are not queued or replayed.
 
 To reject an invite instead, call `await softphone.decline(inviteMessage)`.
 
@@ -293,11 +293,12 @@ numbers, call metadata, and authentication material. Do not enable it in
 production or publish its output without redacting sensitive values.
 
 The initial `register()` call rejects if registration fails. Listen for
-`registrationError` to handle a later registration refresh failure:
+`signalingError` to handle later signaling failures, such as a lost
+connection or a failed registration refresh:
 
 ```ts
-softphone.on("registrationError", (error) => {
-  console.error("Registration refresh failed", error);
+softphone.on("signalingError", (error) => {
+  console.error("Signaling failure", error);
 });
 ```
 
