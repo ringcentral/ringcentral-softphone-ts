@@ -29,7 +29,7 @@
     "multi-call": "tsx --import ./demos/load-env.ts demos/multiple-calls-sequentially.ts",
     "multi-inst": "tsx --import ./demos/load-env.ts demos/multi-instances.ts",
     "test": "vitest run --exclude 'tests/e2e/**'",
-    "test:e2e": "vitest run tests/e2e",
+    "test:e2e": "vitest run tests/e2e --no-file-parallelism",
     "validate": "biome check . && tsc -p demos/tsconfig.json && tsc -p tests/tsconfig.json && pnpm run test && pnpm run build && tsc -p tests/package/tsconfig.json && node tests/package/runtime.mjs && node tests/package/runtime.cjs",
     "build": "tsdown",
     "prepublishOnly": "pnpm run build"
