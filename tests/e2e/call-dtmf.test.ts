@@ -66,10 +66,28 @@ describe("E2E call DTMF", () => {
       inboundSession = inbound;
       await answeredPromise;
 
-      const callerReceived: string[] = [];
-      const calleeReceived: string[] = [];
-      outbound.on("dtmf", (char) => callerReceived.push(char));
-      inbound.on("dtmf", (char) => calleeReceived.push(char));
+      let callerReceived = "";
+      let calleeReceived = "";
+      let callerSequenceReceived = false;
+      let calleeSequenceReceived = false;
+      const callerSequenceComplete = new Promise<void>((resolve) => {
+        outbound.on("dtmf", (char) => {
+          callerReceived += char;
+          if (callerReceived === CALLEE_SEQUENCE) {
+            callerSequenceReceived = true;
+            resolve();
+          }
+        });
+      });
+      const calleeSequenceComplete = new Promise<void>((resolve) => {
+        inbound.on("dtmf", (char) => {
+          calleeReceived += char;
+          if (calleeReceived === CALLER_SEQUENCE) {
+            calleeSequenceReceived = true;
+            resolve();
+          }
+        });
+      });
 
       let callerSendFinished = false;
       let calleeSendFinished = false;
@@ -86,8 +104,9 @@ describe("E2E call DTMF", () => {
               calleeSendFinished = true;
             }),
         ]);
-        expect(callerReceived.join("")).toBe(CALLEE_SEQUENCE);
-        expect(calleeReceived.join("")).toBe(CALLER_SEQUENCE);
+        await Promise.all([callerSequenceComplete, calleeSequenceComplete]);
+        expect(callerReceived).toBe(CALLEE_SEQUENCE);
+        expect(calleeReceived).toBe(CALLER_SEQUENCE);
       })();
 
       let deadlineTimer: NodeJS.Timeout | undefined;
@@ -95,7 +114,7 @@ describe("E2E call DTMF", () => {
         deadlineTimer = setTimeout(() => {
           reject(
             new Error(
-              `simultaneous DTMF exchange did not complete within ${EXCHANGE_DEADLINE_MS} ms (caller send finished: ${callerSendFinished}, callee send finished: ${calleeSendFinished}, caller received: ${callerReceived.join("") || "none"}, callee received: ${calleeReceived.join("") || "none"})`,
+              `simultaneous DTMF exchange did not complete within ${EXCHANGE_DEADLINE_MS} ms (caller send finished: ${callerSendFinished}, callee send finished: ${calleeSendFinished}, caller sequence received: ${callerSequenceReceived}, callee sequence received: ${calleeSequenceReceived}, caller received: "${callerReceived || "none"}" of expected "${CALLEE_SEQUENCE}", callee received: "${calleeReceived || "none"}" of expected "${CALLER_SEQUENCE}")`,
             ),
           );
         }, EXCHANGE_DEADLINE_MS);
