@@ -6,6 +6,7 @@ import Softphone, {
   type InboundInvite,
   type OutboundCallSession,
   type SoftphoneOptions,
+  type Streamer,
 } from "../../src/index.js";
 import { decodeMulawToPcm, encodePcmToMulaw } from "../mu-law.js";
 
@@ -27,6 +28,7 @@ const sipConfigFromPrefix = (prefix: "SIP_A" | "SIP_B"): SoftphoneOptions => ({
 
 const SAMPLE_RATE = 16_000;
 const PCMU_SAMPLE_RATE = 8_000;
+const STEREO_SAMPLE_RATE = 48_000;
 const TONE_SECONDS = 1;
 const TONE_AMPLITUDE = Math.round(0.25 * (2 ** 15 - 1));
 const CALLER_TONE_HZ = 440;
@@ -50,6 +52,20 @@ const generateTone = (
       ),
       index * 2,
     );
+  }
+  return pcm;
+};
+
+const generateStereoTone = (frequencyHz: number) => {
+  const frameCount = STEREO_SAMPLE_RATE * TONE_SECONDS;
+  const pcm = Buffer.alloc(frameCount * 4);
+  for (let index = 0; index < frameCount; index++) {
+    const sample = Math.round(
+      TONE_AMPLITUDE *
+        Math.sin((2 * Math.PI * frequencyHz * index) / STEREO_SAMPLE_RATE),
+    );
+    pcm.writeInt16LE(sample, index * 4);
+    pcm.writeInt16LE(sample, index * 4 + 2);
   }
   return pcm;
 };
@@ -126,6 +142,19 @@ const hangUpBestEffort = async (session: CallSession | undefined) => {
     return;
   }
 };
+
+const mixStereoToMono = (chunks: Buffer[]) =>
+  chunks.map((chunk) => {
+    const frameCount = Math.floor(chunk.length / 4);
+    const mono = Buffer.alloc(frameCount * 2);
+    for (let index = 0; index < frameCount; index++) {
+      mono.writeInt16LE(
+        (chunk.readInt16LE(index * 4) + chunk.readInt16LE(index * 4 + 2)) >> 1,
+        index * 2,
+      );
+    }
+    return mono;
+  });
 
 describe("E2E call audio", () => {
   test("caller and callee exchange recognizable audio in a real call", async () => {
@@ -325,6 +354,136 @@ describe("E2E call audio", () => {
       await Promise.all([outboundDisposed, inboundDisposed]);
       callFinished = true;
     } finally {
+      if (!callFinished) {
+        await hangUpBestEffort(outboundSession);
+        await hangUpBestEffort(inboundSession);
+      }
+      caller.revoke();
+      callee.revoke();
+    }
+  }, 120000);
+
+  test("caller and callee exchange recognizable OPUS/48000/2 audio in a real call", async () => {
+    const callerOptions: SoftphoneOptions = {
+      ...sipConfigFromPrefix("SIP_A"),
+      codec: "OPUS/48000/2",
+    };
+    const calleeOptions: SoftphoneOptions = {
+      ...sipConfigFromPrefix("SIP_B"),
+      codec: "OPUS/48000/2",
+    };
+    const caller = new Softphone(callerOptions);
+    const callee = new Softphone(calleeOptions);
+    const inboundCallPromise = (
+      once(callee, "invite") as Promise<[InboundInvite]>
+    ).then(async ([invite]) => ({
+      invite,
+      session: await callee.answer(invite),
+    }));
+    let outboundSession: OutboundCallSession | undefined;
+    let inboundSession: CallSession | undefined;
+    let callFinished = false;
+    let exchangeStartedAt = Date.now();
+    let callerStreamingFinished = false;
+    let calleeStreamingFinished = false;
+    let callerStreamer: Streamer | undefined;
+    let calleeStreamer: Streamer | undefined;
+    let callerAnalysis: ToneAnalysis | undefined;
+    let calleeAnalysis: ToneAnalysis | undefined;
+
+    const describeReception = (analysis: ToneAnalysis | undefined): string =>
+      analysis === undefined
+        ? "no audio observed yet"
+        : `observed median ${analysis.medianFrequencyHz.toFixed(1)} Hz over ${Math.round(analysis.nonSilentSeconds * 1000)} ms of recognizable non-silent audio`;
+
+    const evidence = (
+      direction: string,
+      selectedCodec: string,
+      expectedHz: number,
+      analysis: ToneAnalysis | undefined,
+    ) =>
+      `${direction}: expected peer tone ${expectedHz} Hz (±${Math.round(FREQUENCY_TOLERANCE * 100)}%), ${describeReception(analysis)}, caller streamer finished: ${callerStreamingFinished}, callee streamer finished: ${calleeStreamingFinished}, selected codec: ${selectedCodec}, elapsed: ${Date.now() - exchangeStartedAt} ms`;
+
+    const stereoDeadlineError = () =>
+      `OPUS/48000/2 full-duplex audio exchange did not complete within ${EXCHANGE_DEADLINE_MS} ms (caller: ${evidence("caller received audio", caller.codec.name, CALLEE_TONE_HZ, callerAnalysis)}, callee: ${evidence("callee received audio", callee.codec.name, CALLER_TONE_HZ, calleeAnalysis)})`;
+
+    try {
+      await Promise.all([caller.register(), callee.register()]);
+
+      const outbound = await caller.call(calleeOptions.username);
+      outboundSession = outbound;
+      const answeredPromise = once(outbound, "answered");
+      const { session: inbound } = await inboundCallPromise;
+      inboundSession = inbound;
+      await answeredPromise;
+
+      const callerReceived: Buffer[] = [];
+      const calleeReceived: Buffer[] = [];
+      outbound.on("audio", (audio) => callerReceived.push(audio));
+      inbound.on("audio", (audio) => calleeReceived.push(audio));
+
+      exchangeStartedAt = Date.now();
+      callerStreamer = outbound.streamAudio(generateStereoTone(CALLER_TONE_HZ));
+      calleeStreamer = inbound.streamAudio(generateStereoTone(CALLEE_TONE_HZ));
+      const callerFinished = once(callerStreamer, "finished").then(() => {
+        callerStreamingFinished = true;
+      });
+      const calleeFinished = once(calleeStreamer, "finished").then(() => {
+        calleeStreamingFinished = true;
+      });
+
+      const exchange = (async () => {
+        await Promise.all([callerFinished, calleeFinished]);
+        callerAnalysis = analyzeTone(
+          mixStereoToMono(callerReceived),
+          STEREO_SAMPLE_RATE,
+        );
+        calleeAnalysis = analyzeTone(
+          mixStereoToMono(calleeReceived),
+          STEREO_SAMPLE_RATE,
+        );
+        expectRecognizedTone(
+          callerAnalysis,
+          CALLEE_TONE_HZ,
+          evidence(
+            "caller received audio",
+            caller.codec.name,
+            CALLEE_TONE_HZ,
+            callerAnalysis,
+          ),
+        );
+        expectRecognizedTone(
+          calleeAnalysis,
+          CALLER_TONE_HZ,
+          evidence(
+            "callee received audio",
+            callee.codec.name,
+            CALLER_TONE_HZ,
+            calleeAnalysis,
+          ),
+        );
+      })();
+
+      let deadlineTimer: NodeJS.Timeout | undefined;
+      const deadline = new Promise<never>((_resolve, reject) => {
+        deadlineTimer = setTimeout(() => {
+          reject(new Error(stereoDeadlineError()));
+        }, EXCHANGE_DEADLINE_MS);
+      });
+      try {
+        await Promise.race([exchange, deadline]);
+      } finally {
+        clearTimeout(deadlineTimer);
+      }
+
+      const outboundDisposed = once(outbound, "disposed");
+      const inboundDisposed = once(inbound, "disposed");
+      await outbound.hangup();
+      await Promise.all([outboundDisposed, inboundDisposed]);
+      callFinished = true;
+    } finally {
+      callerStreamer?.stop();
+      calleeStreamer?.stop();
       if (!callFinished) {
         await hangUpBestEffort(outboundSession);
         await hangUpBestEffort(inboundSession);

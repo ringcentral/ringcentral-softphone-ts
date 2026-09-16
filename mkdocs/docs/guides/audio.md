@@ -12,6 +12,12 @@ The raw buffer format depends on the codec selected when constructing the
 | `OPUS/48000/2` | 16-bit signed little-endian PCM, 48 kHz, stereo | `ffplay -autoexit -f s16le -ar 48000 -ac 2 audio.raw` |
 | `PCMU/8000` | 8-bit mu-law, 8 kHz, mono | `ffplay -autoexit -f mulaw -ar 8000 -ac 1 audio.raw` |
 
+The SDK accepts and locally processes `OPUS/48000/2` as 16-bit signed
+little-endian PCM, 48 kHz, interleaved stereo: every four-byte frame carries
+one left sample followed by one right sample. RingCentral-hosted calls
+currently downmix independent stereo content, so do not rely on end-to-end
+left/right channel separation over a RingCentral call.
+
 Set the codec during construction:
 
 ```ts
