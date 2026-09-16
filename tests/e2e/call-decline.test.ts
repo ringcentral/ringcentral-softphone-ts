@@ -50,7 +50,7 @@ describe("E2E call decline", () => {
     let answeredCount = 0;
     let serverDrivenDisposedCount = 0;
     let cleanupDisposedCount = 0;
-    let scenarioStart = Date.now();
+    const scenarioStart = Date.now();
     const observedEvents: string[] = [];
     const non2xxStatusCodes: number[] = [];
 
@@ -59,6 +59,7 @@ describe("E2E call decline", () => {
         `call decline scenario failed in phase "${phase}"`,
         `elapsed ${Date.now() - scenarioStart} ms of the ${SCENARIO_DEADLINE_MS} ms scenario deadline`,
         `decline invoked: ${declineInvoked}`,
+        `decline completed: ${declineCompletedAt !== undefined}`,
         `cleanup hangup began: ${cleanupHangupBegan}`,
         `observed public event sequence: ${
           observedEvents.length === 0 ? "none" : observedEvents.join(" -> ")
@@ -79,17 +80,32 @@ describe("E2E call decline", () => {
     });
     void deadline.catch(() => {});
 
+    const boundedPhase = async (
+      phase: string,
+      operation: () => Promise<void>,
+    ) => {
+      const operationPromise = operation();
+      void operationPromise.catch(() => {});
+      try {
+        await Promise.race([operationPromise, deadline]);
+      } catch (error) {
+        throw new Error(describeFailure(phase), { cause: error });
+      }
+    };
+
     try {
-      await Promise.all([caller.register(), callee.register()]);
+      await boundedPhase("registering both softphones", async () => {
+        await Promise.all([caller.register(), callee.register()]);
+      });
 
       // B's invite listener is armed before A places the call.
       const invitePromise = (
         once(callee, "invite") as Promise<[InboundInvite]>
       ).then(([invite]) => invite);
 
-      scenarioStart = Date.now();
-      const scenario = (async () => {
-        const outbound = await caller.call(calleeOptions.username);
+      let outbound: OutboundCallSession | undefined;
+      await boundedPhase("awaiting outbound call session", async () => {
+        outbound = await caller.call(calleeOptions.username);
         outboundSession = outbound;
 
         // A's observations are armed before B's invite is expected.
@@ -111,14 +127,22 @@ describe("E2E call decline", () => {
           }
           outboundWasDisposed = true;
         });
+      });
 
+      let invite: InboundInvite | undefined;
+      await boundedPhase("awaiting inbound invite", async () => {
+        invite = await invitePromise;
+      });
+
+      await boundedPhase("declining the inbound invite", async () => {
         // B declines the separately presented invite exactly once without
         // answering it or creating an inbound call session.
-        const invite = await invitePromise;
         declineInvoked = true;
-        await callee.decline(invite);
+        await callee.decline(invite!);
         declineCompletedAt = Date.now();
+      });
 
+      await boundedPhase("post-decline observation window", async () => {
         // Observation window: A stays answered, with no decline propagation.
         await sleep(OBSERVATION_WINDOW_MS);
 
@@ -128,17 +152,17 @@ describe("E2E call decline", () => {
         expect(answeredAt).toBeLessThan(declineCompletedAt!);
         expect(non2xxStatusCodes).toEqual([]);
         expect(serverDrivenDisposedCount).toBe(0);
+      });
 
+      await boundedPhase("cleanup hangup and disposal", async () => {
         // Explicit cleanup: A's hangup causes the only expected disposal.
-        const cleanupDisposedPromise = once(outbound, "disposed");
+        const cleanupDisposedPromise = once(outbound!, "disposed");
         cleanupHangupBegan = true;
-        await outbound.hangup();
+        await outbound!.hangup();
         await cleanupDisposedPromise;
         expect(cleanupDisposedCount).toBe(1);
         expect(serverDrivenDisposedCount).toBe(0);
-      })();
-
-      await Promise.race([scenario, deadline]);
+      });
     } finally {
       clearTimeout(deadlineTimer);
       if (outboundSession && !outboundWasDisposed) {
