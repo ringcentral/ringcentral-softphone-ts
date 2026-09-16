@@ -116,6 +116,7 @@ Consumer types come from the same package entry point:
 import type {
   CallSession,
   InboundInvite,
+  Non2xxResponse,
   OutboundCallSession,
   SoftphoneOptions,
   Streamer,
@@ -175,7 +176,11 @@ To reject an invite instead, call `await softphone.decline(inviteMessage)`.
 ## Place a call
 
 Use a country-code-qualified destination. The returned outbound call session
-emits `answered` or `busy`.
+emits `answered` for a final 2xx INVITE response. A matching final 3xx–6xx
+response emits `non2xxResponse` with the SIP status code and reason phrase and
+then disposes the session. The SDK reports the response without classifying
+it, so your application decides what 486, 487, 603, or any other status means
+for it. Later provisional (1xx) responses keep the call pending.
 
 ```ts
 import Softphone from "ringcentral-softphone";
@@ -193,8 +198,8 @@ const callSession = await softphone.call("16505550100");
 
 callSession.once("answered", () => console.log("Call answered"));
 
-callSession.once("busy", () => {
-  console.log("The destination is busy or cannot be reached");
+callSession.once("non2xxResponse", ({ statusCode, reasonPhrase }) => {
+  console.log(`Call not established: ${statusCode} ${reasonPhrase}`);
 });
 
 callSession.once("disposed", () => {
@@ -361,14 +366,17 @@ this SDK's scope, but the SDK can place calls into conferences. See the
 
 ## Troubleshooting
 
-### Outbound call emits `busy`
+### Outbound call emits `non2xxResponse`
 
-SIP status 486 means the destination is busy or cannot be reached. Confirm that:
+The destination did not answer with a final 2xx response. The SDK reports the
+final SIP status code and reason phrase, such as `486 Busy Here` or
+`603 Decline`, without classifying the outcome; your application decides what
+the status means. Confirm that:
 
 - The destination includes its country code and is valid.
 - The device has a valid **Emergency Address** in the RingCentral portal.
 
-The SDK emits `busy` and disposes the outbound call session.
+The SDK emits `non2xxResponse` once and disposes the outbound call session.
 
 ### Only one instance receives inbound calls
 

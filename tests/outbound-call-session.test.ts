@@ -171,7 +171,7 @@ describe("outbound call responses", () => {
     expect(fixture.socket.close).toHaveBeenCalledOnce();
   });
 
-  test("treats a matching non-200 response as busy", async () => {
+  test("keeps the session pending on a matching later provisional response", async () => {
     const fixture = setupCall((cseq, callId) =>
       signalingMessage({
         subject: "SIP/2.0 183 Session Progress",
@@ -181,44 +181,134 @@ describe("outbound call responses", () => {
       }),
     );
     const session = await fixture.softphone.call("1002");
-    const busy = vi.fn(() => {
-      expect(fixture.socket.close).not.toHaveBeenCalled();
-    });
+    const answered = vi.fn();
+    const non2xxResponse = vi.fn();
     const disposed = vi.fn();
-    session.on("busy", busy);
+    session.on("answered", answered);
+    session.on("non2xxResponse", non2xxResponse);
     session.on("disposed", disposed);
 
     fixture.signaling.emit(
       "message",
       signalingMessage({
-        subject: "SIP/2.0 480 Temporarily Unavailable",
-        callId: "another-call",
+        subject: "SIP/2.0 180 Ringing",
+        callId: fixture.callId(),
         cseq: fixture.progressCseq(),
       }),
     );
+
+    expect(answered).not.toHaveBeenCalled();
+    expect(non2xxResponse).not.toHaveBeenCalled();
+    expect(disposed).not.toHaveBeenCalled();
+    expect(fixture.socket.close).not.toHaveBeenCalled();
+
     fixture.signaling.emit(
       "message",
       signalingMessage({
-        subject: "SIP/2.0 480 Temporarily Unavailable",
         callId: fixture.callId(),
-        cseq: "999 INVITE",
+        cseq: fixture.progressCseq(),
       }),
     );
-    expect(busy).not.toHaveBeenCalled();
-
-    const unavailable = signalingMessage({
-      subject: "SIP/2.0 480 Temporarily Unavailable",
-      callId: fixture.callId(),
-      cseq: fixture.progressCseq(),
-    });
-    fixture.signaling.emit("message", unavailable);
-    fixture.signaling.emit("message", unavailable);
-
-    expect(busy).toHaveBeenCalledOnce();
-    expect(disposed).toHaveBeenCalledOnce();
-    expect(fixture.socket.close).toHaveBeenCalledOnce();
-    expect(fixture.signaling.listenerCount("message")).toBe(1);
+    expect(answered).toHaveBeenCalledOnce();
+    expect(non2xxResponse).not.toHaveBeenCalled();
   });
+
+  test("answers a synthetic non-200 2xx response", async () => {
+    const fixture = setupCall((cseq, callId) =>
+      signalingMessage({
+        subject: "SIP/2.0 183 Session Progress",
+        callId,
+        cseq,
+        body: validSdp,
+      }),
+    );
+    const session = await fixture.softphone.call("1002");
+    const answered = vi.fn();
+    const non2xxResponse = vi.fn();
+    const disposed = vi.fn();
+    session.on("answered", answered);
+    session.on("non2xxResponse", non2xxResponse);
+    session.on("disposed", disposed);
+
+    fixture.signaling.emit(
+      "message",
+      signalingMessage({
+        subject: "SIP/2.0 202 Accepted",
+        callId: fixture.callId(),
+        cseq: fixture.progressCseq(),
+      }),
+    );
+
+    expect(answered).toHaveBeenCalledOnce();
+    expect(non2xxResponse).not.toHaveBeenCalled();
+    expect(disposed).not.toHaveBeenCalled();
+    expect(fixture.socket.close).not.toHaveBeenCalled();
+    expect(fixture.signaling.send).toHaveBeenCalledOnce();
+    expect(fixture.signaling.send.mock.calls[0][0].subject).toMatch(/^ACK /);
+  });
+
+  test.each([
+    [486, "Busy Here"],
+    [487, "Request Terminated"],
+    [603, "Decline"],
+  ])(
+    "reports a final %i %s response once and disposes",
+    async (statusCode, reasonPhrase) => {
+      const fixture = setupCall((cseq, callId) =>
+        signalingMessage({
+          subject: "SIP/2.0 183 Session Progress",
+          callId,
+          cseq,
+          body: validSdp,
+        }),
+      );
+      const session = await fixture.softphone.call("1002");
+      const answered = vi.fn();
+      const non2xxResponse = vi.fn();
+      const disposed = vi.fn(() => {
+        expect(non2xxResponse).toHaveBeenCalledOnce();
+      });
+      session.on("answered", answered);
+      session.on("non2xxResponse", non2xxResponse);
+      session.on("disposed", disposed);
+
+      fixture.signaling.emit(
+        "message",
+        signalingMessage({
+          subject: `SIP/2.0 ${statusCode} ${reasonPhrase}`,
+          callId: "another-call",
+          cseq: fixture.progressCseq(),
+        }),
+      );
+      fixture.signaling.emit(
+        "message",
+        signalingMessage({
+          subject: `SIP/2.0 ${statusCode} ${reasonPhrase}`,
+          callId: fixture.callId(),
+          cseq: "999 INVITE",
+        }),
+      );
+      expect(non2xxResponse).not.toHaveBeenCalled();
+      expect(disposed).not.toHaveBeenCalled();
+
+      const terminal = signalingMessage({
+        subject: `SIP/2.0 ${statusCode} ${reasonPhrase}`,
+        callId: fixture.callId(),
+        cseq: fixture.progressCseq(),
+      });
+      fixture.signaling.emit("message", terminal);
+      fixture.signaling.emit("message", terminal);
+
+      expect(non2xxResponse).toHaveBeenCalledExactlyOnceWith({
+        statusCode,
+        reasonPhrase,
+      });
+      expect(disposed).toHaveBeenCalledOnce();
+      expect(answered).not.toHaveBeenCalled();
+      expect(fixture.socket.close).toHaveBeenCalledOnce();
+      expect(fixture.signaling.listenerCount("message")).toBe(1);
+    },
+  );
 
   test("sends CANCEL from the real outbound session", async () => {
     const fixture = setupCall((cseq, callId) =>

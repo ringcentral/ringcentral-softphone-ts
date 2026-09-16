@@ -32,9 +32,14 @@ export type CallSessionEventMap = {
   dtmf: [char: DtmfChar];
 };
 
+export type Non2xxResponse = {
+  readonly statusCode: number;
+  readonly reasonPhrase: string;
+};
+
 export type OutboundCallSessionEventMap = CallSessionEventMap & {
   answered: [];
-  busy: [];
+  non2xxResponse: [response: Non2xxResponse];
 };
 
 export type StreamerEventMap = {

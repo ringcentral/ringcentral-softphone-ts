@@ -52,8 +52,8 @@ const callSession = await softphone.call("16505550100");
 
 callSession.once("answered", () => console.log("Call answered"));
 
-callSession.once("busy", () => {
-  console.log("The destination is busy or cannot be reached");
+callSession.once("non2xxResponse", ({ statusCode, reasonPhrase }) => {
+  console.log(`Call not established: ${statusCode} ${reasonPhrase}`);
 });
 
 callSession.once("disposed", () => {
@@ -62,9 +62,13 @@ callSession.once("disposed", () => {
 });
 ```
 
-SIP status 486 causes the outbound session to emit `busy` and then be disposed.
-After the peer answers, use the task-specific controls below and hang up when
-the application is finished with the call.
+A final 2xx INVITE response emits `answered` and keeps the session. A matching
+final 3xx–6xx response emits `non2xxResponse` with the SIP status code and
+reason phrase, and then the session is disposed. The SDK reports the response
+without classifying it, so your application decides what 486, 487, 603, or any
+other status means for it. Later provisional (1xx) responses keep the call
+pending. After the peer answers, use the task-specific controls below and hang
+up when the application is finished with the call.
 
 ## Cancel, hang up, and transfer
 

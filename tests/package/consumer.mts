@@ -1,6 +1,7 @@
 import Softphone, {
   type CallSession,
   type InboundInvite,
+  type Non2xxResponse,
   type OutboundCallSession,
   type SoftphoneOptions,
   type Streamer,
@@ -59,7 +60,12 @@ const outboundFlow = async () => {
   session.once("answered", () => {
     session.sendDTMF("#");
   });
-  session.once("busy", () => {});
+  session.once("non2xxResponse", (response: Non2xxResponse) => {
+    const statusCode: number = response.statusCode;
+    const reasonPhrase: string = response.reasonPhrase;
+    void statusCode;
+    void reasonPhrase;
+  });
   session.listenerCount("audio");
   await session.hangup();
   softphone.revoke();

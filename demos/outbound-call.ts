@@ -17,8 +17,8 @@ await softphone.register();
 // callee format sample: 16506668888, country code is required, otherwise behavior is undefined
 const callSession = await softphone.call(process.env.CALLEE_FOR_TESTING!);
 
-callSession.on("busy", () => {
-  console.log("cannot reach the callee");
+callSession.on("non2xxResponse", ({ statusCode, reasonPhrase }) => {
+  console.log("cannot reach the callee:", statusCode, reasonPhrase);
 });
 
 // callee answers the call

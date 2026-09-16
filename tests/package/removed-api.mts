@@ -1,4 +1,7 @@
-import Softphone, { type InboundInvite } from "ringcentral-softphone";
+import Softphone, {
+  type InboundInvite,
+  type OutboundCallSession,
+} from "ringcentral-softphone";
 
 // @ts-expect-error Softphone is available only as the default runtime export.
 import { Softphone as NamedSoftphone } from "ringcentral-softphone";
@@ -39,6 +42,12 @@ invite.headers;
 // wrong-typed listener is only accepted because the event map does not know
 // the event name. A reintroduced alias would fail this line at compile time.
 softphone.on("registrationError", (error: number) => void error);
+
+// The removed busy event has no compatibility alias: a wrong-typed listener
+// is only accepted because the outbound event map does not know the event
+// name. A reintroduced alias would fail this line at compile time.
+declare const outboundSession: OutboundCallSession;
+outboundSession.on("busy", (response: number) => void response);
 
 // The signalingError event carries exactly one Error argument.
 // @ts-expect-error A non-Error argument does not satisfy the event map.

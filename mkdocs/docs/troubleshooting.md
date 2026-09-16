@@ -1,14 +1,17 @@
 # Troubleshooting
 
-## Outbound call emits `busy`
+## Outbound call emits `non2xxResponse`
 
-SIP status 486 means the destination is busy or cannot be reached. Confirm that:
+The destination did not answer with a final 2xx response. The SDK reports the
+final SIP status code and reason phrase, such as `486 Busy Here` or
+`603 Decline`, without classifying the outcome; your application decides what
+the status means. Confirm that:
 
 - The destination includes its country code and is valid.
 - The device has a valid **Emergency Address** in the
   [RingCentral portal](https://service.ringcentral.com).
 
-The SDK emits `busy` and disposes the outbound call session.
+The SDK emits `non2xxResponse` once and disposes the outbound call session.
 
 ## Only one instance receives inbound calls
 

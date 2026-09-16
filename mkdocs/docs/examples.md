@@ -22,7 +22,9 @@ await softphone.register();
 await softphone.register();
 const callSession = await softphone.call("16505550100");
 callSession.once("answered", () => console.log("Answered"));
-callSession.once("busy", () => console.log("Busy or unreachable"));
+callSession.once("non2xxResponse", ({ statusCode, reasonPhrase }) =>
+  console.log(`Not established: ${statusCode} ${reasonPhrase}`),
+);
 callSession.once("disposed", () => softphone.revoke());
 ```
 

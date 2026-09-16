@@ -23,6 +23,7 @@ import { branch, generateAuthorization, localKey, uuid } from "./utils.js";
 export type {
   CallSession,
   InboundInvite,
+  Non2xxResponse,
   OutboundCallSession,
   SoftphoneOptions,
   Streamer,

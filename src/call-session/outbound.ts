@@ -36,6 +36,9 @@ export const parseTelephonyId = (
   header?.match(new RegExp(`(?:^|;)\\s*${name}=([^;]+)`, "i"))?.[1]?.trim() ||
   undefined;
 
+const reasonPhraseOf = (message: InboundMessage): string =>
+  message.subject.match(/^SIP\/2\.0 \d{3} (.*)$/)?.[1] ?? "";
+
 class OutboundCallSession extends CallSession {
   public static async call(softphone: Softphone, callee: string) {
     const media = await MediaTransport.bind(softphone.codec);
@@ -131,27 +134,32 @@ class OutboundCallSession extends CallSession {
     ) {
       return;
     }
-    this.waitingForAnswer = false;
-    if (message.statusCode !== 200) {
-      this.emit("busy");
-      this.dispose();
+    if (message.statusCode < 200) {
       return;
     }
-
-    this.startLocalServices(this.sipMessage.body);
-    this.softphone.addCallSession(this);
-    this.emit("answered");
-    const ackMessage = new RequestMessage(
-      `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
-      {
-        "Call-ID": this.callId,
-        From: this.localPeer,
-        To: this.remotePeer,
-        Via: this.sipMessage.getHeader("Via"),
-        CSeq: this.sipMessage.cseqFor("ACK"),
-      },
-    );
-    this.softphone.signaling.send(ackMessage);
+    this.waitingForAnswer = false;
+    if (message.statusCode < 300) {
+      this.startLocalServices(this.sipMessage.body);
+      this.softphone.addCallSession(this);
+      this.emit("answered");
+      const ackMessage = new RequestMessage(
+        `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
+        {
+          "Call-ID": this.callId,
+          From: this.localPeer,
+          To: this.remotePeer,
+          Via: this.sipMessage.getHeader("Via"),
+          CSeq: this.sipMessage.cseqFor("ACK"),
+        },
+      );
+      this.softphone.signaling.send(ackMessage);
+      return;
+    }
+    this.emit("non2xxResponse", {
+      statusCode: message.statusCode,
+      reasonPhrase: reasonPhraseOf(message),
+    });
+    this.dispose();
   }
 }
 
