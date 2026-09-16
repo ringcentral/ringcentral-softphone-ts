@@ -172,6 +172,12 @@ Signaling operations attempted during recovery fail immediately; interrupted
 operations are not queued or replayed.
 
 To reject an invite instead, call `await softphone.decline(inviteMessage)`.
+The 603 Decline response applies only to the callee leg RingCentral presented
+to you. RingCentral may already have answered the caller-facing leg before your
+device was presented the call, so after your decline the caller can remain in
+an answered call: it receives neither `non2xxResponse` nor a `disposed` event,
+and RingCentral may continue routing the call, for example toward voicemail.
+The caller's application decides when to hang up.
 
 ## Place a call
 
@@ -207,6 +213,11 @@ callSession.once("disposed", () => {
   softphone.revoke();
 });
 ```
+
+For RingCentral-to-RingCentral calls, RingCentral may answer your leg (emitting
+`answered`) before the callee's device is presented the call. If the callee
+declines, your session stays answered and emits neither `non2xxResponse` nor
+`disposed`; hang up when your application is done with the call.
 
 Call `await callSession.cancel()` before the peer answers to cancel an outbound
 call. After the peer answers, use the call controls below as needed and call

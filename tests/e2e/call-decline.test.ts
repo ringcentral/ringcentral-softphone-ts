@@ -1,9 +1,9 @@
 import { once } from "node:events";
+import { setTimeout as sleep } from "node:timers/promises";
 import { describe, expect, test } from "vitest";
 
 import Softphone, {
   type InboundInvite,
-  type Non2xxResponse,
   type OutboundCallSession,
   type SoftphoneOptions,
 } from "../../src/index.js";
@@ -25,6 +25,7 @@ const sipConfigFromPrefix = (prefix: "SIP_A" | "SIP_B"): SoftphoneOptions => ({
 });
 
 const SCENARIO_DEADLINE_MS = 30_000;
+const OBSERVATION_WINDOW_MS = 2_000;
 
 const forceDisposeOutboundSession = (session: OutboundCallSession) => {
   try {
@@ -34,7 +35,7 @@ const forceDisposeOutboundSession = (session: OutboundCallSession) => {
 };
 
 describe("E2E call decline", () => {
-  test("callee declines an inbound call and the caller observes one 603 Decline before disposal", async () => {
+  test("callee decline ends only the presented callee leg while the caller leg stays answered", async () => {
     const callerOptions = sipConfigFromPrefix("SIP_A");
     const calleeOptions = sipConfigFromPrefix("SIP_B");
     const caller = new Softphone(callerOptions);
@@ -43,26 +44,31 @@ describe("E2E call decline", () => {
     let outboundSession: OutboundCallSession | undefined;
     let outboundWasDisposed = false;
     let declineInvoked = false;
+    let declineCompletedAt: number | undefined;
+    let cleanupHangupBegan = false;
+    let answeredAt: number | undefined;
     let answeredCount = 0;
-    let disposedCount = 0;
+    let serverDrivenDisposedCount = 0;
+    let cleanupDisposedCount = 0;
     let scenarioStart = Date.now();
     const observedEvents: string[] = [];
-    const non2xxResponses: Non2xxResponse[] = [];
+    const non2xxStatusCodes: number[] = [];
 
     const describeFailure = (phase: string) =>
       [
         `call decline scenario failed in phase "${phase}"`,
         `elapsed ${Date.now() - scenarioStart} ms of the ${SCENARIO_DEADLINE_MS} ms scenario deadline`,
         `decline invoked: ${declineInvoked}`,
+        `cleanup hangup began: ${cleanupHangupBegan}`,
         `observed public event sequence: ${
           observedEvents.length === 0 ? "none" : observedEvents.join(" -> ")
         }`,
-        `terminal response payload: ${
-          non2xxResponses.length === 0
-            ? "none"
-            : JSON.stringify(non2xxResponses)
+        `answered events: ${answeredCount}`,
+        `non2xxResponse status codes: ${
+          non2xxStatusCodes.length === 0 ? "none" : non2xxStatusCodes.join(", ")
         }`,
-        `answered events: ${answeredCount}, disposed events: ${disposedCount}`,
+        `server-driven disposed events: ${serverDrivenDisposedCount}`,
+        `cleanup disposed events: ${cleanupDisposedCount}`,
       ].join("; ");
 
     let deadlineTimer: NodeJS.Timeout | undefined;
@@ -86,44 +92,53 @@ describe("E2E call decline", () => {
         const outbound = await caller.call(calleeOptions.username);
         outboundSession = outbound;
 
-        // A's observations are armed before B declines.
+        // A's observations are armed before B's invite is expected.
         outbound.on("non2xxResponse", (response) => {
           observedEvents.push(`non2xxResponse ${response.statusCode}`);
-          non2xxResponses.push(response);
+          non2xxStatusCodes.push(response.statusCode);
         });
         outbound.on("answered", () => {
           observedEvents.push("answered");
           answeredCount += 1;
+          answeredAt ??= Date.now();
         });
         outbound.on("disposed", () => {
           observedEvents.push("disposed");
-          disposedCount += 1;
+          if (cleanupHangupBegan) {
+            cleanupDisposedCount += 1;
+          } else {
+            serverDrivenDisposedCount += 1;
+          }
           outboundWasDisposed = true;
         });
 
-        const responsePromise = once(outbound, "non2xxResponse") as Promise<
-          [Non2xxResponse]
-        >;
-        const disposedPromise = once(outbound, "disposed");
-
-        // B declines the invite exactly once without answering it.
+        // B declines the separately presented invite exactly once without
+        // answering it or creating an inbound call session.
         const invite = await invitePromise;
         declineInvoked = true;
         await callee.decline(invite);
+        declineCompletedAt = Date.now();
 
-        const [response] = await responsePromise;
-        await disposedPromise;
-        return response;
+        // Observation window: A stays answered, with no decline propagation.
+        await sleep(OBSERVATION_WINDOW_MS);
+
+        expect(declineInvoked).toBe(true);
+        expect(answeredCount).toBeGreaterThanOrEqual(1);
+        expect(answeredAt).toBeDefined();
+        expect(answeredAt).toBeLessThan(declineCompletedAt!);
+        expect(non2xxStatusCodes).toEqual([]);
+        expect(serverDrivenDisposedCount).toBe(0);
+
+        // Explicit cleanup: A's hangup causes the only expected disposal.
+        const cleanupDisposedPromise = once(outbound, "disposed");
+        cleanupHangupBegan = true;
+        await outbound.hangup();
+        await cleanupDisposedPromise;
+        expect(cleanupDisposedCount).toBe(1);
+        expect(serverDrivenDisposedCount).toBe(0);
       })();
 
-      const response = await Promise.race([scenario, deadline]);
-
-      expect(declineInvoked).toBe(true);
-      expect(response).toEqual({ statusCode: 603, reasonPhrase: "Decline" });
-      expect(non2xxResponses).toEqual([response]);
-      expect(answeredCount).toBe(0);
-      expect(disposedCount).toBe(1);
-      expect(observedEvents).toEqual(["non2xxResponse 603", "disposed"]);
+      await Promise.race([scenario, deadline]);
     } finally {
       clearTimeout(deadlineTimer);
       if (outboundSession && !outboundWasDisposed) {

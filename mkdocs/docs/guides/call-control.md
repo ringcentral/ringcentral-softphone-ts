@@ -42,7 +42,13 @@ softphone.on("invite", async (inviteMessage) => {
 });
 ```
 
-The SDK responds with SIP status 603.
+The SDK responds with SIP status 603, which applies only to the callee leg
+RingCentral presented to you. RingCentral may already have answered the
+caller-facing leg before your device was presented the call, so after your
+decline the caller can remain in an answered call: it receives neither
+`non2xxResponse` nor a `disposed` event, and RingCentral may continue routing
+the call, for example toward voicemail. The caller's application decides when
+to hang up.
 
 ## Place an outbound call
 
@@ -69,6 +75,11 @@ without classifying it, so your application decides what 486, 487, 603, or any
 other status means for it. Later provisional (1xx) responses keep the call
 pending. After the peer answers, use the task-specific controls below and hang
 up when the application is finished with the call.
+
+For RingCentral-to-RingCentral calls, RingCentral may answer your leg (emitting
+`answered`) before the callee's device is presented the call. If the callee
+declines, your session stays answered and emits neither `non2xxResponse` nor
+`disposed`; hang up when your application is done with the call.
 
 ## Cancel, hang up, and transfer
 
