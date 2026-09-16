@@ -25,5 +25,5 @@ An unchanged-SDP re-INVITE that refreshes a pre-existing call session's SIP rout
 A mutable SIP request or response exchanged through the SIP signaling connection.
 
 **Streamer**:
-A controller that sends one PCM audio buffer through a call's media transport at the required pace.
+A controller that sends one codec-formatted audio buffer through a call's media transport at the required pace.
 _Avoid_: Player
