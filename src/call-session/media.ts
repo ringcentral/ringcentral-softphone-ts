@@ -147,7 +147,7 @@ export class MediaTransport {
       this.send(this.srtpSession!.encrypt(payload, header));
       this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
     }
-    this.timestamp += 800;
+    this.timestamp = (this.timestamp + 800) % 2 ** 32;
   }
 
   public streamAudio(input: Buffer) {
@@ -179,7 +179,7 @@ export class MediaTransport {
     };
     this.send(this.srtpSession!.encrypt(payload, header));
     this.sequenceNumber = (this.sequenceNumber + 1) % 65536;
-    this.timestamp += this.codec.timestampInterval;
+    this.timestamp = (this.timestamp + this.codec.timestampInterval) % 2 ** 32;
   }
 
   public dispose() {

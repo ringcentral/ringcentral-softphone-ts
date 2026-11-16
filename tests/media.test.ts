@@ -10,7 +10,7 @@ vi.mock("node:crypto", async (importOriginal) => ({
 }));
 
 import { MediaTransport, Streamer } from "../src/call-session/media.js";
-import type Codec from "../src/codec.js";
+import Codec from "../src/codec.js";
 import * as DTMF from "../src/dtmf.js";
 import {
   type RtpHeader,
@@ -227,6 +227,134 @@ describe("MediaTransport", () => {
       "127.0.0.1",
     );
   });
+
+  test.each([
+    ["PCMU/8000", [4294967136, 0, 160]],
+    ["PCMU/8000", [4294967295, 159, 319]],
+    ["OPUS/16000", [4294966976, 0, 320]],
+    ["OPUS/16000", [4294967295, 319, 639]],
+    ["OPUS/48000/2", [4294966336, 0, 960]],
+    ["OPUS/48000/2", [4294967295, 959, 1919]],
+  ] as const)(
+    "wraps %s audio timestamps through %j",
+    async (name, timestamps) => {
+      randomInt
+        .mockReturnValueOnce(65535)
+        .mockReturnValueOnce(timestamps[0])
+        .mockReturnValueOnce(20);
+      const selectedCodec = new Codec(name);
+      const { media, udpSocket } = await startMedia(selectedCodec);
+      const receiver = createRemoteSrtpSession();
+      try {
+        for (const [index, timestamp] of timestamps.entries()) {
+          media.sendAudio(Buffer.alloc(selectedCodec.packetSize));
+          const packet = receiver.decrypt(udpSocket.send.mock.calls[index][0]);
+          expect(packet?.header).toEqual({
+            marker: false,
+            payloadType: selectedCodec.id,
+            sequenceNumber: [65535, 0, 1][index],
+            timestamp,
+            ssrc: 20,
+          });
+          expect(packet?.payload.length).toBeGreaterThan(0);
+        }
+        expect(udpSocket.send).toHaveBeenCalledTimes(3);
+      } finally {
+        media.dispose();
+      }
+    },
+  );
+
+  test.each([
+    [4294966496, 0, 800],
+    [4294967295, 799, 1599],
+  ])("wraps successive DTMF timestamps from %i", async (...timestamps) => {
+    randomInt
+      .mockReturnValueOnce(42)
+      .mockReturnValueOnce(timestamps[0])
+      .mockReturnValueOnce(20);
+    const { media, udpSocket } = await startMedia(new Codec("PCMU/8000"));
+    const receiver = createRemoteSrtpSession();
+    try {
+      for (const [digitIndex, digit] of (["5", "6", "7"] as const).entries()) {
+        media.sendDTMF(digit);
+        for (const [packetIndex, suffix] of [
+          "060000",
+          "0600a0",
+          "060140",
+          "860320",
+          "860320",
+          "860320",
+        ].entries()) {
+          const index = digitIndex * 6 + packetIndex;
+          expect(receiver.decrypt(udpSocket.send.mock.calls[index][0])).toEqual(
+            {
+              header: {
+                marker: packetIndex === 0,
+                payloadType: 101,
+                sequenceNumber: 42 + index,
+                timestamp: timestamps[digitIndex],
+                ssrc: 20,
+              },
+              payload: Buffer.concat([
+                Buffer.from([5 + digitIndex]),
+                Buffer.from(suffix, "hex"),
+              ]),
+            },
+          );
+        }
+      }
+      expect(udpSocket.send).toHaveBeenCalledTimes(18);
+    } finally {
+      media.dispose();
+    }
+  });
+
+  test.each([
+    ["audio first", [4294967295, 159, 159, 159, 159, 159, 159, 959]],
+    [
+      "DTMF first",
+      [
+        4294967295, 4294967295, 4294967295, 4294967295, 4294967295, 4294967295,
+        799, 959,
+      ],
+    ],
+  ] as const)(
+    "shares the wrapped timestamp with %s",
+    async (order, timestamps) => {
+      randomInt
+        .mockReturnValueOnce(65535)
+        .mockReturnValueOnce(4294967295)
+        .mockReturnValueOnce(20);
+      const selectedCodec = new Codec("PCMU/8000");
+      const { media, udpSocket } = await startMedia(selectedCodec);
+      const receiver = createRemoteSrtpSession();
+      const pcm = Buffer.alloc(selectedCodec.packetSize);
+      try {
+        if (order === "audio first") {
+          media.sendAudio(pcm);
+          media.sendDTMF("5");
+        } else {
+          media.sendDTMF("5");
+          media.sendAudio(pcm);
+        }
+        media.sendAudio(pcm);
+        expect(udpSocket.send).toHaveBeenCalledTimes(8);
+        for (const [index, timestamp] of timestamps.entries()) {
+          const audioIndexes = order === "audio first" ? [0, 7] : [6, 7];
+          const packet = receiver.decrypt(udpSocket.send.mock.calls[index][0]);
+          expect(packet?.header).toMatchObject({
+            payloadType: audioIndexes.includes(index) ? 0 : 101,
+            sequenceNumber: [65535, 0, 1, 2, 3, 4, 5, 6][index],
+            timestamp,
+            ssrc: 20,
+          });
+        }
+      } finally {
+        media.dispose();
+      }
+    },
+  );
 
   test("keeps the DTMF RTP and SRTP output unchanged", async () => {
     randomInt
