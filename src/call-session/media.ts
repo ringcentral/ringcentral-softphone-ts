@@ -39,6 +39,23 @@ const parseSdp = (sdp: string) => {
   return { remoteIP, remotePort, remoteKey };
 };
 
+const remoteDirections = (sdp: string) => {
+  const streams = sdp
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .join("\n")
+    .split(/(?=^m=)/m);
+  const session = streams[0].startsWith("m=") ? "" : streams[0];
+  const audio = streams.find((stream) => /^m=audio\s/.test(stream)) ?? "";
+  const directionIn = (scope: string) =>
+    scope
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => /^a=(sendrecv|sendonly|recvonly|inactive)$/.test(line));
+  const mediaDirections = directionIn(audio);
+  return mediaDirections.length ? mediaDirections : directionIn(session);
+};
+
 // Only the existing single audio stream and fixed codec/SRTP format can be updated.
 const parseMediaUpdate = (sdp: string, codec: Codec) => {
   const lines = sdp
@@ -60,30 +77,29 @@ const parseMediaUpdate = (sdp: string, codec: Codec) => {
   const connections = scoped("c=");
   const remoteIP = connections[0]?.match(/^c=IN\s+IP4\s+(\S+)$/)?.[1];
   const remotePort = Number(audio?.[1]);
-  const mappings = media.filter((line) =>
-    new RegExp(`^a=rtpmap:${codec.id}(?:\\s|$)`).test(line),
-  );
-  const mapping = mappings[0]?.split(/\s+/).slice(1).join(" ").toUpperCase();
+  const mappingsFor = (payloadType: number) =>
+    media
+      .filter((line) =>
+        new RegExp(`^a=rtpmap:${payloadType}(?:\\s|$)`).test(line),
+      )
+      .map((line) =>
+        line.split(/\s+/).slice(1).join(" ").toUpperCase().replace(/\/1$/, ""),
+      );
+  const mappings = mappingsFor(codec.id);
+  const dtmfMappings = mappingsFor(101);
   const crypto = scoped("a=crypto:");
   const remoteKey = crypto[0]?.match(
     /^a=crypto:\d+\s+AES_CM_128_HMAC_SHA1_80\s+inline:([A-Za-z0-9+/]+={0,2})$/,
   )?.[1];
-  const directionIn = (scope: string[]) =>
-    scope.filter((line) =>
-      /^a=(sendrecv|sendonly|recvonly|inactive)$/.test(line),
-    );
-  const mediaDirections = directionIn(media);
-  const directions = mediaDirections.length
-    ? mediaDirections
-    : directionIn(session);
+  const directions = remoteDirections(sdp);
   if (
     !audio ||
     media.filter((line) => line.startsWith("m=")).length !== 1 ||
     !audio[2].split(/\s+/).includes(String(codec.id)) ||
     mappings.length > 1 ||
-    (mappings.length
-      ? mapping?.replace(/\/1$/, "") !== codec.name
-      : codec.id !== 0) ||
+    (mappings.length ? mappings[0] !== codec.name : codec.id !== 0) ||
+    dtmfMappings.length > 1 ||
+    dtmfMappings.some((mapping) => mapping !== "TELEPHONE-EVENT/8000") ||
     connections.length !== 1 ||
     !remoteIP ||
     !isIPv4(remoteIP) ||
@@ -119,7 +135,7 @@ export class MediaTransport {
   private timestamp = randomInt(2 ** 32);
   private ssrc = randomInt(2 ** 32);
   private started = false;
-  private remoteSdp = "";
+  private remoteDirection = "a=sendrecv";
   private remoteKey?: string;
   private disposedState = false;
 
@@ -168,7 +184,7 @@ export class MediaTransport {
       this.remotePort = remotePort;
       this.srtpSession = new SrtpSession(localKeyBuffer, remoteKeyBuffer);
       this.started = true;
-      this.remoteSdp = sdp;
+      this.remoteDirection = remoteDirections(sdp)[0] ?? "a=sendrecv";
       this.remoteKey = remoteKey;
       this.socket.on("message", (message) => {
         const packet = this.srtpSession!.decrypt(message);
@@ -208,10 +224,9 @@ export class MediaTransport {
         return false;
       }
       const offer = parseMediaUpdate(sdp, this.codec);
-      const current = parseMediaUpdate(this.remoteSdp, this.codec);
       if (
         offer.remoteKey !== this.remoteKey ||
-        offer.direction !== current.direction
+        offer.direction !== this.remoteDirection
       ) {
         return false;
       }

@@ -105,7 +105,7 @@ describe("CallSession lifecycle", () => {
     ["IP and port", sdp("192.0.2.20", 5000), "192.0.2.20", 5000],
     [
       "optional codecs",
-      `${sdp().replace("RTP/SAVP 0", "RTP/SAVP 8 0 101")}\r\na=rtpmap:8 PCMA/8000`,
+      `${sdp().replace("RTP/SAVP 0", "RTP/SAVP 8 0 101")}\r\na=rtpmap:8 PCMA/8000\r\na=rtpmap:101 telephone-event/8000`,
       "127.0.0.1",
       4000,
     ],
@@ -170,6 +170,15 @@ describe("CallSession lifecycle", () => {
     ["codec mapping", `${sdp()}\r\na=rtpmap:0 PCMA/8000`],
     ["tabbed codec mapping", `${sdp()}\r\na=rtpmap:0\tPCMA/8000`],
     ["empty codec mapping", `${sdp()}\r\na=rtpmap:0`],
+    [
+      "DTMF codec mapping",
+      `${sdp().replace("RTP/SAVP 0", "RTP/SAVP 0 101")}\r\na=rtpmap:101 PCMA/8000`,
+    ],
+    [
+      "DTMF clock mapping",
+      `${sdp().replace("RTP/SAVP 0", "RTP/SAVP 0 101")}\r\na=rtpmap:101 telephone-event/16000`,
+    ],
+    ["empty DTMF mapping", `${sdp()}\r\na=rtpmap:101`],
     ["key options", `${sdp()}|2^20`],
     ["extra stream", `${sdp()}\r\nm=video 9000 RTP/SAVP 100`],
   ])(
@@ -205,6 +214,54 @@ describe("CallSession lifecycle", () => {
         "192.0.2.40",
       );
       expect(fixture.socket.close).not.toHaveBeenCalled();
+      await fixture.session.hangup();
+      fixture.softphone.revoke();
+    },
+  );
+
+  test.each([
+    ["default", "", "", ""],
+    ["session", "a=recvonly\r\n", "", "a=recvonly"],
+    ["media override", "a=sendonly\r\n", "\r\na=recvonly", "a=recvonly"],
+  ])(
+    "uses effective startup settings with extra crypto alternatives (%s direction)",
+    async (_name, sessionDirection, mediaDirection, updateDirection) => {
+      const negotiated =
+        sdp().replace("m=audio", `${sessionDirection}m=audio`) +
+        `\r\na=crypto:2 AES_CM_128_HMAC_SHA1_32 inline:${remoteKey}${mediaDirection}`;
+      const fixture = await createAnsweredSession({ inviteSdp: negotiated });
+      fixture.request.mockResolvedValue(signalingMessage());
+      await fixture.softphone.register();
+      fixture.signaling.send.mockClear();
+      const compatible = `${sdp("192.0.2.20", 5000)}\r\n${updateDirection}`;
+      fixture.signaling.emit("message", invite(compatible));
+      expect(fixture.signaling.send.mock.calls[0][0].statusCode).toBe(200);
+      fixture.session.sendDTMF("5");
+      expect(fixture.socket.send).toHaveBeenLastCalledWith(
+        expect.any(Buffer),
+        5000,
+        "192.0.2.20",
+      );
+      fixture.signaling.emit(
+        "message",
+        invite(`${sdp("192.0.2.30", 6000)}\r\na=inactive`),
+      );
+      expect(fixture.signaling.send.mock.calls[1][0].statusCode).toBe(488);
+      fixture.session.sendDTMF("6");
+      expect(fixture.socket.send).toHaveBeenLastCalledWith(
+        expect.any(Buffer),
+        5000,
+        "192.0.2.20",
+      );
+      const remote = createRemoteSrtpSession();
+      const audio = vi.fn();
+      fixture.session.on("audio", audio);
+      fixture.socket.emit(
+        "message",
+        remote.encrypt(audioPacket.payload, audioPacket.header),
+      );
+      expect(audio).toHaveBeenCalledWith(audioPacket.payload);
+      expect(dgram.createSocket).toHaveBeenCalledOnce();
       await fixture.session.hangup();
       fixture.softphone.revoke();
     },
