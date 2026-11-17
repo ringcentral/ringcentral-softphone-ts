@@ -445,6 +445,15 @@ pnpm test:e2e
 
 ## Development
 
+Use Node.js 26 and pnpm 12.20.0 for contributor tooling and CI validation.
+These tool versions do not set a new minimum runtime for SDK consumers.
+
+Install dependencies with the declared package manager:
+
+```bash
+pnpm install --frozen-lockfile
+```
+
 Format and lint the project:
 
 ```bash
