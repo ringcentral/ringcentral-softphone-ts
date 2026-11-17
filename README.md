@@ -457,9 +457,11 @@ Run the pull-request-safe validation suite:
 pnpm validate
 ```
 
-Install and serve the documentation:
+Documentation builds and CI use Python 3.15. Create an isolated environment, then install and serve the documentation:
 
 ```bash
+python3.15 -m venv .venv
+source .venv/bin/activate
 python -m pip install -r mkdocs/requirements.txt
 mkdocs serve -f mkdocs/mkdocs.yml
 ```
