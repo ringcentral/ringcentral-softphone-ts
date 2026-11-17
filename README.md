@@ -172,6 +172,11 @@ Signaling operations attempted during recovery fail immediately; interrupted
 operations are not queued or replayed.
 
 To reject an invite instead, call `await softphone.decline(inviteMessage)`.
+
+The `invite` event is for new incoming calls. An INVITE whose exact Call-ID matches
+an established inbound or outbound call is handled internally, even if its
+To/From tags differ. It reuses the existing call session and media transport.
+See [Established-call re-INVITEs](#established-call-re-invites) for supported updates.
 The 603 Decline response applies only to the callee leg RingCentral presented
 to you. RingCentral may already have answered the caller-facing leg before your
 device was presented the call, so after your decline the caller can remain in
@@ -303,6 +308,32 @@ callSession.on("dtmf", (digit) => console.log("DTMF:", digit));
 ```
 
 ## Additional scenarios
+
+### Established-call re-INVITEs
+
+An established call accepts a compatible SDP offer with an unchanged destination
+or a changed remote IPv4 address and/or audio port. The SDK validates the complete
+offer, updates the destination used by subsequent audio and DTMF, and responds
+with 200 OK containing its current local SDP. The call session, local socket/port,
+SRTP state, RTP counters, peer identities and local hold configuration are retained.
+No application callback or additional `invite`/`answered` event is required.
+
+The configured codec and RTP payload mapping, negotiated remote SRTP cipher/key,
+and remote media direction remain fixed. Additional optional codecs and harmless
+SDP version/order/format changes are allowed; omitted direction means `sendrecv`.
+Unsupported changes, unusable media parameters, and missing SDP offers receive
+488 Not Acceptable Here, preserving the existing call and destination atomically.
+Offerless initial inbound calls retain their existing ACK-supplied SDP behavior;
+offerless re-INVITEs are unsupported.
+
+This applies only to tracked established sessions. It does not add pending-call
+tracking, initial INVITE deduplication, full SIP dialog/tag or forking support,
+ACK waiting/timeouts/retransmission management, or negotiation concurrency control.
+Overlapping negotiations, including local hold/unhold or signaling recovery, remain
+unhandled; the SDK adds no 491 response, negotiation queue or automatic retry.
+Controlled SIP/socket tests cover this behavior. Live RingCentral takeover
+verification remains deferred until the external calling/486 issue is resolved;
+those tests do not prove live takeover or actual network delivery.
 
 ### Debugging
 

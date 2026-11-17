@@ -146,6 +146,27 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     });
   }
 
+  /** @internal */
+  public handleReInvite(message: InboundMessage): void {
+    if (!this.media.updateDestination(message.body)) {
+      this.softphone.signaling.send(
+        new ResponseMessage(message, "488 Not Acceptable Here"),
+      );
+      return;
+    }
+    this.softphone.signaling.send(
+      new ResponseMessage(
+        message,
+        "200 OK",
+        {
+          "Content-Type": "application/sdp",
+          Contact: `<sip:${this.softphone.sipInfo.username}@${this.softphone.signaling.localAddress}:${this.softphone.signaling.localPort};transport=TLS;ob>`,
+        },
+        this.sdp,
+      ),
+    );
+  }
+
   protected handleSignalingMessage(_message: InboundMessage) {}
 
   private async reInvite(sdp: string) {

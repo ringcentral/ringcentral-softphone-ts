@@ -1,6 +1,7 @@
 import { randomInt } from "node:crypto";
 import dgram from "node:dgram";
 import EventEmitter, { once } from "node:events";
+import { isIPv4 } from "node:net";
 
 import type Codec from "../codec.js";
 import * as DTMF from "../dtmf.js";
@@ -38,6 +39,68 @@ const parseSdp = (sdp: string) => {
   return { remoteIP, remotePort, remoteKey };
 };
 
+// Only the existing single audio stream and fixed codec/SRTP format can be updated.
+const parseMediaUpdate = (sdp: string, codec: Codec) => {
+  const lines = sdp
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const mediaIndex = lines.findIndex((line) => line.startsWith("m="));
+  const session = lines.slice(0, mediaIndex);
+  const media = lines.slice(mediaIndex);
+  const audio = media[0]?.match(/^m=audio (\d+) RTP\/SAVP (\d+(?:\s+\d+)*)$/);
+  const scoped = (prefix: string) => {
+    const local = media.filter((line) => line.startsWith(prefix));
+    return local.length
+      ? local
+      : session.filter((line) => line.startsWith(prefix));
+  };
+  const connections = scoped("c=");
+  const remoteIP = connections[0]?.match(/^c=IN IP4 (\S+)$/)?.[1];
+  const remotePort = Number(audio?.[1]);
+  const mappings = media.filter((line) =>
+    line.startsWith(`a=rtpmap:${codec.id} `),
+  );
+  const mapping = mappings[0]?.split(/\s+/).slice(1).join(" ").toUpperCase();
+  const crypto = scoped("a=crypto:");
+  const remoteKey = crypto[0]?.match(
+    /^a=crypto:\d+ AES_CM_128_HMAC_SHA1_80 inline:([A-Za-z0-9+/]+={0,2})$/,
+  )?.[1];
+  const directionIn = (scope: string[]) =>
+    scope.filter((line) =>
+      /^a=(sendrecv|sendonly|recvonly|inactive)$/.test(line),
+    );
+  const mediaDirections = directionIn(media);
+  const directions = mediaDirections.length
+    ? mediaDirections
+    : directionIn(session);
+  if (
+    !audio ||
+    media.filter((line) => line.startsWith("m=")).length !== 1 ||
+    !audio[2].split(/\s+/).includes(String(codec.id)) ||
+    mappings.length > 1 ||
+    (mapping ? mapping.replace(/\/1$/, "") !== codec.name : codec.id !== 0) ||
+    connections.length !== 1 ||
+    !remoteIP ||
+    !isIPv4(remoteIP) ||
+    remoteIP === "0.0.0.0" ||
+    remotePort < 1 ||
+    remotePort > 65535 ||
+    crypto.length !== 1 ||
+    !remoteKey ||
+    Buffer.from(remoteKey, "base64").length !== 30 ||
+    directions.length > 1
+  ) {
+    throw new Error("Unsupported remote media offer");
+  }
+  return {
+    remoteIP,
+    remotePort,
+    remoteKey,
+    direction: directions[0] ?? "a=sendrecv",
+  };
+};
+
 export class MediaTransport {
   public readonly localPort: number;
 
@@ -52,6 +115,7 @@ export class MediaTransport {
   private timestamp = randomInt(2 ** 32);
   private ssrc = randomInt(2 ** 32);
   private started = false;
+  private remoteSdp = "";
   private disposedState = false;
 
   private constructor(codec: Codec, socket: dgram.Socket, localPort: number) {
@@ -99,6 +163,7 @@ export class MediaTransport {
       this.remotePort = remotePort;
       this.srtpSession = new SrtpSession(localKeyBuffer, remoteKeyBuffer);
       this.started = true;
+      this.remoteSdp = sdp;
       this.socket.on("message", (message) => {
         const packet = this.srtpSession!.decrypt(message);
         if (!packet) {
@@ -128,6 +193,27 @@ export class MediaTransport {
     } catch (error) {
       this.dispose();
       throw error;
+    }
+  }
+
+  public updateDestination(sdp: string): boolean {
+    try {
+      if (!this.started || this.disposed) {
+        return false;
+      }
+      const offer = parseMediaUpdate(sdp, this.codec);
+      const current = parseMediaUpdate(this.remoteSdp, this.codec);
+      if (
+        offer.remoteKey !== current.remoteKey ||
+        offer.direction !== current.direction
+      ) {
+        return false;
+      }
+      this.remoteIP = offer.remoteIP;
+      this.remotePort = offer.remotePort;
+      return true;
+    } catch {
+      return false;
     }
   }
 

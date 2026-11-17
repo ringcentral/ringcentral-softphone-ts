@@ -21,6 +21,9 @@ The TLS connection carrying registration and call-control messages for one Softp
 **Dialog reconciliation**:
 An unchanged-SDP re-INVITE that refreshes a pre-existing call session's SIP routing after its signaling connection is replaced.
 
+**Re-INVITE**:
+An INVITE associated with an established call session that requests a signaling refresh or media update without creating a new incoming call.
+
 **SIP message**:
 A mutable SIP request or response exchanged through the SIP signaling connection.
 

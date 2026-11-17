@@ -1,3 +1,4 @@
+import dgram from "node:dgram";
 import EventEmitter from "node:events";
 
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -97,6 +98,268 @@ afterEach(() => {
 });
 
 describe("CallSession lifecycle", () => {
+  test.each([
+    ["unchanged", sdp(), "127.0.0.1", 4000],
+    ["IP only", sdp("192.0.2.20"), "192.0.2.20", 4000],
+    ["port only", sdp("127.0.0.1", 5000), "127.0.0.1", 5000],
+    ["IP and port", sdp("192.0.2.20", 5000), "192.0.2.20", 5000],
+    [
+      "optional codecs",
+      `${sdp().replace("RTP/SAVP 0", "RTP/SAVP 8 0 101")}\r\na=rtpmap:8 PCMA/8000`,
+      "127.0.0.1",
+      4000,
+    ],
+    [
+      "semantic equivalent",
+      `v=0\no=- 999 10 IN IP4 192.0.2.1\nc=IN IP4 127.0.0.1\na=sendrecv\nm=audio 4000 RTP/SAVP 0\na=rtpmap:0 pcmu/8000/1\na=crypto:9 AES_CM_128_HMAC_SHA1_80 inline:${remoteKey}`,
+      "127.0.0.1",
+      4000,
+    ],
+  ] as const)(
+    "handles a compatible %s re-INVITE internally",
+    async (_name, body, ip, port) => {
+      const fixture = await createAnsweredSession();
+      fixture.request.mockResolvedValue(signalingMessage());
+      await fixture.softphone.register();
+      const incoming = vi.fn();
+      fixture.softphone.on("invite", incoming);
+      fixture.signaling.send.mockClear();
+      const update = invite(body);
+      update.headers.CSeq = "20 INVITE";
+      update.headers.From = "<sip:1002@example.com>;tag=changed";
+      update.headers.To = "<sip:1001@example.com>;tag=also-changed";
+
+      fixture.signaling.emit("message", update);
+
+      expect(incoming).not.toHaveBeenCalled();
+      const responses = fixture.signaling.send.mock.calls.map(
+        ([message]) => message,
+      );
+      expect(responses).toHaveLength(1);
+      expect(responses[0].statusCode).toBe(200);
+      expect(responses[0].body.trim().replaceAll("\r", "")).toBe(
+        fixture.session.sdp.trim(),
+      );
+      expect(responses[0].getHeader("CSeq")).toBe("20 INVITE");
+      fixture.session.sendDTMF("5");
+      expect(fixture.socket.send).toHaveBeenLastCalledWith(
+        expect.any(Buffer),
+        port,
+        ip,
+      );
+      expect(dgram.createSocket).toHaveBeenCalledOnce();
+      expect(fixture.socket.close).not.toHaveBeenCalled();
+      await fixture.session.hangup();
+      const bye = fixture.signaling.send.mock.calls.at(-1)![0];
+      expect(bye.getHeader("To")).toBe("<sip:1002@example.com>;tag=remote");
+      expect(bye.getHeader("From")).toBe("<sip:1001@example.com>;tag=local");
+      fixture.softphone.revoke();
+    },
+  );
+
+  test.each([
+    ["codec", sdp().replace("RTP/SAVP 0", "RTP/SAVP 8")],
+    ["key", sdp().replace(remoteKey, Buffer.alloc(30, 2).toString("base64"))],
+    ["cipher", sdp().replace("SHA1_80", "SHA1_32")],
+    ["direction", `${sdp()}\r\na=sendonly`],
+    ["offerless", ""],
+    ["address", sdp("999.1.1.1")],
+    ["zero port", sdp("127.0.0.1", 0)],
+    ["oversized port", sdp("127.0.0.1", 65536)],
+    ["transport", sdp().replace("RTP/SAVP", "RTP/AVP")],
+    ["codec mapping", `${sdp()}\r\na=rtpmap:0 PCMA/8000`],
+    ["key options", `${sdp()}|2^20`],
+    ["extra stream", `${sdp()}\r\nm=video 9000 RTP/SAVP 100`],
+  ])(
+    "rejects an incompatible %s update atomically and remains usable",
+    async (_name, body) => {
+      const fixture = await createAnsweredSession();
+      fixture.request.mockResolvedValue(signalingMessage());
+      await fixture.softphone.register();
+      const incoming = vi.fn();
+      fixture.softphone.on("invite", incoming);
+      fixture.signaling.send.mockClear();
+      const originalSdp = fixture.session.sdp;
+      fixture.signaling.emit(
+        "message",
+        invite(body.replace("127.0.0.1", "192.0.2.30").replace("4000", "6000")),
+      );
+      expect(incoming).not.toHaveBeenCalled();
+      expect(fixture.signaling.send).toHaveBeenCalledOnce();
+      expect(fixture.signaling.send.mock.calls[0][0].statusCode).toBe(488);
+      fixture.session.sendDTMF("5");
+      expect(fixture.socket.send).toHaveBeenLastCalledWith(
+        expect.any(Buffer),
+        4000,
+        "127.0.0.1",
+      );
+      expect(fixture.session.sdp).toBe(originalSdp);
+      fixture.signaling.emit("message", invite(sdp("192.0.2.40", 7000)));
+      expect(fixture.signaling.send.mock.calls[1][0].statusCode).toBe(200);
+      fixture.session.sendDTMF("6");
+      expect(fixture.socket.send).toHaveBeenLastCalledWith(
+        expect.any(Buffer),
+        7000,
+        "192.0.2.40",
+      );
+      expect(fixture.socket.close).not.toHaveBeenCalled();
+      await fixture.session.hangup();
+      fixture.softphone.revoke();
+    },
+  );
+
+  test("uses ACK-negotiated key and direction for subsequent updates", async () => {
+    const ackSdp = `${sdp().replace(remoteKey, Buffer.alloc(30, 2).toString("base64"))}\r\na=recvonly`;
+    const fixture = await createAnsweredSession({ inviteSdp: "", ackSdp });
+    fixture.request.mockResolvedValue(signalingMessage());
+    await fixture.softphone.register();
+    fixture.signaling.send.mockClear();
+    fixture.signaling.emit("message", invite(ackSdp.replace("4000", "5000")));
+    expect(fixture.signaling.send.mock.calls[0][0].statusCode).toBe(200);
+    fixture.session.sendDTMF("5");
+    expect(fixture.socket.send).toHaveBeenLastCalledWith(
+      expect.any(Buffer),
+      5000,
+      "127.0.0.1",
+    );
+    fixture.signaling.emit("message", invite(sdp()));
+    expect(fixture.signaling.send.mock.calls[1][0].statusCode).toBe(488);
+    await fixture.session.hangup();
+    fixture.softphone.revoke();
+  });
+
+  test("keeps encrypted media counters and local hold across an update", async () => {
+    vi.useFakeTimers();
+    const fixture = await createAnsweredSession();
+    fixture.request.mockResolvedValue(signalingMessage());
+    await fixture.softphone.register();
+    const remote = createRemoteSrtpSession();
+    fixture.socket.send.mockClear();
+    fixture.session.streamAudio(Buffer.alloc(160));
+    await vi.advanceTimersByTimeAsync(0);
+    const before = remote.decrypt(fixture.socket.send.mock.calls[0][0]);
+    expect(before?.payload).toEqual(Buffer.alloc(160));
+    await fixture.session.hold();
+    const heldSdp = fixture.session.sdp;
+    expect(heldSdp).toContain("a=sendonly");
+    fixture.signaling.send.mockClear();
+    fixture.signaling.emit("message", invite(sdp("192.0.2.20", 5000)));
+    expect(fixture.signaling.send.mock.calls[0][0].body).toContain(
+      "a=sendonly",
+    );
+    expect(fixture.session.sdp).toBe(heldSdp);
+    fixture.session.streamAudio(Buffer.alloc(160, 1));
+    await vi.advanceTimersByTimeAsync(0);
+    const after = remote.decrypt(fixture.socket.send.mock.calls[1][0]);
+    expect(after?.payload).toEqual(Buffer.alloc(160, 1));
+    expect(after?.header).toMatchObject({
+      ssrc: before!.header.ssrc,
+      sequenceNumber: (before!.header.sequenceNumber + 1) % 65536,
+      timestamp: (before!.header.timestamp + 160) % 2 ** 32,
+    });
+    fixture.session.sendDTMF("5");
+    const dtmf = remote.decrypt(fixture.socket.send.mock.calls[2][0]);
+    expect(dtmf?.header).toMatchObject({
+      ssrc: before!.header.ssrc,
+      sequenceNumber: (before!.header.sequenceNumber + 2) % 65536,
+      timestamp: (before!.header.timestamp + 320) % 2 ** 32,
+      payloadType: 101,
+    });
+    expect(
+      fixture.socket.send.mock.calls
+        .slice(1)
+        .every(([, port, ip]) => port === 5000 && ip === "192.0.2.20"),
+    ).toBe(true);
+    const received = vi.fn();
+    fixture.session.on("audio", received);
+    fixture.socket.emit(
+      "message",
+      remote.encrypt(Buffer.from("still encrypted"), audioPacket.header),
+    );
+    expect(received).toHaveBeenCalledWith(Buffer.from("still encrypted"));
+    expect(dgram.createSocket).toHaveBeenCalledOnce();
+    expect(fixture.socket.bind).toHaveBeenCalledOnce();
+    await fixture.session.unhold();
+    expect(fixture.session.sdp).toContain("a=sendrecv");
+    await fixture.session.hangup();
+    fixture.softphone.revoke();
+  });
+
+  test("routes established outbound calls separately and preserves unmatched incoming calls", async () => {
+    const request = vi.fn(async (message: OutboundMessage) => {
+      if (message.method === "REGISTER") return signalingMessage();
+      if (message.method === "INVITE") {
+        return signalingMessage({
+          subject: message.getHeader("Proxy-Authorization")
+            ? "SIP/2.0 183 Session Progress"
+            : "SIP/2.0 407 Proxy Authentication Required",
+          callId: message.callId,
+          cseq: message.getHeader("CSeq"),
+          body: sdp(),
+          headers: {
+            "Proxy-Authenticate": 'Digest realm="example.com", nonce="nonce"',
+          },
+        });
+      }
+      return signalingMessage({
+        subject: "ACK sip:1001@example.com SIP/2.0",
+        cseq: "1 ACK",
+      });
+    });
+    const signaling = createSignaling(request);
+    const softphone = createSoftphone(signaling);
+    const firstSocket = createSocket(4321);
+    const secondSocket = createSocket(4322);
+    useSocket(firstSocket)
+      .mockReturnValueOnce(firstSocket as unknown as dgram.Socket)
+      .mockReturnValueOnce(secondSocket as unknown as dgram.Socket);
+    await softphone.register();
+    const outgoing = await softphone.call("1002");
+    const answered = vi.fn();
+    outgoing.on("answered", answered);
+    const progress = request.mock.calls.at(-1)![0];
+    signaling.emit(
+      "message",
+      signalingMessage({
+        callId: outgoing.callId,
+        cseq: progress.getHeader("CSeq"),
+      }),
+    );
+    expect(answered).toHaveBeenCalledOnce();
+    const inbound = await softphone.answer(
+      invite(sdp(), "other-call") as unknown as InboundInvite,
+    );
+    const incoming = vi.fn();
+    softphone.on("invite", incoming);
+    signaling.send.mockClear();
+    firstSocket.send.mockClear();
+    secondSocket.send.mockClear();
+    signaling.emit("message", invite(sdp("192.0.2.20", 5000), outgoing.callId));
+    expect(signaling.send.mock.calls[0][0].statusCode).toBe(200);
+    expect(incoming).not.toHaveBeenCalled();
+    expect(answered).toHaveBeenCalledOnce();
+    outgoing.sendDTMF("5");
+    inbound.sendDTMF("6");
+    expect(firstSocket.send).toHaveBeenLastCalledWith(
+      expect.any(Buffer),
+      5000,
+      "192.0.2.20",
+    );
+    expect(secondSocket.send).toHaveBeenLastCalledWith(
+      expect.any(Buffer),
+      4000,
+      "127.0.0.1",
+    );
+    const unmatched = invite(sdp(), "new-call");
+    signaling.emit("message", unmatched);
+    expect(incoming).toHaveBeenCalledExactlyOnceWith(unmatched);
+    expect(signaling.send.mock.calls.at(-1)![0].statusCode).toBe(100);
+    expect(dgram.createSocket).toHaveBeenCalledTimes(2);
+    await outgoing.hangup();
+    await inbound.hangup();
+    softphone.revoke();
+  });
+
   test("creates the shared SDP body", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1234);

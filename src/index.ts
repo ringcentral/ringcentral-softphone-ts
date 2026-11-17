@@ -71,6 +71,13 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
       ) {
         return;
       }
+      const session = [...this.callSessions].find(
+        (session) => session.callId === inboundMessage.callId,
+      );
+      if (session) {
+        session.handleReInvite(inboundMessage);
+        return;
+      }
       this.signaling.send(new ResponseMessage(inboundMessage, "100 Trying"));
       this.emit("invite", inboundMessage as unknown as InboundInvite);
     });
