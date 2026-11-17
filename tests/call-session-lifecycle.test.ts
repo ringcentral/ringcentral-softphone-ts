@@ -111,7 +111,7 @@ describe("CallSession lifecycle", () => {
     ],
     [
       "semantic equivalent",
-      `v=0\no=- 999 10 IN IP4 192.0.2.1\nc=IN IP4 127.0.0.1\na=sendrecv\nm=audio 4000 RTP/SAVP 0\na=rtpmap:0 pcmu/8000/1\na=crypto:9 AES_CM_128_HMAC_SHA1_80 inline:${remoteKey}`,
+      `v=0\no=- 999 10 IN IP4 192.0.2.1\nc=IN IP4 127.0.0.1\na=sendrecv\nm=audio  4000 RTP/SAVP 0\na=rtpmap:0\tpcmu/8000/1\na=crypto:9  AES_CM_128_HMAC_SHA1_80 inline:${remoteKey}`,
       "127.0.0.1",
       4000,
     ],
@@ -168,6 +168,8 @@ describe("CallSession lifecycle", () => {
     ["oversized port", sdp("127.0.0.1", 65536)],
     ["transport", sdp().replace("RTP/SAVP", "RTP/AVP")],
     ["codec mapping", `${sdp()}\r\na=rtpmap:0 PCMA/8000`],
+    ["tabbed codec mapping", `${sdp()}\r\na=rtpmap:0\tPCMA/8000`],
+    ["empty codec mapping", `${sdp()}\r\na=rtpmap:0`],
     ["key options", `${sdp()}|2^20`],
     ["extra stream", `${sdp()}\r\nm=video 9000 RTP/SAVP 100`],
   ])(
@@ -224,6 +226,37 @@ describe("CallSession lifecycle", () => {
     );
     fixture.signaling.emit("message", invite(sdp()));
     expect(fixture.signaling.send.mock.calls[1][0].statusCode).toBe(488);
+    await fixture.session.hangup();
+    fixture.softphone.revoke();
+  });
+
+  test("compares offers with the SRTP key actually used at startup", async () => {
+    const alternateKey = Buffer.alloc(30, 2).toString("base64");
+    const negotiated = sdp()
+      .replace(
+        "m=audio",
+        `a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${remoteKey}\r\nm=audio`,
+      )
+      .replace(/inline:[^\r]+$/, `inline:${alternateKey}`);
+    const fixture = await createAnsweredSession({ inviteSdp: negotiated });
+    fixture.request.mockResolvedValue(signalingMessage());
+    await fixture.softphone.register();
+    fixture.signaling.send.mockClear();
+    fixture.signaling.emit(
+      "message",
+      invite(sdp("192.0.2.20", 5000).replace(remoteKey, alternateKey)),
+    );
+    expect(fixture.signaling.send.mock.calls[0][0].statusCode).toBe(488);
+    fixture.signaling.emit("message", invite(sdp("192.0.2.20", 5000)));
+    expect(fixture.signaling.send.mock.calls[1][0].statusCode).toBe(200);
+    const remote = createRemoteSrtpSession();
+    const audio = vi.fn();
+    fixture.session.on("audio", audio);
+    fixture.socket.emit(
+      "message",
+      remote.encrypt(audioPacket.payload, audioPacket.header),
+    );
+    expect(audio).toHaveBeenCalledWith(audioPacket.payload);
     await fixture.session.hangup();
     fixture.softphone.revoke();
   });

@@ -48,7 +48,9 @@ const parseMediaUpdate = (sdp: string, codec: Codec) => {
   const mediaIndex = lines.findIndex((line) => line.startsWith("m="));
   const session = lines.slice(0, mediaIndex);
   const media = lines.slice(mediaIndex);
-  const audio = media[0]?.match(/^m=audio (\d+) RTP\/SAVP (\d+(?:\s+\d+)*)$/);
+  const audio = media[0]?.match(
+    /^m=audio\s+(\d+)\s+RTP\/SAVP\s+(\d+(?:\s+\d+)*)$/,
+  );
   const scoped = (prefix: string) => {
     const local = media.filter((line) => line.startsWith(prefix));
     return local.length
@@ -56,15 +58,15 @@ const parseMediaUpdate = (sdp: string, codec: Codec) => {
       : session.filter((line) => line.startsWith(prefix));
   };
   const connections = scoped("c=");
-  const remoteIP = connections[0]?.match(/^c=IN IP4 (\S+)$/)?.[1];
+  const remoteIP = connections[0]?.match(/^c=IN\s+IP4\s+(\S+)$/)?.[1];
   const remotePort = Number(audio?.[1]);
   const mappings = media.filter((line) =>
-    line.startsWith(`a=rtpmap:${codec.id} `),
+    new RegExp(`^a=rtpmap:${codec.id}(?:\\s|$)`).test(line),
   );
   const mapping = mappings[0]?.split(/\s+/).slice(1).join(" ").toUpperCase();
   const crypto = scoped("a=crypto:");
   const remoteKey = crypto[0]?.match(
-    /^a=crypto:\d+ AES_CM_128_HMAC_SHA1_80 inline:([A-Za-z0-9+/]+={0,2})$/,
+    /^a=crypto:\d+\s+AES_CM_128_HMAC_SHA1_80\s+inline:([A-Za-z0-9+/]+={0,2})$/,
   )?.[1];
   const directionIn = (scope: string[]) =>
     scope.filter((line) =>
@@ -79,7 +81,9 @@ const parseMediaUpdate = (sdp: string, codec: Codec) => {
     media.filter((line) => line.startsWith("m=")).length !== 1 ||
     !audio[2].split(/\s+/).includes(String(codec.id)) ||
     mappings.length > 1 ||
-    (mapping ? mapping.replace(/\/1$/, "") !== codec.name : codec.id !== 0) ||
+    (mappings.length
+      ? mapping?.replace(/\/1$/, "") !== codec.name
+      : codec.id !== 0) ||
     connections.length !== 1 ||
     !remoteIP ||
     !isIPv4(remoteIP) ||
@@ -116,6 +120,7 @@ export class MediaTransport {
   private ssrc = randomInt(2 ** 32);
   private started = false;
   private remoteSdp = "";
+  private remoteKey?: string;
   private disposedState = false;
 
   private constructor(codec: Codec, socket: dgram.Socket, localPort: number) {
@@ -164,6 +169,7 @@ export class MediaTransport {
       this.srtpSession = new SrtpSession(localKeyBuffer, remoteKeyBuffer);
       this.started = true;
       this.remoteSdp = sdp;
+      this.remoteKey = remoteKey;
       this.socket.on("message", (message) => {
         const packet = this.srtpSession!.decrypt(message);
         if (!packet) {
@@ -204,7 +210,7 @@ export class MediaTransport {
       const offer = parseMediaUpdate(sdp, this.codec);
       const current = parseMediaUpdate(this.remoteSdp, this.codec);
       if (
-        offer.remoteKey !== current.remoteKey ||
+        offer.remoteKey !== this.remoteKey ||
         offer.direction !== current.direction
       ) {
         return false;
