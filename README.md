@@ -502,7 +502,7 @@ files.
 
 ## End-to-end test with real credentials
 
-The integration test under `tests/e2e/` uses two SIP accounts. Put them in
+The integration tests under `tests/e2e/` use two SIP accounts. Put them in
 `.env`:
 
 ```bash
@@ -517,13 +517,26 @@ SIP_B_OUTBOUND_PROXY=sip10.ringcentral.com:5096
 SIP_B_USERNAME=1650...
 SIP_B_PASSWORD=...
 SIP_B_AUTHORIZATION_ID=...
+
+# Available external callee for the signaling-only transfer scenario:
+ANOTHER_CALLEE_FOR_TESTING=1650...
 ```
 
 Run it with:
 
 ```bash
-pnpm test:e2e
+NODE_OPTIONS='--import tsx --import ./demos/load-env.ts' pnpm test:e2e
 ```
+
+The suite runs serially. Avoid overlapping local runs and hosted CI against the
+same accounts. Missing credentials or an unavailable external callee fail the
+affected scenario; they are not successful verification.
+
+The transfer scenario calls the external callee from A, then transfers that call
+to B. B answers and initiates hangup, including in failure cleanup. It checks
+signaling only and makes no audio assertion on any leg. Separate audio tests do
+not prove transferred audio. CI supplies the external callee through the
+`ANOTHER_CALLEE_FOR_TESTING` repository secret.
 
 ## Development
 

@@ -30,3 +30,4 @@ jobs:
           SIP_B_USERNAME: ${{ secrets.SIP_B_USERNAME }}
           SIP_B_PASSWORD: ${{ secrets.SIP_B_PASSWORD }}
           SIP_B_AUTHORIZATION_ID: ${{ secrets.SIP_B_AUTHORIZATION_ID }}
+          ANOTHER_CALLEE_FOR_TESTING: ${{ secrets.ANOTHER_CALLEE_FOR_TESTING }}
