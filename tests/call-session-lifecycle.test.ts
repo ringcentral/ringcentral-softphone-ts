@@ -19,7 +19,6 @@ import {
 } from "../src/sip-message.js";
 import { SipTransport } from "../src/sip-transport.js";
 import type { InboundInvite } from "../src/types.js";
-import { localKey } from "../src/utils.js";
 import {
   createSignaling,
   createSocket,
@@ -50,7 +49,8 @@ const invite = (body: string, callId = "call-123") =>
     body,
   );
 
-const createRemoteSrtpSession = () => {
+const createRemoteSrtpSession = (sdp: string) => {
+  const localKey = sdp.match(/inline:([A-Za-z0-9+/]+)/)![1];
   const localKeyBuffer = Buffer.from(localKey, "base64");
   const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
   return new SrtpSession(remoteKeyBuffer, localKeyBuffer);
@@ -253,7 +253,7 @@ describe("CallSession lifecycle", () => {
         5000,
         "192.0.2.20",
       );
-      const remote = createRemoteSrtpSession();
+      const remote = createRemoteSrtpSession(fixture.session.sdp);
       const audio = vi.fn();
       fixture.session.on("audio", audio);
       fixture.socket.emit(
@@ -306,7 +306,7 @@ describe("CallSession lifecycle", () => {
     expect(fixture.signaling.send.mock.calls[0][0].statusCode).toBe(488);
     fixture.signaling.emit("message", invite(sdp("192.0.2.20", 5000)));
     expect(fixture.signaling.send.mock.calls[1][0].statusCode).toBe(200);
-    const remote = createRemoteSrtpSession();
+    const remote = createRemoteSrtpSession(fixture.session.sdp);
     const audio = vi.fn();
     fixture.session.on("audio", audio);
     fixture.socket.emit(
@@ -323,7 +323,7 @@ describe("CallSession lifecycle", () => {
     const fixture = await createAnsweredSession();
     fixture.request.mockResolvedValue(signalingMessage());
     await fixture.softphone.register();
-    const remote = createRemoteSrtpSession();
+    const remote = createRemoteSrtpSession(fixture.session.sdp);
     fixture.socket.send.mockClear();
     fixture.session.streamAudio(Buffer.alloc(160));
     await vi.advanceTimersByTimeAsync(0);
@@ -456,7 +456,7 @@ describe("CallSession lifecycle", () => {
     const signaling = createSignaling();
     const softphone = createSoftphone(signaling, { codec: "OPUS/16000" });
 
-    expect(softphone.createSdp(4000)).toBe(
+    expect(softphone.createSdp(4000, remoteKey)).toBe(
       [
         "v=0",
         "o=- 1234 0 IN IP4 192.0.2.1",
@@ -468,7 +468,7 @@ describe("CallSession lifecycle", () => {
         "a=rtpmap:101 telephone-event/8000",
         "a=fmtp:101 0-15",
         "a=sendrecv",
-        `a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}`,
+        `a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${remoteKey}`,
       ].join("\n"),
     );
   });
@@ -529,7 +529,7 @@ describe("CallSession lifecycle", () => {
 
   test("forwards media events through the real call session", async () => {
     const fixture = await createAnsweredSession();
-    const remoteSrtp = createRemoteSrtpSession();
+    const remoteSrtp = createRemoteSrtpSession(fixture.session.sdp);
     const raw = vi.fn();
     const audio = vi.fn();
     fixture.session.on("rtpPacket", raw);

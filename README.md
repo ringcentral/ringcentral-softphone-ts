@@ -233,6 +233,13 @@ Complete programs are maintained under [`demos/`](demos/).
 
 ## Audio
 
+Each call independently generates fresh local SRTP key material to encrypt and
+authenticate its outgoing audio and DTMF. Keys are isolated across concurrent and
+sequential calls, including calls on different Softphone instances. The same call
+retains its key through hold/unhold, supported media destination updates, and SIP
+signaling recovery. Exposure of one call's key does not expose other calls' keys,
+but it can expose that call's captured outgoing media.
+
 The `audio` event provides a `Buffer` in the selected codec's decoded format.
 `streamAudio()` expects a `Buffer` in the matching input format:
 
@@ -342,8 +349,9 @@ softphone.enableDebugMode();
 ```
 
 Debug mode prints complete SIP exchanges, which can contain identities, phone
-numbers, call metadata, and authentication material. Do not enable it in
-production or publish its output without redacting sensitive values.
+numbers, call metadata, authentication material, and SRTP key material advertised
+in SDP. Do not enable it in production or publish its output without redacting
+sensitive values.
 
 The initial `register()` call rejects if registration fails. Listen for
 `signalingError` to handle later signaling failures, such as a lost

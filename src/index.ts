@@ -18,7 +18,7 @@ import {
   type SoftphoneEventMap,
   type SoftphoneOptions,
 } from "./types.js";
-import { branch, generateAuthorization, localKey, uuid } from "./utils.js";
+import { branch, generateAuthorization, uuid } from "./utils.js";
 
 export type {
   CallSession,
@@ -258,7 +258,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   }
 
   /** @internal */
-  public createSdp(port: number): string {
+  public createSdp(port: number, localKey: string): string {
     return `
 v=0
 o=- ${Date.now()} 0 IN IP4 ${this.signaling.localAddress}

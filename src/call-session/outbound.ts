@@ -43,7 +43,7 @@ class OutboundCallSession extends CallSession {
   public static async call(softphone: Softphone, callee: string) {
     const media = await MediaTransport.bind(softphone.codec);
     try {
-      const offerSDP = softphone.createSdp(media.localPort);
+      const offerSDP = softphone.createSdp(media.localPort, media.localKey);
       const inviteMessage = new RequestMessage(
         `INVITE sip:${callee}@${softphone.sipInfo.domain} SIP/2.0`,
         {

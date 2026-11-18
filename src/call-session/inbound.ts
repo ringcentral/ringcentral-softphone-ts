@@ -12,7 +12,7 @@ class InboundCallSession extends CallSession {
     let session: InboundCallSession | undefined;
     try {
       session = new InboundCallSession(softphone, inviteMessage, media);
-      session.sdp = softphone.createSdp(media.localPort);
+      session.sdp = softphone.createSdp(media.localPort, media.localKey);
       const response = new ResponseMessage(
         inviteMessage,
         "200 OK",

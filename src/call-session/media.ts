@@ -1,4 +1,4 @@
-import { randomInt } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import dgram from "node:dgram";
 import EventEmitter, { once } from "node:events";
 import { isIPv4 } from "node:net";
@@ -7,7 +7,6 @@ import type Codec from "../codec.js";
 import * as DTMF from "../dtmf.js";
 import { type RtpHeader, type RtpPacket, SrtpSession } from "../rtp/index.js";
 import type { DtmfChar, StreamerEventMap } from "../types.js";
-import { localKey } from "../utils.js";
 
 const isAudioDtmfPayload = (payload: Buffer) =>
   payload.length === 4 &&
@@ -123,6 +122,7 @@ const parseMediaUpdate = (sdp: string, codec: Codec) => {
 
 export class MediaTransport {
   public readonly localPort: number;
+  public readonly localKey = randomBytes(30).toString("base64");
 
   private socket: dgram.Socket;
   private codec: Codec;
@@ -178,7 +178,7 @@ export class MediaTransport {
 
     try {
       const { remoteIP, remotePort, remoteKey } = parseSdp(sdp);
-      const localKeyBuffer = Buffer.from(localKey, "base64");
+      const localKeyBuffer = Buffer.from(this.localKey, "base64");
       const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
       this.remoteIP = remoteIP;
       this.remotePort = remotePort;

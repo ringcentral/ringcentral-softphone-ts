@@ -17,7 +17,6 @@ import {
   type RtpPacket,
   SrtpSession,
 } from "../src/rtp/index.js";
-import { localKey } from "../src/utils.js";
 
 const packetSize = 4;
 const remoteKey = Buffer.alloc(30, 1).toString("base64");
@@ -70,7 +69,7 @@ const startMedia = async (
   return { ...bound, emit };
 };
 
-const createRemoteSrtpSession = () => {
+const createRemoteSrtpSession = (localKey: string) => {
   const localKeyBuffer = Buffer.from(localKey, "base64");
   const remoteKeyBuffer = Buffer.from(remoteKey, "base64");
   return new SrtpSession(remoteKeyBuffer, localKeyBuffer);
@@ -101,7 +100,10 @@ const incomingMedia = async (
   decode = vi.fn((buffer: Buffer) => Buffer.from(buffer)),
 ) => {
   const started = await startMedia(codec(undefined, decode));
-  return { ...started, remoteSrtp: createRemoteSrtpSession() };
+  return {
+    ...started,
+    remoteSrtp: createRemoteSrtpSession(started.media.localKey),
+  };
 };
 
 beforeEach(() => {
@@ -244,7 +246,7 @@ describe("MediaTransport", () => {
         .mockReturnValueOnce(20);
       const selectedCodec = new Codec(name);
       const { media, udpSocket } = await startMedia(selectedCodec);
-      const receiver = createRemoteSrtpSession();
+      const receiver = createRemoteSrtpSession(media.localKey);
       try {
         for (const [index, timestamp] of timestamps.entries()) {
           media.sendAudio(Buffer.alloc(selectedCodec.packetSize));
@@ -274,7 +276,7 @@ describe("MediaTransport", () => {
       .mockReturnValueOnce(timestamps[0])
       .mockReturnValueOnce(20);
     const { media, udpSocket } = await startMedia(new Codec("PCMU/8000"));
-    const receiver = createRemoteSrtpSession();
+    const receiver = createRemoteSrtpSession(media.localKey);
     try {
       for (const [digitIndex, digit] of (["5", "6", "7"] as const).entries()) {
         media.sendDTMF(digit);
@@ -328,7 +330,7 @@ describe("MediaTransport", () => {
         .mockReturnValueOnce(20);
       const selectedCodec = new Codec("PCMU/8000");
       const { media, udpSocket } = await startMedia(selectedCodec);
-      const receiver = createRemoteSrtpSession();
+      const receiver = createRemoteSrtpSession(media.localKey);
       const pcm = Buffer.alloc(selectedCodec.packetSize);
       try {
         if (order === "audio first") {
@@ -362,7 +364,7 @@ describe("MediaTransport", () => {
       .mockReturnValueOnce(1234)
       .mockReturnValueOnce(5678);
     const { media, udpSocket } = await startMedia();
-    const receiver = createRemoteSrtpSession();
+    const receiver = createRemoteSrtpSession(media.localKey);
 
     media.sendDTMF("5");
 

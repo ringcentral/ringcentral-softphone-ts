@@ -39,8 +39,8 @@ Call `softphone.enableDebugMode()` to inspect the SIP exchange. The initial
 `register()` call rejects on failure; later signaling failures, such as a
 connection loss, a registration-refresh failure, or a failed recovery
 attempt, emit `signalingError`. Debug output can contain identities, phone
-numbers, call metadata, and authentication material, so redact it before
-sharing.
+numbers, call metadata, authentication material, and SRTP key material advertised
+in SDP, so redact it before sharing.
 
 ## Audio is distorted or silent
 
