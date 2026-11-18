@@ -230,6 +230,13 @@ Call `await callSession.cancel()` before the peer answers to cancel an outbound
 call. After the peer answers, use the call controls below as needed and call
 `await callSession.hangup()` when the application is finished with the call.
 Use `await callSession.transfer("16505550101")` to transfer an active call.
+Its existing `Promise<void>` stays pending during transfer progress and after a
+successful REFER response; it resolves on a successful final transfer NOTIFY and
+rejects on an explicit REFER or transfer NOTIFY failure. A failed transfer alone
+leaves the original call available unless ordinary call-ending signaling arrives.
+The SDK sends matching NOTIFY replies before settling the Promise; those protocol
+sends remain fire-and-forget, without delivery confirmation. Overlapping transfers
+are rejected; another transfer can start after an explicit outcome.
 
 When the remote peer hangs up, the SDK sends `200 OK` to its BYE request before
 releasing the call's media and emitting `disposed`. A `disposed` callback may

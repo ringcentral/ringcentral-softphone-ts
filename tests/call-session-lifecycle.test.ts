@@ -890,7 +890,7 @@ describe("CallSession lifecycle", () => {
         subject: "NOTIFY sip:1001@example.com SIP/2.0",
         callId: "another-call",
         cseq: "2 NOTIFY",
-        body: "SIP/2.0 200 OK",
+        body: "SIP/2.0 200 Transfer completed\r\nContact: <sip:1003@example.com>",
       }),
     );
     expect(fixture.signaling.send).toHaveBeenCalledOnce();
@@ -900,7 +900,7 @@ describe("CallSession lifecycle", () => {
       signalingMessage({
         subject: "NOTIFY sip:1001@example.com SIP/2.0",
         cseq: "2 NOTIFY",
-        body: "SIP/2.0 200 OK",
+        body: "SIP/2.0 200 Transfer completed\r\nContact: <sip:1003@example.com>",
       }),
     );
     await transfer;
@@ -909,6 +909,238 @@ describe("CallSession lifecycle", () => {
     expect(fixture.signaling.send.mock.calls[1][0].subject).toBe(
       "SIP/2.0 200 OK",
     );
+  });
+
+  test("rejects only the matching final REFER response and permits another transfer", async () => {
+    const fixture = await createAnsweredSession();
+    const transfer = fixture.session.transfer("1003");
+    const rejected = expect(transfer).rejects.toThrow(
+      "Transfer failed: SIP/2.0 403 Forbidden",
+    );
+    const refer = fixture.signaling.send.mock.calls[0][0];
+    fixture.signaling.emit(
+      "message",
+      signalingMessage({
+        subject: "SIP/2.0 403 Forbidden",
+        cseq: ` \t${refer.cseqNumber}\tREFER `,
+      }),
+    );
+    await rejected;
+    expect(fixture.socket.close).not.toHaveBeenCalled();
+    const retry = fixture.session.transfer("1004");
+    const disposed = expect(retry).rejects.toThrow("Call session was disposed");
+    await fixture.session.hangup();
+    await disposed;
+    fixture.softphone.revoke();
+  });
+
+  test.each([
+    ["SIP/2.0 202 Accepted", false],
+    ["SIP/2.0 486 Busy Here", true],
+    ["SIP/2.0 603 Decline\r\nContent-Length: 0", true],
+  ])(
+    "replies before settling transfer outcome %s and preserves the call",
+    async (body, fails) => {
+      const fixture = await createAnsweredSession();
+      const transfer = fixture.session.transfer("1003");
+      const refer = fixture.signaling.send.mock.calls[0][0];
+      const notify = signalingMessage({
+        subject: "NOTIFY sip:1001@example.com SIP/2.0",
+        cseq: "928 NOTIFY",
+        body,
+        headers: { Event: `refer;id=${refer.cseqNumber}` },
+      });
+      const outcome = transfer.then(
+        () => {
+          expect(fixture.signaling.send.mock.calls.at(-1)![0].statusCode).toBe(
+            200,
+          );
+          return "success";
+        },
+        () => {
+          expect(fixture.signaling.send.mock.calls.at(-1)![0].statusCode).toBe(
+            200,
+          );
+          return "failure";
+        },
+      );
+
+      // A valid NOTIFY can arrive before the REFER response.
+      fixture.signaling.emit("message", notify);
+      expect(await outcome).toBe(fails ? "failure" : "success");
+      const reply = fixture.signaling.send.mock.calls.at(-1)![0];
+      for (const header of ["Call-ID", "From", "To", "Via", "CSeq"]) {
+        expect(reply.getHeader(header)).toBe(notify.getHeader(header));
+      }
+      expect(reply.getHeader("CSeq")).toBe("928 NOTIFY");
+      expect(fixture.socket.close).not.toHaveBeenCalled();
+      fixture.session.sendDTMF("1");
+      expect(fixture.socket.send).toHaveBeenCalled();
+      const retry = fixture.session.transfer("1004");
+      const disposed = expect(retry).rejects.toThrow(
+        "Call session was disposed",
+      );
+      await fixture.session.hangup();
+      await disposed;
+      fixture.softphone.revoke();
+    },
+  );
+
+  test("keeps transfer pending on progress, acceptance, malformed status and unrelated signaling", async () => {
+    const fixture = await createAnsweredSession();
+    const transfer = fixture.session.transfer("1003");
+    const settled = vi.fn();
+    const outcome = transfer.then(settled);
+    const refer = fixture.signaling.send.mock.calls[0][0];
+    for (const message of [
+      signalingMessage({
+        subject: "SIP/2.0 100 Trying",
+        cseq: refer.getHeader("CSeq"),
+      }),
+      signalingMessage({
+        subject: "SIP/2.0 202 Accepted",
+        cseq: refer.getHeader("CSeq"),
+      }),
+      signalingMessage({
+        subject: "SIP/2.0 403 Forbidden",
+        cseq: `${refer.cseqNumber} INVITE`,
+      }),
+      signalingMessage({
+        subject: "SIP/2.0 403 Forbidden",
+        cseq: `${Number(refer.cseqNumber) + 1} REFER`,
+      }),
+      signalingMessage({
+        subject: "SIP/2.0 403 Forbidden",
+        cseq: refer.getHeader("CSeq"),
+        callId: "other-call",
+      }),
+      signalingMessage({
+        subject: "REFER sip:1001@example.com SIP/2.0",
+        cseq: refer.getHeader("CSeq"),
+      }),
+      signalingMessage({
+        subject: "SIP/2.0 200 OK",
+        cseq: "928 NOTIFY",
+        body: "SIP/2.0 200 OK",
+      }),
+      signalingMessage({
+        subject: "NOTIFY sip:1001@example.com SIP/2.0",
+        cseq: "928 NOTIFY",
+        body: "SIP/2.0 200 OK",
+        headers: { Event: "presence" },
+      }),
+      signalingMessage({
+        subject: "NOTIFY sip:1001@example.com SIP/2.0",
+        cseq: "929 NOTIFY",
+        body: "SIP/2.0 200 OK",
+        headers: { Event: `refer;id=${Number(refer.cseqNumber) + 1}` },
+      }),
+      signalingMessage({
+        subject: "NOTIFY sip:1001@example.com SIP/2.0",
+        cseq: "930 NOTIFY",
+        body: "SIP/2.0 180 Ringing",
+        headers: { Event: "refer" },
+      }),
+      signalingMessage({
+        subject: "NOTIFY sip:1001@example.com SIP/2.0",
+        cseq: "931 NOTIFY",
+        body: "not a sipfrag status",
+        headers: { Event: "refer" },
+      }),
+    ]) {
+      fixture.signaling.emit("message", message);
+      await flush();
+      expect(settled).not.toHaveBeenCalled();
+    }
+    expect(
+      fixture.signaling.send.mock.calls
+        .slice(1)
+        .map(([message]) => [message.statusCode, message.getHeader("CSeq")]),
+    ).toEqual([
+      [481, "929 NOTIFY"],
+      [200, "930 NOTIFY"],
+      [200, "931 NOTIFY"],
+    ]);
+    fixture.signaling.emit(
+      "message",
+      signalingMessage({
+        subject: "NOTIFY sip:1001@example.com SIP/2.0",
+        cseq: "932 NOTIFY",
+        body: "SIP/2.0 200 Completed",
+        headers: { Event: `Refer; id="${refer.cseqNumber}"` },
+      }),
+    );
+    await outcome;
+    expect(settled).toHaveBeenCalledOnce();
+    await fixture.session.hangup();
+    fixture.softphone.revoke();
+  });
+
+  test("keeps disposal rejection when an outbound NOTIFY reply callback hangs up", async () => {
+    const fixture = await createAnsweredSession();
+    const transfer = fixture.session.transfer("1003");
+    const rejected = expect(transfer).rejects.toThrow(
+      "Call session was disposed",
+    );
+    fixture.signaling.send.mockImplementationOnce(() => {
+      void fixture.session.hangup();
+    });
+    expect(() =>
+      fixture.signaling.emit(
+        "message",
+        signalingMessage({
+          subject: "NOTIFY sip:1001@example.com SIP/2.0",
+          cseq: "928 NOTIFY",
+          body: "SIP/2.0 200 OK",
+          headers: { Event: "refer" },
+        }),
+      ),
+    ).not.toThrow();
+    expect(fixture.signaling.send.mock.calls[1][0].statusCode).toBe(200);
+    expect(fixture.signaling.send.mock.calls[2][0].method).toBe("BYE");
+    await rejected;
+    fixture.softphone.revoke();
+  });
+
+  test("clears transfer after an immediate send failure", async () => {
+    const fixture = await createAnsweredSession();
+    fixture.signaling.send.mockImplementationOnce(() => {
+      throw new Error("send failed");
+    });
+    await expect(fixture.session.transfer("1003")).rejects.toThrow(
+      "send failed",
+    );
+    const retry = fixture.session.transfer("1004");
+    const disposed = expect(retry).rejects.toThrow("Call session was disposed");
+    await fixture.session.hangup();
+    await disposed;
+    fixture.softphone.revoke();
+  });
+
+  test("replies 481 to scoped transfer notifications without a call or pending transfer", async () => {
+    const fixture = await createAnsweredSession();
+    fixture.request.mockResolvedValue(signalingMessage());
+    await fixture.softphone.register();
+    fixture.signaling.send.mockClear();
+    for (const callId of ["call-123", "unknown-call"]) {
+      fixture.signaling.emit(
+        "message",
+        signalingMessage({
+          subject: "NOTIFY sip:1001@example.com SIP/2.0",
+          callId,
+          cseq: "928 NOTIFY",
+          body: "SIP/2.0 200 OK",
+          headers: { Event: "refer" },
+        }),
+      );
+      const reply = fixture.signaling.send.mock.calls.at(-1)![0];
+      expect(reply.statusCode).toBe(481);
+      expect(reply.callId).toBe(callId);
+      expect(reply.getHeader("CSeq")).toBe("928 NOTIFY");
+    }
+    expect(fixture.signaling.send).toHaveBeenCalledTimes(2);
+    await fixture.session.hangup();
+    fixture.softphone.revoke();
   });
 
   test("rejects a pending transfer when the call is disposed", async () => {

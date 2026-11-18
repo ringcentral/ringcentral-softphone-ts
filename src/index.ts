@@ -140,7 +140,11 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
     const signaling = SipTransport.connect(this.sipInfo);
     signaling.on("message", (message) => {
       if (
-        message.method === "BYE" &&
+        (message.method === "BYE" ||
+          (message.method === "NOTIFY" &&
+            /^\s*refer(?:\s*;|\s*$)/i.test(
+              message.getHeader("Event") ?? "",
+            ))) &&
         ![...this.ownedCallSessions].some(
           (session) => session.callId === message.callId,
         )

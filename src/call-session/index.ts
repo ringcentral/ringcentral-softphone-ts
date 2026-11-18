@@ -38,6 +38,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
   private disposedState = false;
   private signalingRecoveryDeadline?: NodeJS.Timeout;
   private pendingTransfer?: {
+    request: RequestMessage;
     resolve: () => void;
     reject: (error: Error) => void;
   };
@@ -137,7 +138,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
       },
     );
     return new Promise<void>((resolve, reject) => {
-      this.pendingTransfer = { resolve, reject };
+      this.pendingTransfer = { request: requestMessage, resolve, reject };
       try {
         this.softphone.signaling.send(requestMessage);
       } catch (error) {
@@ -264,12 +265,52 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
       }
       return;
     }
-    if (this.pendingTransfer && message.method === "NOTIFY") {
+    if (
+      this.pendingTransfer &&
+      message.statusCode !== undefined &&
+      message.cseqNumber === this.pendingTransfer.request.cseqNumber &&
+      message.cseqMethod === "REFER" &&
+      message.statusCode >= 300
+    ) {
+      const { reject } = this.pendingTransfer;
+      this.pendingTransfer = undefined;
+      reject(new Error(`Transfer failed: ${message.subject}`));
+      return;
+    }
+    if (message.method === "NOTIFY") {
+      const event = message.getHeader("Event");
+      if (event !== undefined && !/^\s*refer(?:\s*;|\s*$)/i.test(event)) {
+        return;
+      }
+      const referId = event?.match(/;\s*id\s*=\s*"?([^;"\s]+)/i)?.[1];
+      if (
+        !this.pendingTransfer ||
+        (referId !== undefined &&
+          referId !== this.pendingTransfer.request.cseqNumber)
+      ) {
+        this.softphone.signaling.send(
+          new ResponseMessage(message, "481 Call/Transaction Does Not Exist"),
+        );
+        return;
+      }
+      const pendingTransfer = this.pendingTransfer;
       this.softphone.signaling.send(new ResponseMessage(message, "200 OK"));
-      if (message.body.trim() === "SIP/2.0 200 OK") {
-        const { resolve } = this.pendingTransfer;
+      if (this.pendingTransfer !== pendingTransfer) {
+        return;
+      }
+      const status = message.body.match(
+        /^SIP\/2\.0 ([1-6]\d{2})(?:[ \t]+[^\r\n]*)?(?:\r?\n|$)/,
+      )?.[1];
+      if (status !== undefined && Number(status) >= 200) {
+        const { resolve, reject } = this.pendingTransfer;
         this.pendingTransfer = undefined;
-        resolve();
+        if (Number(status) < 300) {
+          resolve();
+        } else {
+          reject(
+            new Error(`Transfer failed: ${message.body.split(/\r?\n/)[0]}`),
+          );
+        }
       }
       return;
     }

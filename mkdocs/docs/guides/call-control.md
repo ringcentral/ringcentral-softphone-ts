@@ -106,8 +106,25 @@ the SDK reports `signalingError` and still releases the ended call.
 Transfer an active call:
 
 ```ts
-await callSession.transfer("16505550101");
+try {
+  await callSession.transfer("16505550101");
+  console.log("Transfer completed");
+} catch (error) {
+  console.error("Transfer failed:", error);
+}
 ```
+
+`transfer()` retains one `Promise<void>` for the transfer outcome. A successful
+REFER response accepts the request but does not complete the transfer. Progress
+notifications keep the Promise pending; a final successful transfer NOTIFY resolves
+it, and an explicit REFER rejection or failed transfer NOTIFY rejects it. Failure
+alone leaves the original call available unless ordinary call-ending signaling
+arrives. A new transfer can start after an explicit outcome; overlapping transfers
+are rejected.
+
+The SDK sends matching transfer NOTIFY replies before settling the Promise,
+including when the notification reports failure. These protocol sends remain
+fire-and-forget, with no delivery-confirmation wait. There is no transfer timeout.
 
 ## Hold and unhold
 
