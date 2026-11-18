@@ -4,7 +4,7 @@ import { once } from "node:events";
 import { afterEach, expect, test, vi } from "vitest";
 
 import * as DTMF from "../src/dtmf.js";
-import { SrtpSession } from "../src/rtp/index.js";
+import { type RtpHeader, SrtpSession } from "../src/rtp/index.js";
 import type { OutboundMessage } from "../src/sip-message.js";
 import { SipTransport } from "../src/sip-transport.js";
 import type { CallSession, InboundInvite } from "../src/types.js";
@@ -118,6 +118,20 @@ const expectMedia = (packets: Buffer[], peer: SrtpSession) => {
   return audio!.header;
 };
 
+const expectNextMedia = async (
+  call: TestCall,
+  peer: SrtpSession,
+  previous: RtpHeader,
+) => {
+  const next = expectMedia(await sendMedia(call), peer);
+  expect(next).toMatchObject({
+    ssrc: previous.ssrc,
+    sequenceNumber: (previous.sequenceNumber + 7) % 65536,
+    timestamp: (previous.timestamp + 960) % 2 ** 32,
+  });
+  return next;
+};
+
 test.each([
   ["inbound", "inbound"],
   ["outbound", "outbound"],
@@ -203,13 +217,7 @@ test.each(["inbound", "outbound"] as const)(
         const offer = phone.request.mock.calls.at(-1)![0];
         expect(offer.body).toContain(held ? "a=sendonly" : "a=sendrecv");
         expect(advertisedKey(offer.body)).toBe(call.key);
-        const afterHold = expectMedia(await sendMedia(call), peer);
-        expect(afterHold).toMatchObject({
-          ssrc: previous.ssrc,
-          sequenceNumber: (previous.sequenceNumber + 7) % 65536,
-          timestamp: (previous.timestamp + 960) % 2 ** 32,
-        });
-        previous = afterHold;
+        previous = await expectNextMedia(call, peer, previous);
       }
       const unhold = phone.request.mock.calls.at(-1)![0];
 
@@ -223,13 +231,7 @@ test.each(["inbound", "outbound"] as const)(
       const answer = phone.signaling.send.mock.calls.at(-1)![0];
       expect(answer.statusCode).toBe(200);
       expect(advertisedKey(answer.body)).toBe(call.key);
-      const afterUpdate = expectMedia(await sendMedia(call), peer);
-      expect(afterUpdate).toMatchObject({
-        ssrc: previous.ssrc,
-        sequenceNumber: (previous.sequenceNumber + 7) % 65536,
-        timestamp: (previous.timestamp + 960) % 2 ** 32,
-      });
-      previous = afterUpdate;
+      previous = await expectNextMedia(call, peer, previous);
       expect(
         call.socket.send.mock.calls.every(
           ([, port, ip]) => port === 5000 && ip === "192.0.2.20",
@@ -248,12 +250,7 @@ test.each(["inbound", "outbound"] as const)(
       expect(reconcile.method).toBe("INVITE");
       expect(advertisedKey(reconcile.body)).toBe(call.key);
       expect(reconcile.body).toBe(unhold.body);
-      const afterRecovery = expectMedia(await sendMedia(call), peer);
-      expect(afterRecovery).toMatchObject({
-        ssrc: previous.ssrc,
-        sequenceNumber: (previous.sequenceNumber + 7) % 65536,
-        timestamp: (previous.timestamp + 960) % 2 ** 32,
-      });
+      await expectNextMedia(call, peer, previous);
       call.socket.emit("message", incoming);
       expect(received).toHaveBeenCalledOnce();
       expect(dgram.createSocket).toHaveBeenCalledOnce();
