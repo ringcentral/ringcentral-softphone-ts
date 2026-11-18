@@ -52,6 +52,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     this.media = media;
     this.sipMessage = sipMessage;
     this.callId = requireCallId(sipMessage);
+    this.softphone.trackCallSession(this);
     this.softphone.on("message", this.signalingHandler);
   }
 
@@ -265,8 +266,17 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     if (message.callId !== this.callId) {
       return;
     }
-    if (message.getHeader("CSeq")?.endsWith(" BYE")) {
-      this.dispose();
+    if (message.method === "BYE") {
+      try {
+        this.softphone.signaling.send(new ResponseMessage(message, "200 OK"));
+      } catch (error) {
+        this.softphone.emit(
+          "signalingError",
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      } finally {
+        this.dispose();
+      }
       return;
     }
     if (this.pendingTransfer && message.method === "NOTIFY") {

@@ -492,6 +492,152 @@ describe("CallSession lifecycle", () => {
     expect(fixture.softphone.listenerCount("message")).toBe(0);
   });
 
+  test("replies to remote BYE before disposal can revoke signaling", async () => {
+    const fixture = await createAnsweredSession();
+    fixture.request.mockResolvedValue(signalingMessage());
+    await fixture.softphone.register();
+    fixture.signaling.send.mockClear();
+    const bye = signalingMessage({
+      subject: "BYE sip:1001@example.com SIP/2.0",
+      cseq: "42 BYE",
+    });
+    const disposed = vi.fn(() => {
+      expect(fixture.signaling.send).toHaveBeenCalledOnce();
+      const reply = fixture.signaling.send.mock.calls[0][0];
+      expect(reply.subject).toBe("SIP/2.0 200 OK");
+      for (const header of ["Via", "From", "To", "Call-ID", "CSeq"]) {
+        expect(reply.getHeader(header)).toBe(bye.getHeader(header));
+      }
+      expect(fixture.socket.close).toHaveBeenCalledOnce();
+      fixture.softphone.revoke();
+    });
+    fixture.session.on("disposed", disposed);
+
+    fixture.signaling.emit("message", bye);
+
+    expect(disposed).toHaveBeenCalledOnce();
+    expect(fixture.session.media.disposed).toBe(true);
+    expect(fixture.session.listenerCount("disposed")).toBe(0);
+    expect(fixture.softphone.listenerCount("message")).toBe(0);
+  });
+
+  test("ignores BYE responses and unrelated messages without ending the call", async () => {
+    const fixture = await createAnsweredSession();
+    const disposed = vi.fn();
+    fixture.session.on("disposed", disposed);
+    for (const message of [
+      signalingMessage({ cseq: "42 BYE" }),
+      signalingMessage({
+        subject: "ACK sip:1001@example.com SIP/2.0",
+        cseq: "42 ACK",
+      }),
+      signalingMessage({
+        subject: "OPTIONS sip:1001@example.com SIP/2.0",
+        cseq: "42 OPTIONS",
+      }),
+    ]) {
+      fixture.signaling.emit("message", message);
+    }
+    expect(fixture.signaling.send).not.toHaveBeenCalled();
+    expect(disposed).not.toHaveBeenCalled();
+    expect(fixture.socket.close).not.toHaveBeenCalled();
+    await fixture.session.hangup();
+    fixture.softphone.revoke();
+  });
+
+  test.each(["another-call", ""])(
+    "replies 481 for BYE without call context (%s)",
+    async (callId) => {
+      const fixture = await createAnsweredSession();
+      const bye = signalingMessage({
+        subject: "BYE sip:1001@example.com SIP/2.0",
+        cseq: "42 BYE",
+        callId,
+      });
+      fixture.signaling.emit("message", bye);
+      expect(fixture.signaling.send).toHaveBeenCalledOnce();
+      const reply = fixture.signaling.send.mock.calls[0][0];
+      expect(reply.subject).toBe("SIP/2.0 481 Call/Transaction Does Not Exist");
+      for (const header of ["Via", "From", "To", "Call-ID", "CSeq"]) {
+        expect(reply.getHeader(header)).toBe(bye.getHeader(header));
+      }
+      expect(fixture.socket.close).not.toHaveBeenCalled();
+      await fixture.session.hangup();
+      fixture.softphone.revoke();
+    },
+  );
+
+  test("releases remote-ended call resources even when its reply send throws", async () => {
+    const fixture = await createAnsweredSession();
+    const error = new Error("send failed");
+    const errors = vi.fn();
+    const disposed = vi.fn();
+    fixture.softphone.on("signalingError", errors);
+    fixture.session.on("disposed", disposed);
+    const transfer = expect(fixture.session.transfer("1003")).rejects.toThrow(
+      "Call session was disposed",
+    );
+    fixture.signaling.send.mockImplementationOnce(() => {
+      throw error;
+    });
+
+    fixture.signaling.emit(
+      "message",
+      signalingMessage({
+        subject: "BYE sip:1001@example.com SIP/2.0",
+        cseq: "42 BYE",
+      }),
+    );
+
+    await transfer;
+    expect(errors).toHaveBeenCalledExactlyOnceWith(error);
+    expect(disposed).toHaveBeenCalledOnce();
+    expect(fixture.socket.close).toHaveBeenCalledOnce();
+    expect(fixture.softphone.listenerCount("message")).toBe(0);
+    expect(fixture.session.listenerCount("disposed")).toBe(0);
+    fixture.softphone.revoke();
+  });
+
+  test("recognizes a session owning BYE before the inbound answer receives ACK", async () => {
+    let acknowledge!: (message: InboundMessage) => void;
+    const request = vi.fn(
+      () =>
+        new Promise<InboundMessage>((resolve) => {
+          acknowledge = resolve;
+        }),
+    );
+    const signaling = createSignaling(request);
+    const softphone = createSoftphone(signaling);
+    const socket = createSocket();
+    useSocket(socket);
+    const answering = softphone.answer(
+      invite(sdp()) as unknown as InboundInvite,
+    );
+    const rejected = expect(answering).rejects.toThrow("disposed");
+    await flush();
+
+    signaling.emit(
+      "message",
+      signalingMessage({
+        subject: "BYE sip:1001@example.com SIP/2.0",
+        cseq: "42 BYE",
+      }),
+    );
+
+    expect(signaling.send).toHaveBeenCalledOnce();
+    expect(signaling.send.mock.calls[0][0].subject).toBe("SIP/2.0 200 OK");
+    expect(socket.close).toHaveBeenCalledOnce();
+    expect(softphone.listenerCount("message")).toBe(0);
+    acknowledge(
+      signalingMessage({
+        subject: "ACK sip:1001@example.com SIP/2.0",
+        cseq: "1 ACK",
+      }),
+    );
+    await rejected;
+    softphone.revoke();
+  });
+
   test("does not dispose when the local hangup request fails", async () => {
     const fixture = await createAnsweredSession();
     fixture.signaling.send.mockImplementationOnce(() => {

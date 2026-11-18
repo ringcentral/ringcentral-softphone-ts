@@ -44,6 +44,8 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   private reconnectHandle?: NodeJS.Timeout;
   private recoveryTransport?: SipTransport;
   private callSessions = new Set<CallSession>();
+  // Sessions own signaling before answer/ACK makes them established.
+  private ownedCallSessions = new Set<CallSession>();
   private recoveringSessions = new Set<CallSession>();
   private registered = false;
   private revoked = false;
@@ -136,7 +138,20 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
 
   private createTransport(): SipTransport {
     const signaling = SipTransport.connect(this.sipInfo);
-    signaling.on("message", (message) => this.emit("message", message));
+    signaling.on("message", (message) => {
+      if (
+        message.method === "BYE" &&
+        ![...this.ownedCallSessions].some(
+          (session) => session.callId === message.callId,
+        )
+      ) {
+        this.signaling.send(
+          new ResponseMessage(message, "481 Call/Transaction Does Not Exist"),
+        );
+        return;
+      }
+      this.emit("message", message);
+    });
     signaling.on("outboundMessage", (message) =>
       this.emit("outboundMessage", message),
     );
@@ -247,6 +262,11 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   }
 
   /** @internal */
+  public trackCallSession(session: CallSession): void {
+    this.ownedCallSessions.add(session);
+  }
+
+  /** @internal */
   public addCallSession(session: CallSession): void {
     this.callSessions.add(session);
   }
@@ -254,6 +274,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   /** @internal */
   public removeCallSession(session: CallSession): void {
     this.callSessions.delete(session);
+    this.ownedCallSessions.delete(session);
     this.recoveringSessions.delete(session);
   }
 

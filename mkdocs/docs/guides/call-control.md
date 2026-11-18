@@ -95,6 +95,12 @@ Hang up an active call:
 await callSession.hangup();
 ```
 
+When the remote peer hangs up, the SDK sends `200 OK` to its BYE request before
+releasing the call's media and emitting `disposed`. A `disposed` callback may
+revoke signaling without preventing that reply. These sends are fire-and-forget;
+they do not wait for delivery confirmation. If sending the reply throws locally,
+the SDK reports `signalingError` and still releases the ended call.
+
 Transfer an active call:
 
 ```ts

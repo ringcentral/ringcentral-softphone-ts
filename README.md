@@ -229,6 +229,12 @@ call. After the peer answers, use the call controls below as needed and call
 `await callSession.hangup()` when the application is finished with the call.
 Use `await callSession.transfer("16505550101")` to transfer an active call.
 
+When the remote peer hangs up, the SDK sends `200 OK` to its BYE request before
+releasing the call's media and emitting `disposed`. A `disposed` callback may
+revoke signaling without preventing that reply. These sends are fire-and-forget;
+they do not wait for delivery confirmation. If sending the reply throws locally,
+the SDK reports `signalingError` and still releases the ended call.
+
 Complete programs are maintained under [`demos/`](demos/).
 
 ## Audio
