@@ -27,7 +27,10 @@ class InboundCallSession extends CallSession {
         },
         session.sdp,
       );
-      const ackMessage = await softphone.signaling.request(response);
+      const ackMessage = await softphone.signaling.request(
+        response,
+        (message) => message.method === "ACK" && message.cseqMethod === "ACK",
+      );
 
       // for inbound call from call queue, ack message may HAVE body (while invite message has no body)
       session.startLocalServices(ackMessage.body || inviteMessage.body);

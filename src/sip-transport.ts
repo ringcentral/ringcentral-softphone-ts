@@ -124,7 +124,15 @@ export class SipTransport extends EventEmitter<SipTransportEventMap> {
     }
 
     return new Promise((resolve, reject) => {
-      this.pending.set(key, { resolve, reject, accepts });
+      this.pending.set(key, {
+        resolve,
+        reject,
+        accepts: (response) =>
+          (message.method === undefined ||
+            (response.statusCode !== undefined &&
+              response.cseqMethod === message.cseqMethod)) &&
+          accepts(response),
+      });
       try {
         this.write(message);
       } catch (error) {

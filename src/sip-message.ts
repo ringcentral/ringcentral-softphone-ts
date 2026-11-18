@@ -1,4 +1,4 @@
-import { branch, uuid } from "./utils.js";
+import { branch, extractAddress, uuid } from "./utils.js";
 
 const responseHeaders = new Set(["via", "from", "to", "call-id", "cseq"]);
 
@@ -48,6 +48,10 @@ export class SipMessage {
     return this.getHeader("CSeq")?.match(/^\s*(\d+)\b/)?.[1];
   }
 
+  public get cseqMethod(): string | undefined {
+    return this.getHeader("CSeq")?.match(/^\s*\d+\s+(\S+)\s*$/)?.[1];
+  }
+
   public cseqFor(method: string): string {
     const number = this.cseqNumber;
     if (number === undefined) {
@@ -90,6 +94,33 @@ export class RequestMessage extends OutboundMessage {
     if (this.headers.CSeq === undefined) {
       this.newCseq();
     }
+  }
+
+  public ack(response: InboundMessage) {
+    const successful = response.statusCode! < 300;
+    const target = successful && response.getHeader("Contact");
+    return new RequestMessage(
+      `ACK ${target ? (extractAddress(target) ?? target) : this.subject.split(" ")[1]} SIP/2.0`,
+      {
+        "Call-ID": this.callId,
+        "Max-Forwards": this.getHeader("Max-Forwards") ?? "70",
+        ...Object.fromEntries(
+          Object.entries(this.headers).filter(([name]) =>
+            /^(?:proxy-authorization|authorization)$/i.test(name),
+          ),
+        ),
+        From: this.getHeader("From"),
+        To: response.getHeader("To"),
+        Via: successful
+          ? this.getHeader("Via")!.replace(
+              /;branch=[^;]+/,
+              `;branch=${branch()}`,
+            )
+          : this.getHeader("Via"),
+        ...(this.getHeader("Route") ? { Route: this.getHeader("Route") } : {}),
+        CSeq: this.cseqFor("ACK"),
+      },
+    );
   }
 
   public newCseq() {

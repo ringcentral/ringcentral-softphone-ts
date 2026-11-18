@@ -194,22 +194,7 @@ abstract class CallSession extends EventEmitter<OutboundCallSessionEventMap> {
     ) {
       throw new Error(`re-INVITE failed: ${replyMessage.subject}`);
     }
-    const ackMessage = new RequestMessage(
-      `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
-      {
-        "Call-Id": this.callId,
-        From: this.localPeer,
-        To: this.remotePeer,
-        Via:
-          replyMessage.statusCode < 300
-            ? requestMessage
-                .getHeader("Via")!
-                .replace(/;branch=[^;]+/, `;branch=${branch()}`)
-            : replyMessage.getHeader("Via"),
-        CSeq: replyMessage.cseqFor("ACK"),
-      },
-    );
-    this.softphone.signaling.send(ackMessage);
+    this.softphone.signaling.send(requestMessage.ack(replyMessage));
     if (replyMessage.statusCode >= 300) {
       throw new Error(`re-INVITE failed: ${replyMessage.subject}`);
     }

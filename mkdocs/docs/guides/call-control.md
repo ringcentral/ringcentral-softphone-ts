@@ -72,7 +72,9 @@ A final 2xx INVITE response emits `answered` and keeps the session. A matching
 final 3xx–6xx response emits `non2xxResponse` with the SIP status code and
 reason phrase, and then the session is disposed. The SDK reports the response
 without classifying it, so your application decides what 486, 487, 603, or any
-other status means for it. Later provisional (1xx) responses keep the call
+other status means for it. The SDK sends the required ACK before `answered` or
+`non2xxResponse`, so callbacks can immediately hang up or revoke signaling.
+ACK sends are fire-and-forget. Later provisional (1xx) responses keep the call
 pending. After the peer answers, use the task-specific controls below and hang
 up when the application is finished with the call.
 

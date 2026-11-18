@@ -63,6 +63,12 @@ class OutboundCallSession extends CallSession {
         offerSDP,
       );
       const inboundMessage = await softphone.signaling.request(inviteMessage);
+      if (inboundMessage.statusCode! >= 200) {
+        softphone.signaling.send(inviteMessage.ack(inboundMessage));
+      }
+      if (inboundMessage.statusCode !== 407) {
+        throw new Error(`Failed to start call: ${inboundMessage.subject}`);
+      }
       const proxyAuthenticate = inboundMessage.getHeader("Proxy-Authenticate")!;
       const nonce = proxyAuthenticate.match(/, nonce="(.+?)"/)![1];
       const newMessage = inviteMessage.fork();
@@ -72,10 +78,14 @@ class OutboundCallSession extends CallSession {
         "INVITE",
       );
       const progressMessage = await softphone.signaling.request(newMessage);
+      if (progressMessage.statusCode! >= 200) {
+        softphone.signaling.send(newMessage.ack(progressMessage));
+      }
       const session = new OutboundCallSession(
         softphone,
         progressMessage,
         media,
+        newMessage,
       );
       session.sdp = offerSDP;
       return session;
@@ -92,6 +102,7 @@ class OutboundCallSession extends CallSession {
     softphone: Softphone,
     answerMessage: InboundMessage,
     media: MediaTransport,
+    private readonly inviteMessage: RequestMessage,
   ) {
     super(softphone, requireProgressMessage(answerMessage), media);
     this.localPeer = answerMessage.getHeader("From")!;
@@ -138,21 +149,12 @@ class OutboundCallSession extends CallSession {
       return;
     }
     this.waitingForAnswer = false;
+    this.softphone.signaling.send(this.inviteMessage.ack(message));
     if (message.statusCode < 300) {
+      this.remotePeer = message.getHeader("To")!;
       this.startLocalServices(this.sipMessage.body);
       this.softphone.addCallSession(this);
       this.emit("answered");
-      const ackMessage = new RequestMessage(
-        `ACK ${extractAddress(this.remotePeer)} SIP/2.0`,
-        {
-          "Call-ID": this.callId,
-          From: this.localPeer,
-          To: this.remotePeer,
-          Via: this.sipMessage.getHeader("Via"),
-          CSeq: this.sipMessage.cseqFor("ACK"),
-        },
-      );
-      this.softphone.signaling.send(ackMessage);
       return;
     }
     this.emit("non2xxResponse", {

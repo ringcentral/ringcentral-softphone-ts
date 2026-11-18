@@ -8,7 +8,11 @@ vi.mock("node:tls", () => ({
   connect,
 }));
 
-import { RequestMessage } from "../src/sip-message.js";
+import {
+  InboundMessage,
+  RequestMessage,
+  ResponseMessage,
+} from "../src/sip-message.js";
 import { SipTransport } from "../src/sip-transport.js";
 
 const createSocket = () =>
@@ -231,7 +235,7 @@ describe("SIP transactions", () => {
     await expect(pending).resolves.toMatchObject({ subject: "SIP/2.0 200 OK" });
   });
 
-  test("matches exact Call-ID and numeric CSeq while emitting every message", async () => {
+  test("matches responses by exact Call-ID, CSeq number and method while emitting every message", async () => {
     const transport = createReadyTransport();
     const received = vi.fn();
     transport.on("message", received);
@@ -268,10 +272,53 @@ describe("SIP transactions", () => {
         cseq: "7 ACK",
       }),
     );
-    await expect(first).resolves.toMatchObject({
-      subject: "ACK sip:1001@example.com SIP/2.0",
+    socket.emit("data", frame({ callId: "Call-A", cseq: "7 BYE" }));
+    await Promise.resolve();
+    expect(firstSettled).toBe(false);
+    socket.emit("data", frame({ callId: "Call-A", cseq: "7 \t INVITE" }));
+    await expect(first).resolves.toMatchObject({ subject: "SIP/2.0 200 OK" });
+    expect(received).toHaveBeenCalledTimes(6);
+  });
+
+  test("the inbound answer wait accepts only its matching ACK, including offerless SDP", async () => {
+    const transport = createReadyTransport();
+    const invite = new InboundMessage("INVITE sip:1001@example.com SIP/2.0", {
+      "Call-ID": "incoming",
+      CSeq: "9 INVITE",
     });
-    expect(received).toHaveBeenCalledTimes(4);
+    const pending = transport.request(
+      new ResponseMessage(invite, "200 OK"),
+      (message) => message.method === "ACK" && message.cseqMethod === "ACK",
+    );
+    let settled = false;
+    void pending.then(() => {
+      settled = true;
+    });
+    socket.emit("data", frame({ callId: "incoming", cseq: "9 INVITE" }));
+    socket.emit(
+      "data",
+      frame({
+        subject: "CANCEL sip:1001@example.com SIP/2.0",
+        callId: "incoming",
+        cseq: "9 CANCEL",
+      }),
+    );
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    socket.emit(
+      "data",
+      frame({
+        subject: "ACK sip:1001@example.com SIP/2.0",
+        callId: "incoming",
+        cseq: "9\tACK",
+        body: "v=0\r\n",
+      }),
+    );
+    await expect(pending).resolves.toMatchObject({
+      method: "ACK",
+      body: "v=0\r\n",
+    });
+    expect(socket.write).toHaveBeenCalledOnce();
   });
 
   test("registers a request before writing and observes outbound data first", async () => {

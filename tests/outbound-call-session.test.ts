@@ -27,6 +27,7 @@ const setupCall = (
   let callId = "";
   const request = vi.fn(async (message: OutboundMessage) => {
     if (request.mock.calls.length === 1) {
+      expect(signaling.send).not.toHaveBeenCalled();
       return signalingMessage({
         subject: "SIP/2.0 407 Proxy Authentication Required",
         callId: message.headers["Call-ID"],
@@ -36,6 +37,14 @@ const setupCall = (
         },
       });
     }
+    const ack = signaling.send.mock.calls[0][0];
+    const original = request.mock.calls[0][0];
+    expect(ack.subject).toBe(original.subject.replace("INVITE", "ACK"));
+    expect(ack.getHeader("Via")).toBe(original.getHeader("Via"));
+    expect(ack.getHeader("Call-ID")).toBe(original.callId);
+    expect(ack.getHeader("To")).toBe("<sip:1002@example.com>;tag=remote");
+    expect(ack.getHeader("CSeq")).toBe(original.cseqFor("ACK"));
+    signaling.send.mockClear();
     progressCseq = message.headers.CSeq;
     callId = message.headers["Call-ID"];
     return progress(progressCseq, callId);
@@ -59,7 +68,7 @@ afterEach(() => {
 });
 
 describe("outbound call responses", () => {
-  test("accepts 183 with SDP followed by 200 through SipTransport", async () => {
+  test("accepts 183 with SDP followed by 200 through Softphone signaling", async () => {
     const fixture = setupCall((cseq, callId) =>
       signalingMessage({
         subject: "SIP/2.0 183 Session Progress",
@@ -79,7 +88,7 @@ describe("outbound call responses", () => {
         4000,
         "127.0.0.1",
       );
-      expect(fixture.signaling.send).not.toHaveBeenCalled();
+      expect(fixture.signaling.send).toHaveBeenCalledOnce();
     });
     const raw = vi.fn();
     session.on("answered", answered);
@@ -102,6 +111,10 @@ describe("outbound call responses", () => {
     const ok = signalingMessage({
       callId: fixture.callId(),
       cseq: fixture.progressCseq(),
+      headers: {
+        To: "<sip:1002@example.com>;tag=final",
+        Contact: "<sip:destination@192.0.2.50:5060>",
+      },
     });
     fixture.signaling.emit("message", ok);
     fixture.signaling.emit("message", ok);
@@ -109,10 +122,78 @@ describe("outbound call responses", () => {
     expect(answered).toHaveBeenCalledOnce();
     expect(fixture.signaling.send).toHaveBeenCalledOnce();
     const ack = fixture.signaling.send.mock.calls[0][0];
-    expect(ack.subject).toMatch(/^ACK /);
+    expect(ack.subject).toBe("ACK sip:destination@192.0.2.50:5060 SIP/2.0");
+    expect(ack.getHeader("To")).toBe("<sip:1002@example.com>;tag=final");
+    expect(ack.toString()).toContain("Max-Forwards: 70\r\n");
+    expect(ack.getHeader("Call-ID")).toBe(fixture.callId());
+    expect(ack.getHeader("Proxy-Authorization")).toBe(
+      fixture.request.mock.calls[1][0].getHeader("Proxy-Authorization"),
+    );
+    expect(ack.getHeader("Route")).toBe(
+      "<sip:proxy.example.com:5061;transport=tls;lr>",
+    );
+    expect(ack.getHeader("Via")).not.toBe(
+      fixture.request.mock.calls[1][0].getHeader("Via"),
+    );
     expect(ack.headers.CSeq).toBe(
       fixture.progressCseq().replace(" INVITE", " ACK"),
     );
+  });
+
+  test.each(["hangup", "revoke"])(
+    "ACK precedes an answered callback that invokes %s",
+    async (action) => {
+      const fixture = setupCall((cseq, callId) =>
+        signalingMessage({
+          subject: "SIP/2.0 183 Session Progress",
+          cseq,
+          callId,
+          body: validSdp,
+        }),
+      );
+      const session = await fixture.softphone.call("1002");
+      session.once("answered", () => {
+        expect(fixture.signaling.send.mock.calls[0][0].method).toBe("ACK");
+        if (action === "hangup") void session.hangup();
+        else fixture.softphone.revoke();
+      });
+      fixture.signaling.emit(
+        "message",
+        signalingMessage({
+          callId: fixture.callId(),
+          cseq: fixture.progressCseq(),
+        }),
+      );
+      expect(fixture.signaling.send.mock.calls[0][0].method).toBe("ACK");
+      if (action === "revoke") {
+        expect(fixture.signaling.dispose).toHaveBeenCalledOnce();
+        await session.hangup();
+      }
+      expect(fixture.socket.close).toHaveBeenCalledOnce();
+    },
+  );
+
+  test("ACKs an initial rejection before setup rejects", async () => {
+    const fixture = setupCall(() => signalingMessage());
+    fixture.request.mockImplementationOnce(async (invite) =>
+      signalingMessage({
+        subject: "SIP/2.0 403 Forbidden",
+        callId: invite.callId,
+        cseq: invite.getHeader("CSeq"),
+        headers: { To: "<sip:1002@example.com>;tag=rejected" },
+      }),
+    );
+    await expect(fixture.softphone.call("1002")).rejects.toThrow(
+      "403 Forbidden",
+    );
+    const invite = fixture.request.mock.calls[0][0];
+    const ack = fixture.signaling.send.mock.calls[0][0];
+    expect(ack.subject).toBe(invite.subject.replace("INVITE", "ACK"));
+    expect(ack.getHeader("To")).toBe("<sip:1002@example.com>;tag=rejected");
+    expect(ack.getHeader("Via")).toBe(invite.getHeader("Via"));
+    expect(ack.getHeader("CSeq")).toBe(invite.cseqFor("ACK"));
+    expect(fixture.request).toHaveBeenCalledOnce();
+    expect(fixture.socket.close).toHaveBeenCalledOnce();
   });
 
   test.each(["180 Ringing", "200 OK", "486 Busy Here"])(
@@ -264,7 +345,17 @@ describe("outbound call responses", () => {
       );
       const session = await fixture.softphone.call("1002");
       const answered = vi.fn();
-      const non2xxResponse = vi.fn();
+      const non2xxResponse = vi.fn(() => {
+        const ack = fixture.signaling.send.mock.calls.at(-1)![0];
+        const invite = fixture.request.mock.calls[1][0];
+        expect(ack.subject).toBe(invite.subject.replace("INVITE", "ACK"));
+        expect(ack.getHeader("Via")).toBe(invite.getHeader("Via"));
+        expect(ack.getHeader("Proxy-Authorization")).toBe(
+          invite.getHeader("Proxy-Authorization"),
+        );
+        expect(ack.getHeader("To")).toBe("<sip:1002@example.com>;tag=final");
+        expect(ack.getHeader("CSeq")).toBe(invite.cseqFor("ACK"));
+      });
       const disposed = vi.fn(() => {
         expect(non2xxResponse).toHaveBeenCalledOnce();
       });
@@ -295,6 +386,7 @@ describe("outbound call responses", () => {
         subject: `SIP/2.0 ${statusCode} ${reasonPhrase}`,
         callId: fixture.callId(),
         cseq: fixture.progressCseq(),
+        headers: { To: "<sip:1002@example.com>;tag=final" },
       });
       fixture.signaling.emit("message", terminal);
       fixture.signaling.emit("message", terminal);

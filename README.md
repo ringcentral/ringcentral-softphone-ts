@@ -191,7 +191,9 @@ emits `answered` for a final 2xx INVITE response. A matching final 3xx–6xx
 response emits `non2xxResponse` with the SIP status code and reason phrase and
 then disposes the session. The SDK reports the response without classifying
 it, so your application decides what 486, 487, 603, or any other status means
-for it. Later provisional (1xx) responses keep the call pending.
+for it. The SDK sends the required ACK before `answered` or
+`non2xxResponse`, so callbacks can immediately hang up or revoke signaling.
+ACK sends are fire-and-forget. Later provisional (1xx) responses keep the call pending.
 
 ```ts
 import Softphone from "ringcentral-softphone";

@@ -974,7 +974,7 @@ describe("CallSession lifecycle", () => {
     expect(fixture.signaling.send).toHaveBeenCalledOnce();
     expect(fixture.signaling.send.mock.calls[0][0].subject).toMatch(/^ACK /);
     expect(fixture.signaling.send.mock.calls[0][0].getHeader("Via")).toBe(
-      "SIP/2.0/TLS client.example.com;branch=branch",
+      request.mock.calls[1][0].getHeader("Via"),
     );
   });
 
