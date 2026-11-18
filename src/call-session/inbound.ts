@@ -7,6 +7,7 @@ class InboundCallSession extends CallSession {
   public static async answer(
     softphone: Softphone,
     inviteMessage: InboundMessage,
+    consumeInvite: () => void,
   ) {
     const media = await MediaTransport.bind(softphone.codec);
     let session: InboundCallSession | undefined;
@@ -27,6 +28,7 @@ class InboundCallSession extends CallSession {
         },
         session.sdp,
       );
+      consumeInvite();
       const ackMessage = await softphone.signaling.request(
         response,
         (message) => message.method === "ACK" && message.cseqMethod === "ACK",

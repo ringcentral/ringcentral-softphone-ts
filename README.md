@@ -173,6 +173,33 @@ operations are not queued or replayed.
 
 To reject an invite instead, call `await softphone.decline(inviteMessage)`.
 
+An incoming invitation belongs to the Softphone that emitted it and is pending
+until answered, declined, or canceled. `answer()` and `decline()` reject canceled,
+already consumed, foreign, or otherwise no-longer-pending invitations. An answer
+also rejects if the caller cancels while media is being allocated.
+
+Listen for `inviteCanceled` to dismiss the ringing UI using the exact original,
+opaque `InboundInvite` object. The SDK sends `200 OK` to CANCEL and `487 Request
+Terminated` to the pending INVITE before this event, with fire-and-forget sends.
+Cancellation does not dispose an already answered call; BYE ends that call.
+
+```ts
+import type { InboundInvite } from "ringcentral-softphone";
+
+const ringing = new Set<InboundInvite>();
+softphone.on("invite", (invite) => {
+  ringing.add(invite); // Render the ringing UI for this invitation.
+});
+softphone.on("inviteCanceled", (invite) => {
+  ringing.delete(invite); // Dismiss this invitation's ringing UI.
+});
+```
+
+Remove the invitation from your ringing UI when you answer or decline it too,
+and handle `answer()`/`decline()` rejections when a UI action races cancellation.
+These listeners should be installed before registration.
+
+
 The `invite` event is for new incoming calls. An INVITE whose exact Call-ID matches
 an established inbound or outbound call is handled internally, even if its
 To/From tags differ. It reuses the existing call session and media transport.
@@ -348,8 +375,9 @@ Unsupported changes, unusable media parameters, and missing SDP offers receive
 Offerless initial inbound calls retain their existing ACK-supplied SDP behavior;
 offerless re-INVITEs are unsupported.
 
-This applies only to tracked established sessions. It does not add pending-call
-tracking, initial INVITE deduplication, full SIP dialog/tag or forking support,
+This re-INVITE behavior applies only to tracked established sessions. Minimal
+incoming-invitation tracking supports caller cancellation before answering; it
+does not add initial INVITE deduplication, full SIP dialog/tag or forking support,
 ACK waiting/timeouts/retransmission management, or negotiation concurrency control.
 Overlapping negotiations, including local hold/unhold or signaling recovery, remain
 unhandled; the SDK adds no 491 response, negotiation queue or automatic retry.

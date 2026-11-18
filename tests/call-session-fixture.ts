@@ -3,7 +3,10 @@ import EventEmitter from "node:events";
 
 import { vi } from "vitest";
 
-import Softphone, { type SoftphoneOptions } from "../src/index.js";
+import Softphone, {
+  type InboundInvite,
+  type SoftphoneOptions,
+} from "../src/index.js";
 import { InboundMessage } from "../src/sip-message.js";
 import { SipTransport } from "../src/sip-transport.js";
 
@@ -76,4 +79,21 @@ export const signalingMessage = ({
     },
     body,
   );
+};
+
+export const presentInvite = (
+  signaling: ReturnType<typeof createSignaling>,
+  invite: InboundMessage,
+): InboundInvite => {
+  signaling.emit("message", invite);
+  return invite as unknown as InboundInvite;
+};
+
+export const registerSoftphone = async (
+  softphone: Softphone,
+  signaling: ReturnType<typeof createSignaling>,
+) => {
+  signaling.request.mockResolvedValueOnce(signalingMessage());
+  await softphone.register();
+  signaling.request.mockClear();
 };

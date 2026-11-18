@@ -13,6 +13,10 @@ const softphone = new Softphone({
 });
 softphone.enableDebugMode(); // print all SIP messages
 
+softphone.on("inviteCanceled", () => {
+  console.log("Incoming invitation canceled");
+});
+
 // detect inbound call
 softphone.on("invite", async (inviteMessage) => {
   // decline the call
@@ -20,7 +24,12 @@ softphone.on("invite", async (inviteMessage) => {
   // await softphone.decline(inviteMessage);
 
   // answer the call
-  const callSession = await softphone.answer(inviteMessage);
+  const callSession = await softphone
+    .answer(inviteMessage)
+    .catch((error: unknown) => {
+      console.error("Could not answer incoming invitation", error);
+    });
+  if (!callSession) return;
 
   // receive audio
   const writeStream = fs.createWriteStream("audio.raw");

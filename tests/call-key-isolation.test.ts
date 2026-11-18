@@ -7,11 +7,13 @@ import * as DTMF from "../src/dtmf.js";
 import { type RtpHeader, SrtpSession } from "../src/rtp/index.js";
 import type { OutboundMessage } from "../src/sip-message.js";
 import { SipTransport } from "../src/sip-transport.js";
-import type { CallSession, InboundInvite } from "../src/types.js";
+import type { CallSession } from "../src/types.js";
 import {
   createSignaling,
   createSocket,
   createSoftphone,
+  presentInvite,
+  registerSoftphone,
   signalingMessage,
   useSocket,
 } from "./call-session-fixture.js";
@@ -59,18 +61,23 @@ const createPhone = () => {
   });
   const signaling = createSignaling(request);
   const softphone = createSoftphone(signaling);
+  const ready = registerSoftphone(softphone, signaling);
   let callNumber = 0;
   const start = async (direction: "inbound" | "outbound") => {
+    await ready;
     const socket = createSocket();
     useSocket(socket);
     let session: CallSession;
     if (direction === "inbound") {
       session = await softphone.answer(
-        signalingMessage({
-          subject: "INVITE sip:1001@example.com SIP/2.0",
-          callId: `inbound-${++callNumber}`,
-          body: remoteSdp(),
-        }) as unknown as InboundInvite,
+        presentInvite(
+          signaling,
+          signalingMessage({
+            subject: "INVITE sip:1001@example.com SIP/2.0",
+            callId: `inbound-${++callNumber}`,
+            body: remoteSdp(),
+          }),
+        ),
       );
     } else {
       session = await softphone.call("1002");

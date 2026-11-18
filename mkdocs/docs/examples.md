@@ -14,6 +14,9 @@ softphone.on("invite", async (inviteMessage) => {
 await softphone.register();
 ```
 
+Handle `inviteCanceled` to dismiss ringing UI and catch `answer()` rejections
+when answering races caller cancellation. See [incoming caller cancellation](guides/call-control.md#incoming-caller-cancellation).
+
 [View `demos/inbound-call.ts`](https://github.com/ringcentral/ringcentral-softphone-ts/blob/main/demos/inbound-call.ts)
 
 ## Place a call

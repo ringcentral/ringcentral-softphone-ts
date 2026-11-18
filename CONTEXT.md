@@ -4,6 +4,9 @@ The Softphone SDK places and receives phone calls while carrying their audio and
 
 ## Language
 
+**Incoming invitation**:
+A pending opportunity to answer or decline an incoming call, ending when it is answered, declined, or canceled. An invitation is not an established call session.
+
 **Call session**:
 A live inbound or outbound phone call that owns its per-call SIP policy, coordinates its media transport, and exposes call controls and call-level events.
 _Avoid_: Media session

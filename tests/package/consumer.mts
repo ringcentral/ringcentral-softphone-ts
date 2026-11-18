@@ -72,3 +72,10 @@ const outboundFlow = async () => {
 };
 
 void outboundFlow;
+
+softphone.on("inviteCanceled", (invite) => {
+  const original: InboundInvite = invite;
+  // @ts-expect-error Incoming invitations are opaque.
+  void invite.callId;
+  void original;
+});

@@ -18,11 +18,12 @@ import {
   RequestMessage,
 } from "../src/sip-message.js";
 import { SipTransport } from "../src/sip-transport.js";
-import type { InboundInvite } from "../src/types.js";
 import {
   createSignaling,
   createSocket,
   createSoftphone,
+  presentInvite,
+  registerSoftphone,
   signalingMessage,
   useSocket,
 } from "./call-session-fixture.js";
@@ -86,9 +87,11 @@ const createAnsweredSession = async ({
   const softphone = createSoftphone(signaling);
   const socket = createSocket();
   useSocket(socket);
+  await registerSoftphone(softphone, signaling);
   const session = (await softphone.answer(
-    invite(inviteSdp) as unknown as InboundInvite,
+    presentInvite(signaling, invite(inviteSdp)),
   )) as InboundCallSession;
+  signaling.send.mockClear();
   return { request, session, signaling, socket, softphone };
 };
 
@@ -120,7 +123,6 @@ describe("CallSession lifecycle", () => {
     async (_name, body, ip, port) => {
       const fixture = await createAnsweredSession();
       fixture.request.mockResolvedValue(signalingMessage());
-      await fixture.softphone.register();
       const incoming = vi.fn();
       fixture.softphone.on("invite", incoming);
       fixture.signaling.send.mockClear();
@@ -186,7 +188,6 @@ describe("CallSession lifecycle", () => {
     async (_name, body) => {
       const fixture = await createAnsweredSession();
       fixture.request.mockResolvedValue(signalingMessage());
-      await fixture.softphone.register();
       const incoming = vi.fn();
       fixture.softphone.on("invite", incoming);
       fixture.signaling.send.mockClear();
@@ -231,7 +232,6 @@ describe("CallSession lifecycle", () => {
         `\r\na=crypto:2 AES_CM_128_HMAC_SHA1_32 inline:${remoteKey}${mediaDirection}`;
       const fixture = await createAnsweredSession({ inviteSdp: negotiated });
       fixture.request.mockResolvedValue(signalingMessage());
-      await fixture.softphone.register();
       fixture.signaling.send.mockClear();
       const compatible = `${sdp("192.0.2.20", 5000)}\r\n${updateDirection}`;
       fixture.signaling.emit("message", invite(compatible));
@@ -271,7 +271,6 @@ describe("CallSession lifecycle", () => {
     const ackSdp = `${sdp().replace(remoteKey, Buffer.alloc(30, 2).toString("base64"))}\r\na=recvonly`;
     const fixture = await createAnsweredSession({ inviteSdp: "", ackSdp });
     fixture.request.mockResolvedValue(signalingMessage());
-    await fixture.softphone.register();
     fixture.signaling.send.mockClear();
     fixture.signaling.emit("message", invite(ackSdp.replace("4000", "5000")));
     expect(fixture.signaling.send.mock.calls[0][0].statusCode).toBe(200);
@@ -297,7 +296,6 @@ describe("CallSession lifecycle", () => {
       .replace(/inline:[^\r]+$/, `inline:${alternateKey}`);
     const fixture = await createAnsweredSession({ inviteSdp: negotiated });
     fixture.request.mockResolvedValue(signalingMessage());
-    await fixture.softphone.register();
     fixture.signaling.send.mockClear();
     fixture.signaling.emit(
       "message",
@@ -322,7 +320,6 @@ describe("CallSession lifecycle", () => {
     vi.useFakeTimers();
     const fixture = await createAnsweredSession();
     fixture.request.mockResolvedValue(signalingMessage());
-    await fixture.softphone.register();
     const remote = createRemoteSrtpSession(fixture.session.sdp);
     fixture.socket.send.mockClear();
     fixture.session.streamAudio(Buffer.alloc(160));
@@ -417,7 +414,7 @@ describe("CallSession lifecycle", () => {
     );
     expect(answered).toHaveBeenCalledOnce();
     const inbound = await softphone.answer(
-      invite(sdp(), "other-call") as unknown as InboundInvite,
+      presentInvite(signaling, invite(sdp(), "other-call")),
     );
     const incoming = vi.fn();
     softphone.on("invite", incoming);
@@ -482,20 +479,19 @@ describe("CallSession lifecycle", () => {
     fixture.session.on("disposed", disposed);
 
     expect(fixture.session).toBeInstanceOf(EventEmitter);
-    expect(fixture.softphone.listenerCount("message")).toBe(1);
+    expect(fixture.softphone.listenerCount("message")).toBe(2);
     await fixture.session.hangup();
     await fixture.session.hangup();
 
     expect(fixture.signaling.send.mock.calls[0][0].subject).toMatch(/^BYE /);
     expect(disposed).toHaveBeenCalledOnce();
     expect(fixture.socket.close).toHaveBeenCalledOnce();
-    expect(fixture.softphone.listenerCount("message")).toBe(0);
+    expect(fixture.softphone.listenerCount("message")).toBe(1);
   });
 
   test("replies to remote BYE before disposal can revoke signaling", async () => {
     const fixture = await createAnsweredSession();
     fixture.request.mockResolvedValue(signalingMessage());
-    await fixture.softphone.register();
     fixture.signaling.send.mockClear();
     const bye = signalingMessage({
       subject: "BYE sip:1001@example.com SIP/2.0",
@@ -593,7 +589,7 @@ describe("CallSession lifecycle", () => {
     expect(errors).toHaveBeenCalledExactlyOnceWith(error);
     expect(disposed).toHaveBeenCalledOnce();
     expect(fixture.socket.close).toHaveBeenCalledOnce();
-    expect(fixture.softphone.listenerCount("message")).toBe(0);
+    expect(fixture.softphone.listenerCount("message")).toBe(1);
     expect(fixture.session.listenerCount("disposed")).toBe(0);
     fixture.softphone.revoke();
   });
@@ -610,9 +606,9 @@ describe("CallSession lifecycle", () => {
     const softphone = createSoftphone(signaling);
     const socket = createSocket();
     useSocket(socket);
-    const answering = softphone.answer(
-      invite(sdp()) as unknown as InboundInvite,
-    );
+    await registerSoftphone(softphone, signaling);
+    const answering = softphone.answer(presentInvite(signaling, invite(sdp())));
+    signaling.send.mockClear();
     const rejected = expect(answering).rejects.toThrow("disposed");
     await flush();
 
@@ -627,7 +623,7 @@ describe("CallSession lifecycle", () => {
     expect(signaling.send).toHaveBeenCalledOnce();
     expect(signaling.send.mock.calls[0][0].subject).toBe("SIP/2.0 200 OK");
     expect(socket.close).toHaveBeenCalledOnce();
-    expect(softphone.listenerCount("message")).toBe(0);
+    expect(softphone.listenerCount("message")).toBe(1);
     acknowledge(
       signalingMessage({
         subject: "ACK sip:1001@example.com SIP/2.0",
@@ -646,7 +642,7 @@ describe("CallSession lifecycle", () => {
 
     await expect(fixture.session.hangup()).rejects.toThrow("send failed");
     expect(fixture.session.media.disposed).toBe(false);
-    expect(fixture.softphone.listenerCount("message")).toBe(1);
+    expect(fixture.softphone.listenerCount("message")).toBe(2);
   });
 
   test("keeps the delay after each DTMF character", async () => {
@@ -705,7 +701,6 @@ describe("CallSession lifecycle", () => {
     fixture.session.on("disposed", disposed);
     fixture.softphone.on("signalingError", () => {});
     vi.mocked(SipTransport.connect).mockReturnValueOnce(replacement as never);
-    await fixture.softphone.register();
 
     fixture.signaling.emit(
       "disconnected",
@@ -737,7 +732,6 @@ describe("CallSession lifecycle", () => {
     replacement.ready.mockImplementation(() => new Promise<void>(() => {}));
     vi.mocked(SipTransport.connect).mockReturnValueOnce(replacement as never);
     fixture.request.mockResolvedValue(signalingMessage());
-    await fixture.softphone.register();
 
     fixture.signaling.emit("disconnected", new Error("disconnected"));
     await vi.advanceTimersByTimeAsync(5 * 60 * 1000 - 1);
@@ -765,7 +759,6 @@ describe("CallSession lifecycle", () => {
     );
     vi.mocked(SipTransport.connect).mockReturnValueOnce(replacement as never);
     fixture.request.mockResolvedValue(signalingMessage());
-    await fixture.softphone.register();
 
     fixture.signaling.emit("disconnected", new Error("disconnected"));
     await flush();
@@ -786,13 +779,12 @@ describe("CallSession lifecycle", () => {
     );
     vi.mocked(SipTransport.connect).mockReturnValueOnce(replacement as never);
     fixture.request.mockResolvedValue(signalingMessage());
-    await fixture.softphone.register();
 
     fixture.signaling.emit("disconnected", new Error("disconnected"));
     await flush();
     expect(replacement.request).toHaveBeenCalledTimes(2);
     const newSession = (await fixture.softphone.answer(
-      invite(sdp(), "call-after-recovery") as unknown as InboundInvite,
+      presentInvite(replacement, invite(sdp(), "call-after-recovery")),
     )) as InboundCallSession;
     expect(
       replacement.request.mock.calls.filter(([message]) =>
@@ -812,11 +804,10 @@ describe("CallSession lifecycle", () => {
     vi.useFakeTimers();
     const fixture = await createAnsweredSession();
     const secondSession = (await fixture.softphone.answer(
-      invite(sdp(), "call-456") as unknown as InboundInvite,
+      presentInvite(fixture.signaling, invite(sdp(), "call-456")),
     )) as InboundCallSession;
     fixture.request.mockResolvedValue(signalingMessage());
     await secondSession.hold();
-    await fixture.softphone.register();
     const firstSdp = fixture.session.sdp;
     const secondSdp = secondSession.sdp;
     const replacement = createSignaling(
@@ -1269,8 +1260,9 @@ describe("inbound media setup", () => {
     const socket = createSocket();
     useSocket(socket);
 
+    await registerSoftphone(softphone, signaling);
     await expect(
-      softphone.answer(invite("") as unknown as InboundInvite),
+      softphone.answer(presentInvite(signaling, invite(""))),
     ).rejects.toThrow("negotiated SDP did not contain");
     expect(socket.close).toHaveBeenCalledOnce();
     expect(signaling.listenerCount("message")).toBe(1);

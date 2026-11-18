@@ -23,6 +23,7 @@ export type InboundInvite = {
 
 export type SoftphoneEventMap = {
   invite: [invite: InboundInvite];
+  inviteCanceled: [invite: InboundInvite];
   signalingError: [error: Error];
 };
 

@@ -18,3 +18,10 @@ softphone.on("invite", (invite: InboundInvite) => {
 
 // @ts-expect-error CommonJS consumers access the constructor through `.default`.
 new packageNamespace(options);
+
+softphone.on("inviteCanceled", (invite) => {
+  const original: InboundInvite = invite;
+  // @ts-expect-error Incoming invitations are opaque.
+  void invite.callId;
+  void original;
+});

@@ -29,6 +29,13 @@ export type {
   Streamer,
 } from "./types.js";
 
+const transactionVia = (message: InboundMessage) =>
+  message
+    .getHeader("Via")
+    ?.match(/^\s*\S+\s+([^;,\s]+)[^,]*?;branch=([^;,\s]+)/)
+    ?.slice(1)
+    .join(";");
+
 class Softphone extends EventEmitter<SoftphoneEventMap> {
   /** @internal */
   public sipInfo: NormalizedSoftphoneOptions;
@@ -47,6 +54,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
   // Sessions own signaling before answer/ACK makes them established.
   private ownedCallSessions = new Set<CallSession>();
   private recoveringSessions = new Set<CallSession>();
+  private pendingInvites = new Map<InboundMessage, "pending" | "answering">();
   private registered = false;
   private revoked = false;
   private recoveryAttempt = 0;
@@ -80,6 +88,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
         session.handleReInvite(inboundMessage);
         return;
       }
+      this.pendingInvites.set(inboundMessage, "pending");
       this.signaling.send(new ResponseMessage(inboundMessage, "100 Trying"));
       this.emit("invite", inboundMessage as unknown as InboundInvite);
     });
@@ -152,6 +161,49 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
         this.signaling.send(
           new ResponseMessage(message, "481 Call/Transaction Does Not Exist"),
         );
+        return;
+      }
+      if (message.method === "CANCEL") {
+        const invite = [...this.pendingInvites.keys()].find(
+          (invite) =>
+            invite.callId !== undefined &&
+            invite.callId === message.callId &&
+            invite.cseqNumber !== undefined &&
+            invite.cseqNumber === message.cseqNumber &&
+            message.cseqMethod === "CANCEL" &&
+            invite.subject.split(" ")[1] === message.subject.split(" ")[1] &&
+            invite.getHeader("From") === message.getHeader("From") &&
+            transactionVia(invite) !== undefined &&
+            transactionVia(invite) === transactionVia(message) &&
+            invite.getHeader("To")?.replace(/;tag=[^;\s>]+/, "") ===
+              message.getHeader("To")?.replace(/;tag=[^;\s>]+/, ""),
+        );
+        if (!invite) {
+          this.signaling.send(
+            new ResponseMessage(message, "481 Call/Transaction Does Not Exist"),
+          );
+          return;
+        }
+        this.pendingInvites.delete(invite);
+        const response = new ResponseMessage(message, "200 OK");
+        for (const name of Object.keys(response.headers)) {
+          if (name.toLowerCase() === "to")
+            response.headers[name] = invite.getHeader("To")!;
+        }
+        for (const reply of [
+          response,
+          new ResponseMessage(invite, "487 Request Terminated"),
+        ]) {
+          try {
+            this.signaling.send(reply);
+          } catch (error) {
+            this.emit(
+              "signalingError",
+              error instanceof Error ? error : new Error(String(error)),
+            );
+          }
+        }
+        this.emit("inviteCanceled", invite as unknown as InboundInvite);
         return;
       }
       this.emit("message", message);
@@ -261,6 +313,7 @@ class Softphone extends EventEmitter<SoftphoneEventMap> {
       session.cancelSignalingRecoveryDeadline();
     }
     this.recoveringSessions.clear();
+    this.pendingInvites.clear();
     this.removeAllListeners();
     this.signaling.dispose();
   }
@@ -300,14 +353,32 @@ a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:${localKey}
   }
 
   public async answer(invite: InboundInvite): Promise<PublicCallSession> {
-    return InboundCallSession.answer(this, invite as unknown as InboundMessage);
+    const message = invite as unknown as InboundMessage;
+    if (this.pendingInvites.get(message) !== "pending") {
+      throw new Error("Incoming invitation is no longer pending");
+    }
+    this.pendingInvites.set(message, "answering");
+    try {
+      return await InboundCallSession.answer(this, message, () => {
+        if (!this.pendingInvites.delete(message)) {
+          throw new Error("Incoming invitation is no longer pending");
+        }
+      });
+    } catch (error) {
+      if (this.pendingInvites.get(message) === "answering")
+        this.pendingInvites.set(message, "pending");
+      throw error;
+    }
   }
 
   // decline an inbound call
   public async decline(invite: InboundInvite): Promise<void> {
-    this.signaling.send(
-      new ResponseMessage(invite as unknown as InboundMessage, "603 Decline"),
-    );
+    const message = invite as unknown as InboundMessage;
+    if (this.pendingInvites.get(message) !== "pending") {
+      throw new Error("Incoming invitation is no longer pending");
+    }
+    this.pendingInvites.delete(message);
+    this.signaling.send(new ResponseMessage(message, "603 Decline"));
   }
 
   public async call(callee: string): Promise<PublicOutboundCallSession> {
