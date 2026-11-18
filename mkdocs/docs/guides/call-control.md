@@ -55,12 +55,11 @@ to hang up.
 An incoming invitation belongs to the Softphone that emitted it and is pending
 until answered, declined, or canceled. `answer()` and `decline()` reject canceled,
 already consumed, foreign, or otherwise no-longer-pending invitations. An answer
-also rejects if the caller cancels while media is being allocated.
+also rejects if the caller cancels before answering completes.
 
 Listen for `inviteCanceled` to dismiss the ringing UI using the exact original,
-opaque `InboundInvite` object. The SDK sends `200 OK` to CANCEL and `487 Request
-Terminated` to the pending INVITE before this event, with fire-and-forget sends.
-Cancellation does not dispose an already answered call; BYE ends that call.
+opaque `InboundInvite` object. Caller cancellation applies to pending invitations;
+an established call ends through normal hangup.
 
 ```ts
 import type { InboundInvite } from "ringcentral-softphone";
@@ -100,11 +99,11 @@ A final 2xx INVITE response emits `answered` and keeps the session. A matching
 final 3xx–6xx response emits `non2xxResponse` with the SIP status code and
 reason phrase, and then the session is disposed. The SDK reports the response
 without classifying it, so your application decides what 486, 487, 603, or any
-other status means for it. The SDK sends the required ACK before `answered` or
-`non2xxResponse`, so callbacks can immediately hang up or revoke signaling.
-ACK sends are fire-and-forget. Later provisional (1xx) responses keep the call
-pending. After the peer answers, use the task-specific controls below and hang
-up when the application is finished with the call.
+other status means for it. An `answered` callback can immediately hang up, and a
+`non2xxResponse` callback can revoke signaling if the application is done.
+Provisional responses keep the call pending. After the peer answers, use the
+task-specific controls below and hang up when the application is finished with
+the call.
 
 For RingCentral-to-RingCentral calls, RingCentral may answer your leg (emitting
 `answered`) before the callee's device is presented the call. If the callee
@@ -125,11 +124,9 @@ Hang up an active call:
 await callSession.hangup();
 ```
 
-When the remote peer hangs up, the SDK sends `200 OK` to its BYE request before
-releasing the call's media and emitting `disposed`. A `disposed` callback may
-revoke signaling without preventing that reply. These sends are fire-and-forget;
-they do not wait for delivery confirmation. If sending the reply throws locally,
-the SDK reports `signalingError` and still releases the ended call.
+When the remote peer hangs up, the session releases its audio resources and
+emits `disposed`. A `disposed` callback can revoke signaling if the application
+no longer needs the registration.
 
 Transfer an active call:
 
@@ -142,17 +139,15 @@ try {
 }
 ```
 
-`transfer()` retains one `Promise<void>` for the transfer outcome. A successful
-REFER response accepts the request but does not complete the transfer. Progress
-notifications keep the Promise pending; a final successful transfer NOTIFY resolves
-it, and an explicit REFER rejection or failed transfer NOTIFY rejects it. Failure
-alone leaves the original call available unless ordinary call-ending signaling
-arrives. A new transfer can start after an explicit outcome; overlapping transfers
-are rejected.
+`transfer()` returns a `Promise<void>` that resolves when the transfer succeeds.
+Acceptance of the transfer request and progress updates do not complete it.
+An explicit request rejection or reported transfer failure rejects it. Failure
+alone leaves the original call available unless that call also ends normally.
+Disposal of the original session rejects a still-pending transfer.
 
-The SDK sends matching transfer NOTIFY replies before settling the Promise,
-including when the notification reports failure. These protocol sends remain
-fire-and-forget, with no delivery-confirmation wait. There is no transfer timeout.
+Overlapping transfers are rejected; another transfer can start after the previous
+one completes or fails. There is no built-in transfer timeout. If no final outcome
+arrives and the call remains open, the Promise can stay pending.
 
 ## Hold and unhold
 
@@ -161,8 +156,8 @@ await callSession.hold();
 await callSession.unhold();
 ```
 
-Hold temporarily stops receiving remote audio. If audio is being streamed to
-the peer, pause its `Streamer` while the call is on hold.
+Hold isolates peer audio in both directions until unhold restores it. If audio
+is being streamed to the peer, pause its `Streamer` while the call is on hold.
 
 ## Telephony session and party IDs
 
@@ -207,3 +202,19 @@ See the complete maintained
 and
 [outbound](https://github.com/ringcentral/ringcentral-softphone-ts/blob/main/demos/outbound-call.ts)
 demos.
+
+## Automatic media updates
+
+The SDK handles compatible remote media address or port updates on an existing
+call without emitting another `invite` or `answered` event. Continue using the
+same call session. Codec changes, remote encryption key changes, remote hold
+negotiation, and overlapping negotiations are not supported by this mechanism.
+Unsupported updates leave the existing media configuration unchanged.
+
+## Registration lifecycle
+
+Register before placing calls, and install inbound listeners before registering.
+Keep the registration active to receive additional calls. Hang up active calls
+before calling `softphone.revoke()` when the application is done; revocation
+closes signaling and stops automatic recovery, rather than hanging up calls.
+For connection failures, see [recovery behavior](../troubleshooting.md#connection-loss-and-recovery).

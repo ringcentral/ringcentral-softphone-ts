@@ -55,3 +55,26 @@ RingCentral does not include session and party IDs in the initial inbound
 invite. They are exposed only on outbound call sessions. For an inbound-call
 alternative, see the
 [call-ID workaround](https://github.com/tylerlong/rc-softphone-call-id-test).
+
+## Connection loss and recovery
+
+After a successful registration, the SDK automatically reconnects and registers
+again if its signaling connection fails. The connection loss and each failed
+recovery attempt emit `signalingError`:
+
+```ts
+softphone.on("signalingError", (error) => {
+  console.error("Signaling failure:", error);
+});
+```
+
+Call-control operations attempted during recovery fail immediately. Interrupted
+operations are not queued or replayed. Active audio can continue independently
+for up to five minutes while signaling recovers; continued audio does not prove
+that call controls are available. Calls are disposed when that recovery deadline
+expires. After reconnecting, a call is also disposed if restoring its signaling
+fails or receives no final response within 32 seconds. Handle `disposed` to
+clean up application state.
+
+Calling `softphone.revoke()` stops reconnection. The initial `register()` call
+rejects on failure; automatic recovery applies after a successful registration.

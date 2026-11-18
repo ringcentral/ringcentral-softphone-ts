@@ -4,13 +4,6 @@ Call sessions emit received audio and can stream a `Buffer` to the remote peer.
 The raw buffer format depends on the codec selected when constructing the
 `Softphone`.
 
-Each call independently generates fresh local SRTP key material to encrypt and
-authenticate its outgoing audio and DTMF. Keys are isolated across concurrent and
-sequential calls, including calls on different Softphone instances. The same call
-retains its key through hold/unhold, supported media destination updates, and SIP
-signaling recovery. Exposure of one call's key does not expose other calls' keys,
-but it can expose that call's captured outgoing media.
-
 ## Choose a codec
 
 | Codec | Raw input and decoded output | Playback example |

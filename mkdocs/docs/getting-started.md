@@ -122,6 +122,7 @@ import these types only when a function or stored value needs an annotation:
 import type {
   CallSession,
   InboundInvite,
+  Non2xxResponse,
   OutboundCallSession,
   SoftphoneOptions,
   Streamer,
@@ -134,8 +135,8 @@ CommonJS consumers access the constructor through the package namespace:
 const Softphone = require("ringcentral-softphone").default;
 ```
 
-Call `softphone.revoke()` when the application no longer needs the
-registration.
+Hang up active calls before calling `softphone.revoke()` when the application
+no longer needs the registration.
 
 ## Debug registration
 
@@ -152,7 +153,7 @@ softphone.enableDebugMode();
 ```
 
 Debug mode prints complete SIP exchanges, which can contain identities, phone
-numbers, call metadata, and authentication material. Do not enable it in
+numbers, call metadata, authentication material, and media encryption keys. Do not enable it in
 production or publish its output without redacting sensitive values.
 
 Custom prefixes help distinguish logs from multiple instances:

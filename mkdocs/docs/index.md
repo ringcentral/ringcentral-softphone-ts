@@ -16,8 +16,8 @@ without a browser or graphical interface.
 ## Documentation policy
 
 The repository [README](https://github.com/ringcentral/ringcentral-softphone-ts#readme)
-is the source of truth. This site organizes the same supported behavior into
-task-focused guides.
+is the quick start. This site contains the complete public API usage and behavior
+guides for SDK integrations.
 
 This project replaces the retired
 [RingCentral Softphone SDK for JavaScript](https://github.com/ringcentral/ringcentral-softphone-js)
