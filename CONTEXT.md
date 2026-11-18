@@ -15,6 +15,9 @@ A call state that isolates peer audio in both directions until unhold restores b
 The per-call channel that owns the bound UDP and SRTP lifecycle carrying audio and DTMF between the Softphone SDK and the remote peer.
 _Avoid_: Media session
 
+**Local SRTP key**:
+Secret key material used to encrypt and authenticate outgoing audio and DTMF for a single call.
+
 **SIP signaling connection**:
 The TLS connection carrying registration and call-control messages for one Softphone instance, separately from per-call media.
 
